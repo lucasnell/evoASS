@@ -1,0 +1,45 @@
+---
+title: "Negative frequency-dependent selection"
+author: "Lucas A. Nell"
+date: "10/21/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Negative frequency-dependent selection (when rare phenotypes have the highest fitness)
+is a form of balancing selection, acting to maintain genetic diversity.
+
+
+<!--- 
+
+LEFT OFF: I'm not sure about whether I can do this without using some type of
+individual-based simulations.
+And if I use individual-based simulations, then the first equation below doesn't work.
+
+-->
+
+
+
+For a given value of $\nu$, fitness is a measure of its rarity:
+
+$$
+\begin{align}
+F(\nu_i) = 1 + r_0 ~ \exp \left( { - \frac{\nu_i - \bar{\nu}}{2 V} } \right)
+\end{align}
+$$
+where $V$ is the additive genetic variance in $\nu$.
+
+
+
+
+From Northfield & Ives (2013; doi: 10.1371/journal.pbio.1001685):
+
+$$
+\begin{align}
+\nu_{t+1} &= \nu_t + \frac{V}{F} \frac{\partial F}{\partial \nu} \\
+\end{align}
+$$

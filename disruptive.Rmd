@@ -12,7 +12,9 @@ knitr::opts_chunk$set(echo = FALSE)
 suppressPackageStartupMessages(library(tidyverse))
 ```
 
-## Disruptive selection
+
+
+## Continuous trait
 
 Population growth is as follows:
 
@@ -64,5 +66,6 @@ $$
 In the above case, you can see that the mean trait value, assuming $V > 0$, reaches
 an equilibrium when the population reaches its carrying capacity $N=K$
 and when $\nu_t = 0$.
+
 
 
