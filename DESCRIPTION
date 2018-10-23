@@ -9,7 +9,14 @@ Description: Simulations for alternative stable states in evolution
 License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true
-Imports: Rcpp (>= 0.12.19)
-LinkingTo: Rcpp, RcppArmadillo
+Imports:
+    Rcpp (>= 0.12.19)
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
+Suggests:
+    knitr
 SystemRequirements: C++11
 RoxygenNote: 6.1.0
+VignetteBuilder: knitr
+Roxygen: list(markdown = TRUE)
