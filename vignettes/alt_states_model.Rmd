@@ -1,0 +1,75 @@
+---
+title: "Alternative stable states model"
+author: "Lucas A. Nell"
+date: "10/21/2018"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Alternative stable states model}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "svglite", 
+  fig.width = 6,
+  fig.height = 4,
+  echo = FALSE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+suppressPackageStartupMessages(library(tidyverse))
+```
+
+
+
+
+
+Fitness ($F$) at time $t$ is as follows:
+
+$$
+\begin{align}
+    F_t &= \exp \{ r(V_t) \left[ 1 - A(V_t) X_t \right] \} \\
+    A(V) &= A_0 + f \cdot V * C_A * (V)^t \\
+    r(V) &= r_0 + g \cdot V * C_r * (V)^t \\
+\end{align}
+$$
+
+where
+$V$ is a $1 \times 2$ vector of trait values,
+$X$ is the population abundance,
+$A_0$ is the baseline density dependence,
+$r_0$ is the baseline growth rate,
+$f$ and $g$ are $1 \times 2$ vectors containing the effects of
+traits on $A$ and $r$ respectively,
+$*$ is vector multiplication,
+and
+${}^t$ represents transpose.
+
+
+$C_A$ and $C_r$ are $2 \times 2$ matrices with diagonal elements equal to 1 and 
+non-diagonal elements equal to the non-additive effects of traits on $A$ or $r$.
+
+$$
+\begin{align}
+C_A &=
+    \begin{pmatrix}
+    1 & \eta_A \\
+    \eta_A & 1 \\
+    \end{pmatrix} \\
+C_r &=
+    \begin{pmatrix}
+    1 & \eta_r \\
+    \eta_r & 1 \\
+    \end{pmatrix} \\
+\end{align}
+$$
+
+
