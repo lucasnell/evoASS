@@ -2,11 +2,30 @@
 title: "Negative frequency-dependent selection"
 author: "Lucas A. Nell"
 date: "10/21/2018"
-output: html_document
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Negative frequency-dependent selection}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "svglite", 
+  fig.width = 6,
+  fig.height = 4,
+  echo = TRUE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+suppressPackageStartupMessages(library(tidyverse))
 ```
 
 

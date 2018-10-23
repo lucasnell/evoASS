@@ -1,0 +1,15 @@
+Package: evoASS
+Type: Package
+Title: Simulations for alternative stable states in evolution
+Version: 0.0.0.9000
+Date: 2018-10-23
+Author: Lucas Nell
+Maintainer: Lucas Nell <lucas@lucasnell.com>
+Description: Simulations for alternative stable states in evolution
+License: GPL (>=3)
+Encoding: UTF-8
+LazyData: true
+Imports: Rcpp (>= 0.12.19)
+LinkingTo: Rcpp, RcppArmadillo
+SystemRequirements: C++11
+RoxygenNote: 6.1.0

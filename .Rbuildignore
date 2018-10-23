@@ -1,0 +1,9 @@
+*\.Rproj$
+^\.Rproj\.user$
+^\.travis\.yml$
+^under\_constr$
+^data-raw$
+^_pkgdown\.yml$
+^docs$
+^README*$
+^tony\_sim\_code$
