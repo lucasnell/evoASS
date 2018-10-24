@@ -30,47 +30,41 @@ suppressPackageStartupMessages(library(tidyverse))
 
 
 
+## Note on notation
 
-
-Fitness ($F$) at time $t$ is as follows:
-
-$$
-\begin{align}
-    F_t &= \exp \{ r(V_t) \left[ 1 - A(V_t) X_t \right] \} \\
-    A(V) &= A_0 + f \cdot V * C_A * (V)^t \\
-    r(V) &= r_0 + g \cdot V * C_r * (V)^t \\
-\end{align}
-$$
-
-where
-$V$ is a $1 \times 2$ vector of trait values,
-$X$ is the population abundance,
-$A_0$ is the baseline density dependence,
-$r_0$ is the baseline growth rate,
-$f$ and $g$ are $1 \times 2$ vectors containing the effects of
-traits on $A$ and $r$ respectively,
-$*$ is vector multiplication,
+Below, $*$ is vector multiplication
 and
 ${}^t$ represents transpose.
 
 
-$C_A$ and $C_r$ are $2 \times 2$ matrices with diagonal elements equal to 1 and 
-non-diagonal elements equal to the non-additive effects of traits on $A$ or $r$.
+## Model
+
+
+Fitness for clone $i$ ($i \in \{1, \ldots, n\}$) at time $t$ ($F_{it}$) is as follows:
 
 $$
 \begin{align}
-C_A &=
-    \begin{pmatrix}
-    1 & \eta \\
-    \eta & 1 \\
-    \end{pmatrix} \\
-C_r &=
-    \begin{pmatrix}
-    1 & \zeta \\
-    \zeta & 1 \\
-    \end{pmatrix} \\
+    F_{i} &= \exp \left\{ r(V_i) - \alpha_{ii} N_i - \sum_{j \ne i}^{n}{\alpha_{ij} N_j}  \right\}\\
+    r(V_i) &= r_0 - f ~ V_i * C * (V_i)^t \\
+    \alpha_{ii} &= g ~\exp \left\{- \left[ V_i * (V_i)^t \right] \right\} \\
+    \alpha_{ij} &= g ~\exp \left\{- \left[ V_i * (V_i)^t + d ~ V_j * (V_j)^t \right] \right\} \\
+    C &=
+        \begin{pmatrix}
+            1       & \eta  \\
+            \eta    & 1     \\
+        \end{pmatrix} \\
 \end{align}
 $$
 
+where
+$V$ is an $n \times 2$ matrix of trait values for all $n$ clones,
+$V_i$ refers to the $i$th row in $V$,
+$N$ is a $1 \times n$ vector of population abundances for all lines,
+$r_0$ is the baseline growth rate,
+$f$ is the cost of the trait on the growth rate,
+$g$ is the benefit of the trait on density dependence,
+$d$ changes how the focal line is affected by other lines' trait values,
+and
+$\eta$ is the non-additive effects of traits on $r$.
 
 
