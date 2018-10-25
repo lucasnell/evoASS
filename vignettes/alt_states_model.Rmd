@@ -23,11 +23,6 @@ knitr::opts_chunk$set(
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 options(tibble.print_min = 4L, tibble.print_max = 8L)
 ```
-```{r source_Rprofile, echo = FALSE}
-if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
-suppressPackageStartupMessages(library(tidyverse))
-```
-
 
 
 ## Note on notation
@@ -66,5 +61,6 @@ $g$ is the benefit of the trait on density dependence,
 $d$ changes how the focal line is affected by other lines' trait values,
 and
 $\eta$ is the non-additive effects of traits on $r$.
+
 
 

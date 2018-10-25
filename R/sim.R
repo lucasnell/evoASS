@@ -66,8 +66,7 @@ A_VN <- function(V, N, g, d) {
 
 #' Fitness at time t.
 #'
-#' @param V List of row vectors, each containing trait values at time t (1x2 vector)
-#'     for a particular clone.
+#' @param V Matrix (dimensions: n x 2) of trait values at time t.
 #' @param N Row vector of population abundances at time t.
 #' @param f Effect of traits on growth rate.
 #' @param g Effect of traits on density dependence.

@@ -5,6 +5,21 @@ using namespace Rcpp;
 
 
 
+//' Normal distribution truncated above zero.
+//'
+//' From `http://web.michaelchughes.com/research/sampling-from-truncated-normal`
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+double trunc_rnorm_(const double& mu, const double& sigma) {
+
+    double x = trunc_rnorm__(mu, sigma);
+
+    return x;
+}
+
+
 //' r (growth rate) based on Vi (Vi = traits for clone i).
 //'
 //' @noRd
