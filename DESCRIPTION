@@ -13,7 +13,8 @@ Imports:
     Rcpp (>= 0.12.19)
 LinkingTo:
     Rcpp,
-    RcppArmadillo
+    RcppArmadillo,
+    RcppProgress
 Suggests:
     knitr
 SystemRequirements: C++11

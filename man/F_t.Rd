@@ -7,8 +7,7 @@
 F_t(V, N, f, g, C, r0, d)
 }
 \arguments{
-\item{V}{List of row vectors, each containing trait values at time t (1x2 vector)
-for a particular clone.}
+\item{V}{Matrix (dimensions: n x 2) of trait values at time t.}
 
 \item{N}{Row vector of population abundances at time t.}
 

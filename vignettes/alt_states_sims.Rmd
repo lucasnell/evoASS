@@ -25,12 +25,70 @@ options(tibble.print_min = 4L, tibble.print_max = 8L)
 ```
 ```{r source_Rprofile, echo = FALSE}
 if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
-suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages({
+    library(tidyverse)
+    library(evoASS)
+})
 ```
 
 
-```{r}
-library(evoASS)
+```{r adaptive_dynamics}
+
+sim_output <- adaptive_dynamics(
+        V0 = rep(1, 2),
+        N0 = 1,
+        f = 0.1,  # cost of the trait on the growth rate
+        g = 0.1,  # benefit of the trait on density dependence
+        eta = 0.1, #0.2,  # the non-additive effects of traits on `r`
+        r0 = 1 * 0.5,  # baseline growth rate
+        d = -0.1 * 0.25,  # changes how the focal line is affected by other lines' trait values
+        max_t = 1e4,
+        min_N = 1e-4,
+        mut_sd = 0.1,
+        mut_prob = 0.01,
+        show_progress = TRUE,
+        max_clones = 1e4)
+
+
+
+
+V <- do.call(rbind, sim_output$V)
+
+sapply(sim_output$N, length) %>% plot(type = "l")
+
+
+NVt <- 
+    data_frame(time = 1:length(sim_output$N) %>% 
+                   lapply(function(i) rep(i, length(sim_output$N[[i]]))) %>% 
+                   c(recursive = TRUE),
+               clone = c(sim_output$I, recursive = TRUE),
+               N = c(sim_output$N, recursive = TRUE)) %>% 
+    mutate(V1 = sapply(clone, function(i) sim_output$V[[i+1]][1]),
+           V2 = sapply(clone, function(i) sim_output$V[[i+1]][2])) %>% 
+    gather("trait", "value", V1:V2, factor_key = TRUE)
+N_byt <- NVt %>% 
+        group_by(time) %>% 
+        summarize(N = sum(N)) %>% 
+        ungroup()
+
+NVt %>% 
+    ggplot(aes(time, value)) +
+    geom_point(shape = 1, alpha = 0.5) +
+    facet_wrap(~ trait) +
+    theme_classic()
+
+N_byt %>% 
+    ggplot(aes(time, N)) +
+    geom_line() +
+    theme_classic()
+
+
+
+```
+
+
+```{r R_version, eval = FALSE, echo = FALSE}
+
 library(progress)
 
 
@@ -139,9 +197,6 @@ sim_env$N_byt %>%
     ggplot(aes(time, N)) +
     geom_line() +
     theme_classic()
-
-
-
 
 ```
 

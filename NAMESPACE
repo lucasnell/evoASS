@@ -2,6 +2,7 @@
 
 export(F_t)
 export(F_t_)
+export(adaptive_dynamics)
 import(methods)
 importFrom(Rcpp,evalCpp)
 useDynLib(evoASS, .registration = TRUE)

@@ -19,6 +19,23 @@ NULL
 #'
 NULL
 
+#' C++ implementation of the below function
+#'
+#'
+#' @noRd
+#'
+NULL
+
+#' Normal distribution truncated above zero.
+#'
+#' From `http://web.michaelchughes.com/research/sampling-from-truncated-normal`
+#'
+#' @noRd
+#'
+trunc_rnorm_ <- function(mu, sigma) {
+    .Call(`_evoASS_trunc_rnorm_`, mu, sigma)
+}
+
 #' Fitness at time t.
 #'
 #' @param V List of row vectors, each containing trait values at time t (1x2 vector)
@@ -56,5 +73,15 @@ F_t_ <- function(V, N, f, g, C, r0, d) {
 #'
 F_t_deriv_ <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
     .Call(`_evoASS_F_t_deriv_`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
+}
+
+#' Adaptive dynamics.
+#'
+#'
+#' @export
+#' @noRd
+#'
+adaptive_dynamics <- function(V0, N0, f = 0.1, g = 0.1, eta = 0.2, r0 = 1, d = -0.01, max_t = 1e4, min_N = 1e-4, mut_sd = 0.1, mut_prob = 0.01, show_progress = TRUE, max_clones = 1e4L) {
+    .Call(`_evoASS_adaptive_dynamics`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones)
 }
 
