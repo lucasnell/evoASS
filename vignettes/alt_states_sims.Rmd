@@ -34,50 +34,66 @@ suppressPackageStartupMessages({
 
 ```{r adaptive_dynamics}
 
-sim_output <- adaptive_dynamics(
-        V0 = rep(1, 2),
+set.seed(4)
+ad_sims <- adaptive_dynamics(
+        V0 = c(1, 1),
         N0 = 1,
         f = 0.1,  # cost of the trait on the growth rate
-        g = 0.1,  # benefit of the trait on density dependence
-        eta = 0.1, #0.2,  # the non-additive effects of traits on `r`
-        r0 = 1 * 0.5,  # baseline growth rate
-        d = -0.1 * 0.25,  # changes how the focal line is affected by other lines' trait values
-        max_t = 1e4,
-        min_N = 1e-4,
-        mut_sd = 0.1,
-        mut_prob = 0.01,
-        show_progress = TRUE,
-        max_clones = 1e4)
+        g = 0.5,  # benefit of the trait on density dependence
+        eta = 0.05 * 1,  # 0.2,  # the non-additive effects of traits on `r`
+        d = -0.001,  # changes how the focal line is affected by other lines' trait values
+        max_t = 1e4)
 
 
 
+# ad_sims %>% .[["data"]] %>% 
+#     group_by(time) %>% 
+#     summarize(N = n()) %>% 
+#     ungroup() %>% 
+#     ggplot(aes(time, N)) +
+#     geom_line()
 
-V <- do.call(rbind, sim_output$V)
-
-sapply(sim_output$N, length) %>% plot(type = "l")
-
-
-NVt <- 
-    data_frame(time = 1:length(sim_output$N) %>% 
-                   lapply(function(i) rep(i, length(sim_output$N[[i]]))) %>% 
-                   c(recursive = TRUE),
-               clone = c(sim_output$I, recursive = TRUE),
-               N = c(sim_output$N, recursive = TRUE)) %>% 
-    mutate(V1 = sapply(clone, function(i) sim_output$V[[i+1]][1]),
-           V2 = sapply(clone, function(i) sim_output$V[[i+1]][2])) %>% 
-    gather("trait", "value", V1:V2, factor_key = TRUE)
-N_byt <- NVt %>% 
-        group_by(time) %>% 
-        summarize(N = sum(N)) %>% 
-        ungroup()
-
-NVt %>% 
-    ggplot(aes(time, value)) +
+ad_sims %>%
+    .[["data"]] %>% 
+    ggplot(aes(time, value, color = trait)) +
     geom_point(shape = 1, alpha = 0.5) +
-    facet_wrap(~ trait) +
-    theme_classic()
+    scale_color_manual(values = c("dodgerblue3", "firebrick3")) +
+    ylab("Trait value") +
+    xlab("Time")
 
-N_byt %>% 
+
+
+set.seed(5)
+perterb_plot <- ad_sims %>%
+    add_perterbation(new_prop = 5,
+                     new_trait_means = c(0, 0),
+                     new_trait_sigmas = rep(0.25, 2),
+                     new_N_mean = 10, new_N_sd = 5) %>%
+    add_perterbation(new_prop = 5,
+                     new_trait_means = c(1.2, -1.6),
+                     new_trait_sigmas = rep(0.25, 2),
+                     new_N_mean = 100, new_N_sd = 5) %>%
+    .[["data"]] %>%
+    ggplot(aes(time, value, color = trait)) +
+    geom_vline(xintercept = c(1e4, 2e4), linetype = 2, color = "gray80") +
+    geom_point(shape = 1, alpha = 0.5, size = 0.25) +
+    scale_color_manual(values = c("dodgerblue3", "firebrick3")) +
+    theme(legend.position = c(0.9, 0.5)) +
+    guides(color = guide_legend("Trait:", override.aes = list(size = 2))) +
+    ylab("Trait value") +
+    xlab("Time")
+
+perterb_plot
+
+# ggsave(perterb_plot, filename = "perterb_p.pdf", width = 6, height = 4)
+
+
+
+
+ad_sims %>% .[["data"]] %>% 
+    group_by(time) %>% 
+    summarize(N = sum(N)) %>% 
+    ungroup() %>% 
     ggplot(aes(time, N)) +
     geom_line() +
     theme_classic()
@@ -85,6 +101,27 @@ N_byt %>%
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+<!---
+=========================================================================================
+=========================================================================================
+
+        R version (doesn't work well, but could
+            be useful for troubleshooting)
+
+=========================================================================================
+=========================================================================================
+-->
+
 
 
 ```{r R_version, eval = FALSE, echo = FALSE}
