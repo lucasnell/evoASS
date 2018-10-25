@@ -10,7 +10,12 @@ License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true
 Imports:
-    Rcpp (>= 0.12.19)
+    Rcpp (>= 0.12.19),
+    dplyr,
+    tidyr,
+    purrr,
+    magrittr,
+    ggplot2
 LinkingTo:
     Rcpp,
     RcppArmadillo,

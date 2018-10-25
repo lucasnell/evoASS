@@ -7,14 +7,15 @@
 using namespace Rcpp;
 
 // trunc_rnorm_
-double trunc_rnorm_(const double& mu, const double& sigma);
-RcppExport SEXP _evoASS_trunc_rnorm_(SEXP muSEXP, SEXP sigmaSEXP) {
+std::vector<double> trunc_rnorm_(const uint32_t& N, const double& mu, const double& sigma);
+RcppExport SEXP _evoASS_trunc_rnorm_(SEXP NSEXP, SEXP muSEXP, SEXP sigmaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type N(NSEXP);
     Rcpp::traits::input_parameter< const double& >::type mu(muSEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma(sigmaSEXP);
-    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_(mu, sigma));
+    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_(N, mu, sigma));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -54,14 +55,14 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// adaptive_dynamics
-List adaptive_dynamics(const arma::rowvec& V0, const double& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones);
-RcppExport SEXP _evoASS_adaptive_dynamics(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP) {
+// adaptive_dynamics_
+List adaptive_dynamics_(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
+RcppExport SEXP _evoASS_adaptive_dynamics_(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type V0(V0SEXP);
-    Rcpp::traits::input_parameter< const double& >::type N0(N0SEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::rowvec>& >::type V0(V0SEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N0(N0SEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
     Rcpp::traits::input_parameter< const double& >::type eta(etaSEXP);
@@ -73,16 +74,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type mut_prob(mut_probSEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type max_clones(max_clonesSEXP);
-    rcpp_result_gen = Rcpp::wrap(adaptive_dynamics(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones));
+    Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
+    rcpp_result_gen = Rcpp::wrap(adaptive_dynamics_(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_evoASS_trunc_rnorm_", (DL_FUNC) &_evoASS_trunc_rnorm_, 2},
+    {"_evoASS_trunc_rnorm_", (DL_FUNC) &_evoASS_trunc_rnorm_, 3},
     {"_evoASS_F_t_", (DL_FUNC) &_evoASS_F_t_, 7},
     {"_evoASS_F_t_deriv_", (DL_FUNC) &_evoASS_F_t_deriv_, 9},
-    {"_evoASS_adaptive_dynamics", (DL_FUNC) &_evoASS_adaptive_dynamics, 13},
+    {"_evoASS_adaptive_dynamics_", (DL_FUNC) &_evoASS_adaptive_dynamics_, 14},
     {NULL, NULL, 0}
 };
 

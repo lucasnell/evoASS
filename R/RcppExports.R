@@ -32,8 +32,8 @@ NULL
 #'
 #' @noRd
 #'
-trunc_rnorm_ <- function(mu, sigma) {
-    .Call(`_evoASS_trunc_rnorm_`, mu, sigma)
+trunc_rnorm_ <- function(N, mu, sigma) {
+    .Call(`_evoASS_trunc_rnorm_`, N, mu, sigma)
 }
 
 #' Fitness at time t.
@@ -78,10 +78,9 @@ F_t_deriv_ <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
 #' Adaptive dynamics.
 #'
 #'
-#' @export
 #' @noRd
 #'
-adaptive_dynamics <- function(V0, N0, f = 0.1, g = 0.1, eta = 0.2, r0 = 1, d = -0.01, max_t = 1e4, min_N = 1e-4, mut_sd = 0.1, mut_prob = 0.01, show_progress = TRUE, max_clones = 1e4L) {
-    .Call(`_evoASS_adaptive_dynamics`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones)
+adaptive_dynamics_ <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
+    .Call(`_evoASS_adaptive_dynamics_`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
 }
 
