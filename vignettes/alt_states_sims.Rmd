@@ -79,13 +79,19 @@ perterb_plot <- ad_sims %>%
     geom_point(shape = 1, alpha = 0.5, size = 0.25) +
     scale_color_manual(values = c("dodgerblue3", "firebrick3")) +
     theme(legend.position = c(0.9, 0.5)) +
-    guides(color = guide_legend("Trait:", override.aes = list(size = 2))) +
+    guides(color = guide_legend("Trait:", override.aes = list(size = 2, alpha = 1))) +
     ylab("Trait value") +
     xlab("Time")
 
+perterb_plot <- perterb_plot +
+    theme(axis.title = element_blank(),
+          axis.ticks = element_blank(),
+          axis.text = element_blank(),
+          legend.position = "none")
+
 perterb_plot
 
-# ggsave(perterb_plot, filename = "perterb_p.pdf", width = 6, height = 4)
+# ggsave(perterb_plot, filename = "perterb_p.pdf", width = 6.5, height = 4)
 
 
 
