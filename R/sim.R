@@ -266,6 +266,8 @@ add_perterbation <- function(ad_obj, new_prop,
                              new_trait_sigmas = NULL,
                              ...) {
 
+    stopifnot(new_prop >= 0)
+
     if (!inherits(ad_obj, "adaptive_dynamics")) {
         stop("ad_obj must be adaptive_dynamics object")
     }
@@ -294,19 +296,20 @@ add_perterbation <- function(ad_obj, new_prop,
     n_old_clones <- nrow(old_clones)
     n_new_clones <- round(new_prop * n_old_clones)
     # if (any(new_trait_means < 0)) stop("new_trait_means cannot be < 0")
-
     new_clones <- matrix(NA_real_, n_new_clones, ncol(old_clones))
-    for (i in 1:ncol(new_clones)) {
-        if (i %in% which_traits) {
-            j <- which(which_traits == i)
-            # new_clones[,i] <- evoASS:::trunc_rnorm_(n_new_clones,
-            #                                         new_trait_means[j],
-            #                                         new_trait_sigmas[j])
-            new_clones[,i] <- rnorm(n = n_new_clones,
-                                    mean = new_trait_means[j],
-                                    sd = new_trait_sigmas[j])
-        } else {
-            new_clones[,i] <- sample(old_clones[,i], n_new_clones, replace = TRUE)
+    if (n_new_clones > 0) {
+        for (i in 1:ncol(new_clones)) {
+            if (i %in% which_traits) {
+                j <- which(which_traits == i)
+                # new_clones[,i] <- evoASS:::trunc_rnorm_(n_new_clones,
+                #                                         new_trait_means[j],
+                #                                         new_trait_sigmas[j])
+                new_clones[,i] <- rnorm(n = n_new_clones,
+                                        mean = new_trait_means[j],
+                                        sd = new_trait_sigmas[j])
+            } else {
+                new_clones[,i] <- sample(old_clones[,i], n_new_clones, replace = TRUE)
+            }
         }
     }
 
