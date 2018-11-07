@@ -4,85 +4,95 @@
 # Quantitative genetics version
 # -----------------
 
-sc <- function(x1, x2, precision = 10^-2) {
-	flag <- F
-	if (dim(x1)[1] == dim(x2)[1]) {
-		n <- dim(x1)[1]
-		flag <- T
-		i <- 0
-		while (i < n & flag == T) {
-			flag <- F
-			i <- i + 1
-			for (j in 1:n) {
-				if (mean((x1[i, ] - x2[j, ])^2) < precision^2)
-					flag <- T
-			}
+# sc <- function(x1, x2, precision = 10^-2) {
+# 	flag <- F
+# 	if (dim(x1)[1] == dim(x2)[1]) {
+# 		n <- dim(x1)[1]
+# 		flag <- T
+# 		i <- 0
+# 		while (i < n & flag == T) {
+# 			flag <- F
+# 			i <- i + 1
+# 			for (j in 1:n) {
+# 				if (mean((x1[i, ] - x2[j, ])^2) < precision^2)
+# 					flag <- T
+# 			}
+#
+# 		}
+# 	}
+# 	return(flag)
+# }
+#
+#
+# collist <- c("black", "blue", "dark green", "red", "green", "dark orange", "gray",
+#              "deepskyblue2", "firebrick4", "darkorchid")
+# pchlist <- c(19, 22, 24, 23, 4, 8)
+#
+# traj.flag <- T
 
-		}
-	}
-	return(flag)
-}
 
+q <- 2  # number of traits
+# precision <- 0.02
+# Nthreshold <- 1e-05
+# Pthreshold <- 1e-05
 
-collist <- c("black", "blue", "dark green", "red", "green", "dark orange", "gray",
-             "deepskyblue2", "firebrick4", "darkorchid")
-pchlist <- c(19, 22, 24, 23, 4, 8)
+# Ninit <- 0.001
+# Pinit <- 0.001
 
-traj.flag <- T
-
-q <- 2
-precision <- 0.02
-Nthreshold <- 1e-05
-Pthreshold <- 1e-05
-
-Ninit <- 0.001
-Pinit <- 0.001
-
-delta.flag <- F
-delta <- 0.001
+# delta.flag <- F
+# delta <- 0.001
 nreps <- 1
 
 # turns evolution "on" with TRUE\n
 evoN <- T
 evoP <- T
 
+# Non-additive tradeoffs for increasing >1 traits
 etaN <- 0.1
 etaP <- 0.1
 
 
 # at timeDis values of N, P, V, and U are all perturbed\n
 timeAdd.long <- 120000
+timeAdd.long <- timeAdd.long / 1000  # <-- added by LAN (Nov 2018)
 
+# additive genetic variances:
 sig2N <- 10^-10
 sig2P <- 10^-10
-sdN <- 0
-sdP <- 0
-sdV <- 0
-sdU <- 0
+
+# sdN <- 0
+# sdP <- 0
+# sdV <- 0
+# sdU <- 0
 
 if (evoN) {
 	#	sig2N <- 1
 	sig2N <- 0.05
-	sdN <- 0.1
-	sdV <- 0.1
+	# sdN <- 0.1
+	# sdV <- 0.1
 }
 if (evoP) {
 	#	sig2P <- 1
 	sig2P <- 0.05
-	sdP <- 0.1
-	sdU <- 0.1
+	# sdP <- 0.1
+	# sdU <- 0.1
 }
 
-r <- 0.05
-a <- 2
-f <- 0.1
-b <- 0.05
-cc <- 1
-m <- 0.01
-g <- 0.01
+# For resource...
+r <- 0.05  # growth rate
+a <- 2     # baseline competition coefficient
+f <- 0.1   # cost of defensive traits
+b <- 0.05  # coefficient for attack rate
+# For consumer...
+cc <- 1    # growth rate
+m <- 0.01  # mortality rate
+g <- 0.01  # cost of offense
+
 
 ###################################################
 ntrial <- 4
+ntrial <- 1  # <-- added by LAN (Nov 2018)
+
 
 # These keep track of which species are extant
 Nsp.ident.vec <- rep(0, 10)
@@ -302,13 +312,17 @@ timevec.short <- timevec/(10^3)
 # plotting figure 2
 ############################
 ntrial <- 4
+ntrial <- 1  # added by LAN (Nov 2018)
+
 
 colvec <- c("black", "blue", "darkgreen", "red")
 pchvec <- 15:18
 collist <- colvec
 cex <- 1.5
 cex.lab <- 2.5
-png("Northfield et al. Fig 2 10Oct18.png", height = 1200, width = 1100)
+# Next two lines changed by LAN (Nov 2018)
+# png("Northfield et al. Fig 2 10Oct18.png", height = 1200, width = 1100)
+source(".Rprofile")
 layout(matrix(c(1, 1, 3, 4, 1, 1, 6, 5, 2, 2, 7, 8, 2, 2, 10, 9), ncol = 4))
 par(mai = c(0.8, 0.8, 0.1, 0.1), oma = c(5, 0, 0, 0))
 
