@@ -39,10 +39,11 @@ Fitness for clone $i$ ($i \in \{1, \ldots, n\}$) at time $t$ ($F_{it}$) is as fo
 
 $$
 \begin{align}
-    F_{i} &= \exp \left\{ r(V_i) - \alpha_{ii} N_i - \sum_{j \ne i}^{n}{\alpha_{ij} N_j}  \right\}\\
+    F_{i} &= \exp \left\{ r(V_i) - \alpha_{ii}(V_i) N_i - \sum_{j \ne i}^{n}{
+        \alpha_{ij}(V_i, V_j) N_j}  \right\}\\
     r(V_i) &= r_0 - f ~ V_i * C * (V_i)^t \\
-    \alpha_{ii} &= g ~\exp \left\{- V_i * (V_i)^t \right\} \\
-    \alpha_{ij} &= g ~\exp \left\{- V_i * (V_i)^t - d ~ V_j * (V_j)^t \right\} \\
+    \alpha_{ii}(V_i) &= g ~\exp \left\{- V_i * (V_i)^t \right\} \\
+    \alpha_{ij}(V_i, V_j) &= g ~\exp \left\{- V_i * (V_i)^t - d ~ V_j * (V_j)^t \right\} \\
     C &=
         \begin{pmatrix}
             1       & \eta  \\
