@@ -32,20 +32,20 @@ List adaptive_dynamics_(
         const uint32_t& max_clones,
         const uint32_t& save_every) {
 
+    if (V0.size() == 0) stop("empty V0 vector");
+    if (N0.size() == 0) stop("empty N0 vector");
+    if (V0.size() != N0.size()) stop("V0 and N0 must be the same size");
+
     // # traits:
-    uint32_t q = 2;
+    uint32_t q = V0[0].n_elem;
 
     for (uint32_t i = 0; i < V0.size(); i++) {
-        if (V0[i].n_cols != q) stop("all rows in V0 must have exactly 2 cols");
-    }
-    if (V0.size() != N0.size()) {
-        stop("V0 and N0 must be the same size");
+        if (V0[i].n_cols != q) stop("all items in V0 must have the same length / # cols");
     }
 
     arma::mat C(q, q);
     C.fill(eta);
     C.diag().fill(1);
-
 
 
     /*

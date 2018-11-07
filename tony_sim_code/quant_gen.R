@@ -91,7 +91,6 @@ g <- 0.01  # cost of offense
 
 ###################################################
 ntrial <- 4
-ntrial <- 1  # <-- added by LAN (Nov 2018)
 
 
 # These keep track of which species are extant
@@ -105,11 +104,11 @@ diag(C) <- 1
 D <- matrix(etaP, nrow = q, ncol = q)
 diag(D) <- 1
 
-commSizelist <- data.frame(rep = array(0, dim = nreps), prey = 0, pred = 0)
+commSizelist <- data.frame(rep = rep(0, nreps), prey = 0, pred = 0)
 
 graphstep <- 1
 
-timevec <- c(1:(timeAdd.long * ntrial))
+timevec <- 1:(timeAdd.long * ntrial)
 timecount <- 1
 
 commV <- list(0)
@@ -124,22 +123,33 @@ Plist.full <- array(0, c(20, length(timevec)))
 Vlist.full <- array(0, c(20, q, length(timevec)))
 Ulist.full <- array(0, c(20, q, length(timevec)))
 
+# For each trial, numbers of resources and consumers, respectively
 n.list <- c(1,2,3,4)
 p.list <- c(1,2,2,2)
 
+
+# Starting trait values for resources and consumers, respectively
+# ----------
 startV <- list(matrix(c(0.4840364, 0.4840364), ncol=q, byrow = T),
 	matrix(c(0.5093952, 0.472734, 1.446557e-05, 0.6329789), ncol=q, byrow = T),
-	matrix(c(1.457756e-13, 0.6443325, 0.6427733, 0.0522391, 0.5194171, 0.4975425), ncol = 2, byrow = T),
-	matrix(c(9.274664e-09, 0.7338789, 9.274664e-09, 0.7338789, 0.7382802, 1.216864e-08, 0.7382802, 1.640028e-05), ncol=q, byrow = T))
-
+	matrix(c(1.457756e-13, 0.6443325, 0.6427733, 0.0522391, 0.5194171, 0.4975425),
+	       ncol = q, byrow = T),
+	matrix(c(9.274664e-09, 0.7338789, 9.274664e-09, 0.7338789,
+	         0.7382802, 1.216864e-08, 0.7382802, 1.640028e-05),
+	       ncol=q, byrow = T))
 startU <- list(matrix(c(0.8851652, 0.8851652), ncol=q, byrow = T),
 	matrix(c(1.149305, 0.541385, 0.5761137, 1.1261267), ncol=q, byrow = T),
 	matrix(c(0.0524799, 1.6050365, 1.60053494, 0.05322435), ncol=q, byrow = T),
-	matrix(c(0.4458685, 1.2101178, 1.2112638, 0.4426656), ncol = 2, byrow = T))
+	matrix(c(0.4458685, 1.2101178, 1.2112638, 0.4426656), ncol = q, byrow = T))
 
+# Output files
 output <- data.frame(x = 0, y = 0, fitness = 0, trial = 0, time = 0, sp = 0)
 write.table(output, file = "V.csv", sep = ",", append = F, col.names = T, row.names = F)
 write.table(output, file = "U.csv", sep = ",", append = F, col.names = T, row.names = F)
+
+# ------------------
+# Takes ~2.5 min
+# ------------------
 
 for (trial in 1:ntrial) {
 
@@ -166,12 +176,22 @@ for (trial in 1:ntrial) {
 
 	for (time in 1:timeAdd) {
 
-		A <- a + f * diag(V %*% C %*% t(V))
+
+	    # Resource density dependence:
+	    A <- a + f * diag(V %*% C %*% t(V))
+	    # Attack rate of consumer on resource:
 		B <- b * exp(-(V^2) %*% t(U^2))
+	    # Mortality rate of consumer:
 		M <- m + g/diag(U %*% D %*% t(U))
 
+		# -----------
+		# Population-size changes:
+		# -----------
 		Nt <- N * exp(r * (1 - A * sum(N) - B %*% P))
 		Pt <- P * exp(cc * t(B) %*% N - M)
+		# -----------
+		# Trait changes:
+		# -----------
 		Vt <- V + sig2N * (-2 * r * f * sum(N) * V %*% C + 2 * r * b * V * exp(-(V^2) %*% t(U^2)) %*% (U^2 * array(P, c(p, q))))
 		Ut <- U + sig2P * (-2 * b * cc * U * exp(-(U^2) %*% t(V^2)) %*% (V^2 * array(N, c(n, q))) + 2 * g * array(1/diag(U %*% D %*% t(U))^2,
 			c(p, q)) * (U %*% D))
@@ -305,6 +325,34 @@ for (trial in 1:ntrial) {
 }
 
 timevec.short <- timevec/(10^3)
+
+
+
+
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

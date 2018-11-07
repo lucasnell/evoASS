@@ -67,17 +67,19 @@ inline double A_i_VN_(const arma::rowvec V_i,
     return A;
 }
 
-//' A (interspecific + intraspecific density dependence) based on V and N
+//' A (interspecific + intraspecific density dependence) based on V and N.
+//'
+//'
+//' It's assumed higher-level functions will control the `A` vector!
 //'
 //' @noRd
 //'
 template <typename T>
-inline T A_VN_(const std::vector<arma::rowvec>& V,
-               const std::vector<double>& N,
-               const double& g,
-               const double& d) {
-
-    T A(V.size());
+inline void A_VN_(T& A,
+                  const std::vector<arma::rowvec>& V,
+                  const std::vector<double>& N,
+                  const double& g,
+                  const double& d) {
 
     // Values of sum of squared trait values for each clone
     arma::vec W(V.size());
@@ -97,10 +99,18 @@ inline T A_VN_(const std::vector<arma::rowvec>& V,
         A[i] = intra + inter;
     }
 
-    return A;
+    return;
 }
 
-// Same as above, but fill an existing vector and using a vector of indices `I`
+
+
+
+//' Same as above, but using a vector of indices `I`.
+//'
+//' It's assumed higher-level functions will control the `A` vector.
+//'
+//' @noRd
+//'
 template <typename T>
 inline void A_VNI_(T& A,
                    const std::vector<arma::rowvec>& V,
@@ -132,8 +142,9 @@ inline void A_VNI_(T& A,
 
 
 
-//' C++ implementation of the below function
+//' Fitness at time t.
 //'
+//' @inheritParams F_t_
 //'
 //' @noRd
 //'
@@ -146,7 +157,8 @@ inline void F_t__(arma::rowvec& F,
                   const double& r0,
                   const double& d) {
 
-    arma::rowvec A = A_VN_<arma::rowvec>(V, N, g, d);
+    arma::rowvec A(V.size());
+    A_VN_<arma::rowvec>(A, V, N, g, d);
 
     for (uint32_t i = 0; i < V.size(); i++) {
         double r = r_V_(V[i], f, C, r0);
