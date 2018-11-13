@@ -2,6 +2,8 @@
 #
 # library(scatterplot3d)
 
+
+
 sc <- function(x1, x2, precision = 10^-2) {
     flag <- FALSE
     if (dim(x1)[1] == dim(x2)[1]) {
@@ -34,6 +36,7 @@ precision <- 0.1
 density.threshold <- 1e-5
 
 maxtime <- 2e+06
+maxtime <- maxtime / 100
 starttime <- 1000
 
 traj.flag <- FALSE
@@ -82,20 +85,22 @@ initP <- 0.1
 initV <- 0.1
 initU <- 1
 
-# These keep track of which species are extant
-Nsp.ident.vec <- rep(0, 10)
-Nsp.ident.vec[1] <- 1
-Psp.ident.vec <- rep(0, 10)
-Psp.ident.vec[1] <- 1
-extant.N <- 1:n
-extant.P <- 1:p
-
+# # These keep track of which species are extant
+# Nsp.ident.vec <- rep(0, 10)
+# Nsp.ident.vec[1] <- 1
+# Psp.ident.vec <- rep(0, 10)
+# Psp.ident.vec[1] <- 1
+# extant.N <- 1:n
+# extant.P <- 1:p
+#
 # etalist <- c(-.05, 0, .05, .1, .15, .2)
 
 
 deltavec <- c(0.001, 0.01, 0.1, 0.3)
 
+# start - delta loop ----
 for (delta.step in 1:length(deltavec)){
+    # delta.step = 1
 
     delta <- deltavec[delta.step]
 
@@ -104,7 +109,11 @@ for (delta.step in 1:length(deltavec)){
     num.preylist <- NULL
     num.predlist <- NULL
 
-    for (trial in 1:ntrials) {
+    # start - trial loop ----
+    # for (trial in 1:ntrials) {
+    t0 <- Sys.time()
+    for (trial in 1:5) {
+        # trial = 1
         N <- matrix(initN, nrow = n, ncol = 1)
         P <- matrix(initP, nrow = p, ncol = 1)
         V <- matrix(initV, nrow = n, ncol = q)
@@ -116,10 +125,11 @@ for (delta.step in 1:length(deltavec)){
         Ulist <- array(0, c(p, q, maxtime))
 
         for (time in 1:starttime) {
+            # time = 1
 
             A <- a + f * diag(V %*% C %*% t(V))
             B <- b * exp(-(V^2) %*% t(U^2))
-            M <- m + g/diag(U %*% D %*% t(U))
+            M <- m + g / diag(U %*% D %*% t(U))
 
             Nt <- N * exp(r * (1 - A * sum(N) - B %*% P))
             Pt <- P * exp(cc * t(B) %*% N - M)
@@ -136,8 +146,8 @@ for (delta.step in 1:length(deltavec)){
         }
 
         # perturbation
-        #N <- exp(rnorm(n=n))*N
-        #P <- exp(rnorm(n=n))*P
+        # N <- exp(rnorm(n = n)) * N
+        # P <- exp(rnorm(n = n)) * P
         V <- matrix(exp(rnorm(n = n * q, mean = 0, sd = delta)), nrow = n, ncol = q) * V
         U <- matrix(exp(rnorm(n = p * q, mean = 0, sd = delta)), nrow = p, ncol = q) * U
 
@@ -178,10 +188,21 @@ for (delta.step in 1:length(deltavec)){
         # Calculated final fitnesses and selection pressure to see if we're at equilibrium
         WN <-  exp(r * (1 - A * sum(N) - B %*% P))
         WP <- exp(cc * t(B) %*% N - M)
+
+
+        Vt <- V + sig2N * (-2 * r * f * sum(N) * V %*% C + 2 * r * b * V *
+                               exp(-(V^2) %*% t(U^2)) %*% (U^2 * array(P, c(p, q))))
         SV <- (-2 * r * f * sum(N) * V %*% C + 2 * r * b * V *
                    exp(-(V^2) %*% t(U^2)) %*% (U^2 * array(P, c(p, q))))
+
+
+        Ut <- U + sig2P * (-2 * b * cc * U * exp(-(U^2) %*% t(V^2)) %*%
+                               (V^2 * array(N, c(n, q))) + 2 * g *
+                               array(1/diag(U %*% D %*% t(U))^2, c(p, q)) * (U %*% D))
         SU <- (-2 * b * cc * U * exp(-(U^2) %*% t(V^2)) %*% (V^2 * array(N, c(n, q))) +
                    2 * g * array(1/diag(U %*% D %*% t(U))^2, c(p, q)) * (U %*% D))
+
+
         Fitness.N <- prod(WN[N>density.threshold])
         Fitness.P <- prod(WP[P>density.threshold])
 
@@ -189,39 +210,40 @@ for (delta.step in 1:length(deltavec)){
         Selection.U <- sum(SU[P>density.threshold,])
 
 
-        if (traj.flag){
+        # if (traj.flag){
+        #
+        #     pdf(paste("traj",trial,".pdf", sep=""), width=8, height=6)
+        #     par(mfcol = c(2, 1 + q))
+        #
+        #     matplot(t(Nlist[, int * (1:(dim(Nlist)[2]/int))]), type = "l",
+        #             ylab = "prey density")
+        #     matplot(t(Plist[, int * (1:(dim(Plist)[2]/int))]), type = "l",
+        #             ylab = "pred density")
+        #
+        #     for (i in 1:q) {
+        #         matplot(t(abs(Vlist[, i, int * (1:(dim(Vlist)[3]/int))])), type = "l",
+        #                 ylab = paste("prey trait", i))
+        #         matplot(t(abs(Ulist[, i, int * (1:(dim(Ulist)[3]/int))])), type = "l",
+        #                 ylab = paste("pred trait", i))
+        #     }
+        #     dev.off()
+        # }
 
-            pdf(paste("traj",trial,".pdf", sep=""), width=8, height=6)
-            par(mfcol = c(2, 1 + q))
-
-            matplot(t(Nlist[, int * (1:(dim(Nlist)[2]/int))]), type = "l",
-                    ylab = "prey density")
-            matplot(t(Plist[, int * (1:(dim(Plist)[2]/int))]), type = "l",
-                    ylab = "pred density")
-
-            for (i in 1:q) {
-                matplot(t(abs(Vlist[, i, int * (1:(dim(Vlist)[3]/int))])), type = "l",
-                        ylab = paste("prey trait", i))
-                matplot(t(abs(Ulist[, i, int * (1:(dim(Ulist)[3]/int))])), type = "l",
-                        ylab = paste("pred trait", i))
-            }
-            dev.off()
-        }
-
-        ##############################
+        ##############################*
         # truncate any values of V or U that are over 3 to 3 so that unique species
         # can be identified
         V[V>3] <- 3
         U[U>3] <- 3
-        ##############################
+        ##############################*
 
         # find unique species.
         unique.prey <- 1:n
-        for(i in 1:(n - 1)) for(j in (i+1):n) {
+        for (i in 1:(n - 1)) for(j in (i+1):n) {
             if (sc(matrix(V[i,], nrow=1), matrix(V[j,], nrow=1), precision)) {
                 unique.prey[j] <- 0
             }
         }
+
         unique.prey <- unique.prey[unique.prey > 0 & N > density.threshold]
         U[P < density.threshold,] <- 100
         unique.pred <- 1:p
@@ -241,10 +263,10 @@ for (delta.step in 1:length(deltavec)){
         num.prey.pred <- c(trial, num.prey, num.pred)
         show(num.prey.pred)
 
-        if(num.prey > 0) {
+        if (num.prey > 0) {
             preylist <- rbind(preylist, matrix(c(array(trial, dim = num.prey),
                                                  V[unique.prey, ]),nrow=num.prey))
-        }else{
+        } else{
             preylist <- rbind(preylist, matrix(c(trial, array(NA, dim = q)),nrow=1))
         }
         predlist <- rbind(predlist, matrix(c(array(trial, dim = num.pred),
@@ -253,6 +275,8 @@ for (delta.step in 1:length(deltavec)){
         num.preylist <- rbind(num.preylist,num.prey)
         num.predlist <- rbind(num.predlist,num.prey)
     }
+    Sys.time() - t0; rm(t0)
+    # end - trial loop ----
 
     preylist <- matrix(preylist, ncol=4)
     predlist <- matrix(predlist, ncol=4)
@@ -341,6 +365,7 @@ for (delta.step in 1:length(deltavec)){
     }
 
 }
+# end - delta loop ----
 
 
 
@@ -350,12 +375,11 @@ for (delta.step in 1:length(deltavec)){
 
 
 
-
-# ######################################################################
-# ######################################################################
+# ######################################################################*
+# ######################################################################*
 # # data analysis
-# ######################################################################
-# ######################################################################
+# ######################################################################*
+# ######################################################################*
 #
 # d <- read.table(file="output unique coev instant  etaN3_etaP2_22Oct18_multdelta.csv",
 #                 sep=',', header = T)
