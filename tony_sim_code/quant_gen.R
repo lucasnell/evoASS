@@ -37,7 +37,6 @@ precision <- 0.1
 density.threshold <- 1e-5
 
 maxtime <- 2e+06
-maxtime <- maxtime / 100
 starttime <- 1000
 
 traj.flag <- FALSE
@@ -99,6 +98,11 @@ initU <- 1
 
 deltavec <- c(0.001, 0.01, 0.1, 0.3)
 
+
+# ntrials <- ntrials / 10
+maxtime <- maxtime / 100
+
+
 # start - delta loop ----
 for (delta.step in 1:length(deltavec)){
     # delta.step = 1
@@ -111,19 +115,18 @@ for (delta.step in 1:length(deltavec)){
     num.predlist <- NULL
 
     # start - trial loop ----
-    # for (trial in 1:ntrials) {
     t0 <- Sys.time()
-    for (trial in 1:5) {
+    for (trial in 1:ntrials) {
         # trial = 1
         N <- matrix(initN, nrow = n, ncol = 1)
         P <- matrix(initP, nrow = p, ncol = 1)
         V <- matrix(initV, nrow = n, ncol = q)
         U <- matrix(initU, nrow = p, ncol = q)
 
-        Nlist <- array(0, c(n, maxtime))
-        Plist <- array(0, c(p, maxtime))
-        Vlist <- array(0, c(n, q, maxtime))
-        Ulist <- array(0, c(p, q, maxtime))
+        # Nlist <- array(0, c(n, maxtime))
+        # Plist <- array(0, c(p, maxtime))
+        # Vlist <- array(0, c(n, q, maxtime))
+        # Ulist <- array(0, c(p, q, maxtime))
 
         for (time in 1:starttime) {
             # time = 1
@@ -180,10 +183,10 @@ for (delta.step in 1:length(deltavec)){
             # catch low values of U
             # U[U < 10^-4] <- 10^-4
 
-            Nlist[, time] <- N
-            Plist[, time] <- P
-            Vlist[, , time] <- V
-            Ulist[, , time] <- U
+            # Nlist[, time] <- N
+            # Plist[, time] <- P
+            # Vlist[, , time] <- V
+            # Ulist[, , time] <- U
         }
 
         # Calculated final fitnesses and selection pressure to see if we're at equilibrium
@@ -291,17 +294,17 @@ for (delta.step in 1:length(deltavec)){
                               tr3=predlist[,4], Fitness.N=Fitness.N, Fitness.P=Fitness.P,
                               Selection.V=Selection.V,Selection.U=Selection.U)
     output <- rbind(output.prey, output.pred)
-    if(delta.step ==1) {
-        write.table(file="output coev instant etaN3_etaP2_22Oct18.csv", row.names = F,
-                    output, sep=',', col.names = T)
-    }else{
-        write.table(file="output coev instant etaN3_etaP2_22Oct18.csv", row.names = F,
-                    output, sep=',', col.names = F, append=T)
-    }
+    # if(delta.step ==1) {
+    #     write.table(file="output coev instant etaN3_etaP2_22Oct18.csv", row.names = F,
+    #                 output, sep=',', col.names = T)
+    # }else{
+    #     write.table(file="output coev instant etaN3_etaP2_22Oct18.csv", row.names = F,
+    #                 output, sep=',', col.names = F, append=T)
+    # }
 
     preylist[is.na(preylist)] <- 1
 
-    # find unique communitiesprecision <- 10^-2
+    # find unique communities w/ precision <- 10^-2
     unique.prey.coms <- 1:ntrials
     for (i in 1:(ntrials - 1)) for (j in (i + 1):ntrials) {
         if (sc(matrix(preylist[preylist[, 1] == i, 2:4], ncol=3),
@@ -357,13 +360,13 @@ for (delta.step in 1:length(deltavec)){
                               tr3=predlist[,4],Fitness.N=Fitness.N, Fitness.P=Fitness.P,
                               Selection.V=Selection.V,Selection.U=Selection.U)
     output <- rbind(output.prey, output.pred)
-    if (delta.step == 1) {
-        write.table(file="output unique coev instant  etaN3_etaP2_22Oct18_multdelta.csv",
-                    row.names = F, output, sep=',', col.names = T)
-    } else{
-        write.table(file="output unique coev instant  etaN3_etaP2_22Oct18_multdelta.csv",
-                    row.names = F, output, sep=',', col.names = F, append=T)
-    }
+    # if (delta.step == 1) {
+    #     write.table(file="output unique coev instant  etaN3_etaP2_22Oct18_multdelta.csv",
+    #                 row.names = F, output, sep=',', col.names = T)
+    # } else{
+    #     write.table(file="output unique coev instant  etaN3_etaP2_22Oct18_multdelta.csv",
+    #                 row.names = F, output, sep=',', col.names = F, append=T)
+    # }
 
 }
 # end - delta loop ----
