@@ -275,12 +275,12 @@ void one_trial(TrialInfo& out_resource,
     // perturbation
     for (uint32_t j = 0; j < q; j++) {
         for (uint32_t i = 0; i < n; i++) {
-            // V(i, j) *= distr(eng);
-            V(i, j) *= R::rlnorm(0, delta);
+            V(i, j) *= distr(eng);
+            // V(i, j) *= R::rlnorm(0, delta);
         }
         for (uint32_t i = 0; i < q; i++) {
-            // U(i, j) *= distr(eng);
-            U(i, j) *= R::rlnorm(0, delta);
+            U(i, j) *= distr(eng);
+            // U(i, j) *= R::rlnorm(0, delta);
         }
     }
     // Not sure why, but it now gets changed to a different SD:
@@ -291,12 +291,12 @@ void one_trial(TrialInfo& out_resource,
         if (t == (max_t / 2)) {
             for (uint32_t j = 0; j < q; j++) {
                 for (uint32_t i = 0; i < n; i++) {
-                    // V(i, j) *= distr(eng);
-                    V(i, j) *= R::rlnorm(0, 0.3);
+                    V(i, j) *= distr(eng);
+                    // V(i, j) *= R::rlnorm(0, 0.3);
                 }
                 for (uint32_t i = 0; i < q; i++) {
-                    // U(i, j) *= distr(eng);
-                    U(i, j) *= R::rlnorm(0, 0.3);
+                    U(i, j) *= distr(eng);
+                    // U(i, j) *= R::rlnorm(0, 0.3);
                 }
             }
         }
