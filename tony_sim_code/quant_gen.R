@@ -2,6 +2,7 @@
 #
 # library(scatterplot3d)
 
+# Rcpp::sourceCpp("tony_sim_code/quant_gen_cr.cpp")
 
 
 sc <- function(x1, x2, precision = 10^-2) {
