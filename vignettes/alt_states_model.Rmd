@@ -29,7 +29,7 @@ options(tibble.print_min = 4L, tibble.print_max = 8L)
 
 Below, $*$ is vector multiplication
 and
-${}^t$ represents transpose.
+${}^T$ represents transpose.
 
 
 ## Model
@@ -41,9 +41,9 @@ $$
 \begin{align}
     F_{i} &= \exp \left\{ r(V_i) - \alpha_{ii}(V_i) N_i - \sum_{j \ne i}^{n}{
         \alpha_{ij}(V_i, V_j) N_j}  \right\}\\
-    r(V_i) &= r_0 - f ~ V_i * C * (V_i)^t \\
-    \alpha_{ii}(V_i) &= g ~\exp \left\{- V_i * (V_i)^t \right\} \\
-    \alpha_{ij}(V_i, V_j) &= g ~\exp \left\{- V_i * (V_i)^t - d ~ V_j * (V_j)^t \right\} \\
+    r(V_i) &= r_0 - f ~ V_i * C * V_i^T \\
+    \alpha_{ii}(V_i) &= g ~\exp \left\{- V_i * V_i^T \right\} \\
+    \alpha_{ij}(V_i, V_j) &= g ~\exp \left\{- V_i * V_i^T - d ~ V_j * V_j^T \right\} \\
     C &=
         \begin{pmatrix}
             1       & \eta  \\
@@ -53,8 +53,8 @@ $$
 $$
 
 where
-$V$ is an $n \times 2$ matrix of trait values for all $n$ clones,
-$V_i$ refers to the $i$th row in $V$,
+$V$ is an $n \times q$ matrix of trait values for all $n$ clones,
+$V_i$ is a $1 \times q$ vector referring to the $i$th row in $V$,
 $N$ is a $1 \times n$ vector of population abundances for all lines,
 $r_0$ is the baseline growth rate,
 $f$ is the cost of the trait on the growth rate,
@@ -63,5 +63,24 @@ $d$ changes how the focal line is affected by other lines' trait values,
 and
 $\eta$ is the non-additive effects of traits on $r$.
 
+
+
+# Adaptive dynamics
+
+From Tobin and Tony's paper:
+
+> The model is initiated with single resource and consumer clones, and with 
+> probability 0.01 each iteration, a clone gives rise to a daughter clone by
+> selecting trait values from normal distributions with means given by the
+> mother's trait values and standard deviation $\sigma$. The density of each clone is
+> given by equations (1) or (2), and clones that drop below a density of 0.0001
+> are assumed to go extinct.
+
+I did the same thing but started with one competitor and used the equations above
+for densities.
+
+
+
+# Quantitative genetics
 
 
