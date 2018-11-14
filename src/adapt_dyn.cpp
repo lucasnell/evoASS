@@ -1,5 +1,6 @@
 
 #include <RcppArmadillo.h>
+#include <random>
 #include <progress.hpp>
 #include <progress_bar.hpp>
 
@@ -35,6 +36,10 @@ List adaptive_dynamics_(
     if (V0.size() == 0) stop("empty V0 vector");
     if (N0.size() == 0) stop("empty N0 vector");
     if (V0.size() != N0.size()) stop("V0 and N0 must be the same size");
+
+    // RNG
+    pcg32 eng = seeded_pcg();
+    std::normal_distribution<double> distr(0, 1); // can remove if using truncated version
 
     // # traits:
     uint32_t q = V0[0].n_elem;
@@ -135,10 +140,11 @@ List adaptive_dynamics_(
         }
 
         // Seeing if I should add new clones:
-        uint32_t n_clones = N.size(); // doing this bc N.size() might change
+        uint32_t n_clones = N.size(); // doing this bc N.size() might increase
         for (uint32_t i = 0; i < n_clones; i++) {
 
-            double u = R::runif(0, 1);
+            // double u = R::runif(0, 1);
+            double u = runif_01(eng);
 
             if (u < mut_prob) {
 
@@ -153,8 +159,9 @@ List adaptive_dynamics_(
                 arma::rowvec& new_V(all_V.back());
                 arma::rowvec& old_V(all_V[I[i]]);
                 for (uint32_t j = 0; j < q; j++) {
-                    // new_V(j) = trunc_rnorm__(old_V(j), mut_sd);
-                    new_V(j) = R::rnorm(old_V(j), mut_sd);
+                    // new_V(j) = R::rnorm(old_V(j), mut_sd);
+                    // new_V(j) = trunc_rnorm__(old_V(j), mut_sd, eng);
+                    new_V(j) = distr(eng) * mut_sd + old_V(j);
                 }
 
             }
