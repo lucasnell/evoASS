@@ -3,7 +3,7 @@
 
 
 #include <RcppArmadillo.h>
-
+#include "pcg.hpp"
 
 using namespace Rcpp;
 
@@ -23,6 +23,19 @@ inline double trunc_rnorm__(const double& mu, const double& sigma) {
 }
 
 
+inline double trunc_rnorm__(const double& mu, const double& sigma, pcg32& eng) {
+
+    double a_bar = (0 - mu) / sigma;
+
+    double p = R::pnorm5(a_bar, 0, 1, 1, 0);
+    double u = runif_ab(eng, p, 1);
+
+    double x = R::qnorm5(u, 0, 1, 1, 0);
+    x = x * sigma + mu;
+
+    return x;
+}
+
 
 
 //' r (growth rate) based on Vi (Vi = traits for clone i).
@@ -40,7 +53,9 @@ inline double r_V_(const arma::rowvec& Vi,
 }
 
 
-//' A (interspecific + intraspecific density dependence) for line i based on V and N
+//' A (interspecific + intraspecific density dependence) for line i based on V and N.
+//'
+//' This version is only used for `F_t_deriv_` fxn.
 //'
 //' @noRd
 //'
@@ -52,16 +67,17 @@ inline double A_i_VN_(const arma::rowvec V_i,
                       const double& d) {
 
     // Values of sum of squared trait values for each clone
-    arma::vec W(V_nei.size() + 1);
-    W(0) = arma::as_scalar(V_i * V_i.t());
+    std::vector<double> W;
+    W.reserve(V_nei.size() + 1);
+    W.push_back(arma::as_scalar(V_i * V_i.t()));
     for (uint32_t j = 0; j < V_nei.size(); j++) {
-        W(j+1) = arma::as_scalar(V_nei[j] * V_nei[j].t());
+        W.push_back(arma::as_scalar(V_nei[j] * V_nei[j].t()));
     }
 
     // Effects of intra- and inter-specific competition
-    double A = g * std::exp(-1 * W(0)) * N_i; // intra
+    double A = g * std::exp(-1 * W[0]) * N_i; // intra
     for (uint32_t j = 0; j < V_nei.size(); j++) {
-        A += (g * std::exp(-1 * (W(0) + d * W(j+1))) * N_nei[j]);
+        A += (g * std::exp(-1 * (W[0] + d * W[j+1])) * N_nei[j]);
     }
 
     return A;
@@ -70,7 +86,7 @@ inline double A_i_VN_(const arma::rowvec V_i,
 //' A (interspecific + intraspecific density dependence) based on V and N.
 //'
 //'
-//' It's assumed higher-level functions will control the `A` vector!
+//' It's assumed higher-level functions will control the `A` vector size!
 //'
 //' @noRd
 //'
@@ -82,19 +98,19 @@ inline void A_VN_(T& A,
                   const double& d) {
 
     // Values of sum of squared trait values for each clone
-    arma::vec W(V.size());
+    std::vector<double> W;
+    W.reserve(V.size());
     for (uint32_t j = 0; j < V.size(); j++) {
-        W(j) = arma::as_scalar(V[j] * V[j].t());
+        W.push_back(arma::as_scalar(V[j] * V[j].t()));
     }
 
     for (uint32_t i = 0; i < V.size(); i++) {
-
         // Effects of intra- and inter-specific competition
-        double intra = g * std::exp(-1 * W(i)) * N[i];
+        double intra = g * std::exp(-1 * W[i]) * N[i];
         double inter = 0;
         for (uint32_t j = 0; j < V.size(); j++) {
             if (j == i) continue;
-            inter += (g * std::exp(-1 * (W(i) + d * W(j))) * N[j]);
+            inter += (g * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
         }
         A[i] = intra + inter;
     }
@@ -120,9 +136,10 @@ inline void A_VNI_(T& A,
                    const double& d) {
 
     // Values of sum of squared trait values for each clone
-    std::vector<double> W(I.size());
+    std::vector<double> W;
+    W.reserve(I.size());
     for (uint32_t i = 0; i < I.size(); i++) {
-        W[i] = arma::as_scalar(V[I[i]] * V[I[i]].t());
+        W.push_back(arma::as_scalar(V[I[i]] * V[I[i]].t()));
     }
 
     for (uint32_t i = 0; i < I.size(); i++) {
@@ -148,7 +165,8 @@ inline void A_VNI_(T& A,
 //'
 //' @noRd
 //'
-inline void F_t__(arma::rowvec& F,
+template <typename T>
+inline void F_t__(T& F,
                   const std::vector<arma::rowvec>& V,
                   const std::vector<double>& N,
                   const double& f,
@@ -157,12 +175,12 @@ inline void F_t__(arma::rowvec& F,
                   const double& r0,
                   const double& d) {
 
-    arma::rowvec A(V.size());
-    A_VN_<arma::rowvec>(A, V, N, g, d);
+    std::vector<double> A(V.size());
+    A_VN_<std::vector<double>>(A, V, N, g, d);
 
     for (uint32_t i = 0; i < V.size(); i++) {
         double r = r_V_(V[i], f, C, r0);
-        F(i) = std::exp(r - A(i));
+        F[i] = std::exp(r - A[i]);
     }
 
     return;

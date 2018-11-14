@@ -57,7 +57,7 @@ arma::rowvec F_t_(const std::vector<arma::rowvec>& V,
 
     arma::rowvec F(V.size());
 
-    F_t__(F, V, N, f, g, C, r0, d);
+    F_t__<arma::rowvec>(F, V, N, f, g, C, r0, d);
 
     return F;
 }
