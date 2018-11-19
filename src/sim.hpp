@@ -186,6 +186,15 @@ inline void F_t__(T& F,
     return;
 }
 
+double F_t_deriv_(const arma::rowvec V_i,
+                  const std::vector<arma::rowvec>& V_nei,
+                  const double& N_i,
+                  const std::vector<double>& N_nei,
+                  const double& f,
+                  const double& g,
+                  const arma::mat& C,
+                  const double& r0,
+                  const double& d);
 
 
 #endif

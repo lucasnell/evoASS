@@ -23,6 +23,63 @@ using namespace Rcpp;
  that should be more than you would ever expect to be produced sequentially.
  */
 
+//[[Rcpp::export]]
+arma::rowvec dF_dVi(const arma::rowvec& V_i,
+                    const std::vector<arma::rowvec>& V_nei,
+                    const double& N_i,
+                    const std::vector<double>& N_nei,
+                    const double& f,
+                    const double& g,
+                    const arma::mat& C,
+                    const double& r0,
+                    const double& d) {
+
+    if (N_nei.size() != V_nei.size()) stop("N_nei.size() != V_nei.size()");
+    if (V_i.n_elem != V_nei[0].n_elem) stop("V_i.n_elem != V_nei[0].n_elem");
+    if (C.n_cols != V_i.n_elem || C.n_rows != V_i.n_elem) {
+        stop("C.n_cols != V_i.n_elem || C.n_rows != V_i.n_elem");
+    }
+
+    double F = F_t_deriv_(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
+
+    arma::rowvec tmp_v(V_i.n_elem, arma::fill::zeros);
+    for (uint32_t j = 0; j < V_nei.size(); j++) {
+        const arma::rowvec& V_j(V_nei[j]);
+        double tmp_dbl = std::exp(- arma::as_scalar(V_i * V_i.t()) -
+                                  d * arma::as_scalar(V_j * V_j.t()));
+        tmp_dbl *= N_nei[j];
+        arma::rowvec tmp_v2 = tmp_dbl * (-2 * V_i - 2 * d * V_j);
+        tmp_v += tmp_v2;
+    }
+
+    arma::rowvec output = (-f * V_i * (C + C.t())) - g * (
+        std::exp(arma::as_scalar(- V_i * V_i.t())) *
+        -2 * V_i -
+        tmp_v
+    );
+
+    output *= F;
+
+    return output;
+
+}
+
+// double F_t_deriv_(const arma::rowvec V_i,
+//                   const std::vector<arma::rowvec>& V_nei,
+//                   const double& N_i,
+//                   const std::vector<double>& N_nei,
+//                   const double& f,
+//                   const double& g,
+//                   const arma::mat& C,
+//                   const double& r0,
+//                   const double& d) {
+//
+//     double A = A_i_VN_(V_i, V_nei, N_i, N_nei, g, d);
+//     double r = r_V_(V_i, f, C, r0);
+//     double F = std::exp(r - A);
+//     return F;
+// }
+
 
 
 //' One round of quantitative genetics.
@@ -42,7 +99,6 @@ void one_quantgen_rep(OneRepInfo& info,
                       const double& d,
                       const double& add_var,
                       const double& delta,
-                      const double& delta2,
                       const uint32_t& start_t,
                       const uint32_t& max_t,
                       const double& min_N,
@@ -50,98 +106,36 @@ void one_quantgen_rep(OneRepInfo& info,
                       pcg32& eng) {
 
 
-    uint32_t n = N0.size();     // # species
-    uint32_t q = V0[0].n_elem;  // # traits
-
     if (save_every > 0) {
         info = OneRepInfo(N0, V0, max_t, save_every);
     } else {
         info = OneRepInfo(N0, V0);
     }
-    std::vector<arma::rowvec>& V(info.V);
-    std::vector<double>& N(info.N);
-    std::vector<double> A(V.size());
+
+    bool all_gone = false;
+    std::lognormal_distribution<double> distr(0.0, delta);
 
     for (uint32_t t = 0; t < start_t; t++) {
 
-        /*
-         LEFT OFF --> TURN THIS INTO YOUR VERSION OF THE QUANTITATIVE GENETICS
-         */
-
-        // Fill in density dependences:
-        A_VN_<std::vector<double>>(A, V, N, g, d);
-        // Fill in abundances:
-        for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_(V[i], f, C, r0);
-            N[i] *= std::exp(r - A[i]);
-        }
-        // // attack rates of consumer-->resources (<# resources> x <# consumers>):
-        // B = b * arma::exp(-(V % V) * (U.t() % U.t()));
-        // // consumer mortality rate  (<# consumers> x 1):
-        // M = m + g / arma::diagvec(U * D * U.t());
-        // // New resources' abundances (<# resources> x 1)
-        // Nt = N % arma::exp(r * (1 - A * arma::accu(N) - B * P));
-        // // New consumers' abundances (<# consumers> x 1)
-        // Pt = P % arma::exp(c * B.t() * N - M);
-        //
-        // // Traits for each resource (<# resources> x <# resources' traits>):
-        // set_Vt_(Vt, V, U, N, P, C, r, f, b, sig2N, p, q);
-        // // Traits for each consumer (<# consumers> x <# consumers' traits>)
-        // set_Ut_(Ut, V, U, N, D, b, c, g, sig2P, n, p, q);
-        //
-        // // Setting new values:
-        // N = Nt;
-        // P = Pt;
-        // V = arma::abs(Vt);
-        // U = arma::abs(Ut);
+        // Update abundances and traits:
+        all_gone = info.iterate(f, g, C, r0, d, min_N, true);
+        if (all_gone) return;
 
     }
 
-    // perturbation
-    for (uint32_t j = 0; j < q; j++) {
-        for (uint32_t i = 0; i < n; i++) {
-            V(i, j) *= distr(eng);
-            // V(i, j) *= R::rlnorm(0, delta);
-        }
-        for (uint32_t i = 0; i < q; i++) {
-            U(i, j) *= distr(eng);
-            // U(i, j) *= R::rlnorm(0, delta);
-        }
-    }
-
-
+    // perturb trait values
+    info.perturb(eng, distr);
 
     for (uint32_t t = 0; t < max_t; t++) {
 
-        // Fill in density dependences:
-        A_VN_<std::vector<double>>(A, V, N, g, d);
+        // Update abundances and traits:
+        all_gone = info.iterate(f, g, C, r0, d, min_N, true);
+        if (all_gone) return;
 
-        // Extinct clones (if any):
-        std::vector<uint32_t> extinct;
-        // Fill in abundances:
-        for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_(V[i], f, C, r0);
-            N[i] *= std::exp(r - A[i]);
-            // See if it goes extinct:
-            if (N[i] < min_N) {
-                extinct.push_back(i);
+        if (save_every > 0) {
+            if ((t+1) % save_every == 0 || (t+1) == max_t) {
+                info.save_time(t);
             }
-        }
-        // If everything is gone, stop simulations:
-        if (extinct.size() == N.size()) break;
-
-        // Remove extinct clones (starting at the back):
-        for (uint32_t i = 0, j; i < extinct.size(); i++) {
-            j = extinct.size() - i - 1;
-            N.erase(N.begin() + extinct[j]);
-            V.erase(V.begin() + extinct[j]);
-            A.erase(A.begin() + extinct[j]);
-        }
-
-        if ((t+1) % save_every == 0 || (t+1) == max_t) {  // <-- use this, not quant_gen way
-            // all_N.push_back(N);
-            // all_I.push_back(I);
-            // all_t.push_back(t);
         }
 
     }
