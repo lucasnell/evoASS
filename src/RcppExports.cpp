@@ -98,25 +98,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// F_t_deriv_cx_
-arma::cx_double F_t_deriv_cx_(const arma::cx_rowvec V_i, const std::vector<arma::cx_rowvec>& V_nei, const arma::cx_double& N_i, const std::vector<arma::cx_double>& N_nei, const arma::cx_double& f, const arma::cx_double& g, const arma::cx_mat& C, const arma::cx_double& r0, const arma::cx_double& d);
-RcppExport SEXP _evoASS_F_t_deriv_cx_(SEXP V_iSEXP, SEXP V_neiSEXP, SEXP N_iSEXP, SEXP N_neiSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::cx_rowvec >::type V_i(V_iSEXP);
-    Rcpp::traits::input_parameter< const std::vector<arma::cx_rowvec>& >::type V_nei(V_neiSEXP);
-    Rcpp::traits::input_parameter< const arma::cx_double& >::type N_i(N_iSEXP);
-    Rcpp::traits::input_parameter< const std::vector<arma::cx_double>& >::type N_nei(N_neiSEXP);
-    Rcpp::traits::input_parameter< const arma::cx_double& >::type f(fSEXP);
-    Rcpp::traits::input_parameter< const arma::cx_double& >::type g(gSEXP);
-    Rcpp::traits::input_parameter< const arma::cx_mat& >::type C(CSEXP);
-    Rcpp::traits::input_parameter< const arma::cx_double& >::type r0(r0SEXP);
-    Rcpp::traits::input_parameter< const arma::cx_double& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(F_t_deriv_cx_(V_i, V_nei, N_i, N_nei, f, g, C, r0, d));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_evoASS_adaptive_dynamics_", (DL_FUNC) &_evoASS_adaptive_dynamics_, 14},
@@ -124,7 +105,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_evoASS_trunc_rnorm_", (DL_FUNC) &_evoASS_trunc_rnorm_, 3},
     {"_evoASS_F_t_", (DL_FUNC) &_evoASS_F_t_, 7},
     {"_evoASS_F_t_deriv_", (DL_FUNC) &_evoASS_F_t_deriv_, 9},
-    {"_evoASS_F_t_deriv_cx_", (DL_FUNC) &_evoASS_F_t_deriv_cx_, 9},
     {NULL, NULL, 0}
 };
 

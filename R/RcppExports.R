@@ -72,7 +72,3 @@ F_t_deriv_ <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
     .Call(`_evoASS_F_t_deriv_`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
 }
 
-F_t_deriv_cx_ <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
-    .Call(`_evoASS_F_t_deriv_cx_`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
-}
-

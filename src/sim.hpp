@@ -52,15 +52,6 @@ inline double r_V_(const arma::rowvec& Vi,
     return r;
 }
 
-inline arma::cx_double r_V_(const arma::cx_rowvec& Vi,
-                   const arma::cx_double& f,
-                   const arma::cx_mat& C,
-                   const arma::cx_double& r0) {
-
-    arma::cx_double r = r0 - f * arma::as_scalar(Vi * C * Vi.t());
-
-    return r;
-}
 
 
 //' A (interspecific + intraspecific density dependence) for line i based on V and N.
@@ -93,29 +84,6 @@ inline double A_i_VN_(const arma::rowvec V_i,
     return A;
 }
 
-inline arma::cx_double A_i_VN_(const arma::cx_rowvec V_i,
-                               const std::vector<arma::cx_rowvec>& V_nei,
-                               const arma::cx_double& N_i,
-                               const std::vector<arma::cx_double>& N_nei,
-                               const arma::cx_double& g,
-                               const arma::cx_double& d) {
-
-    // Values of sum of squared trait values for each clone
-    std::vector<arma::cx_double> W;
-    W.reserve(V_nei.size() + 1);
-    W.push_back(arma::as_scalar(V_i * V_i.t()));
-    for (uint32_t j = 0; j < V_nei.size(); j++) {
-        W.push_back(arma::as_scalar(V_nei[j] * V_nei[j].t()));
-    }
-
-    // Effects of intra- and inter-specific competition
-    arma::cx_double A = g * std::exp(-1.0 * W[0]) * N_i; // intra
-    for (uint32_t j = 0; j < V_nei.size(); j++) {
-        A += (g * std::exp(-1.0 * (W[0] + d * W[j+1])) * N_nei[j]);
-    }
-
-    return A;
-}
 
 //' A (interspecific + intraspecific density dependence) based on V and N.
 //'
