@@ -53,7 +53,7 @@ arma::rowvec dF_dVi(const arma::rowvec& V_i,
     }
 
     arma::rowvec output = (-f * V_i * (C + C.t())) - g * (
-        std::exp(arma::as_scalar(- V_i * V_i.t())) *
+        N_i * std::exp(arma::as_scalar(- V_i * V_i.t())) *
         -2 * V_i -
         tmp_v
     );

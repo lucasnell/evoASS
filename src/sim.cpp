@@ -92,4 +92,20 @@ double F_t_deriv_(const arma::rowvec V_i,
     return F;
 }
 
+//[[Rcpp::export]]
+arma::cx_double F_t_deriv_cx_(const arma::cx_rowvec V_i,
+                              const std::vector<arma::cx_rowvec>& V_nei,
+                              const arma::cx_double& N_i,
+                              const std::vector<arma::cx_double>& N_nei,
+                              const arma::cx_double& f,
+                              const arma::cx_double& g,
+                              const arma::cx_mat& C,
+                              const arma::cx_double& r0,
+                              const arma::cx_double& d) {
+
+    arma::cx_double A = A_i_VN_(V_i, V_nei, N_i, N_nei, g, d);
+    arma::cx_double r = r_V_(V_i, f, C, r0);
+    arma::cx_double F = std::exp(r - A);
+    return F;
+}
 
