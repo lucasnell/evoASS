@@ -42,21 +42,15 @@ arma::rowvec dF_dVi(const arma::rowvec& V_i,
 
     double F = F_t_deriv_(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
 
-    arma::rowvec tmp_v(V_i.n_elem, arma::fill::zeros);
+    double tmp_dbl = 0;
     for (uint32_t j = 0; j < V_nei.size(); j++) {
         const arma::rowvec& V_j(V_nei[j]);
-        double tmp_dbl = std::exp(- arma::as_scalar(V_i * V_i.t()) -
-                                  d * arma::as_scalar(V_j * V_j.t()));
-        tmp_dbl *= N_nei[j];
-        arma::rowvec tmp_v2 = tmp_dbl * (-2 * V_i - 2 * d * V_j);
-        tmp_v += tmp_v2;
+        const double& N_j(N_nei[j]);
+        tmp_dbl += (N_j / std::exp(d * arma::as_scalar(V_j * V_j.t())));
     }
 
-    arma::rowvec output = (-f * V_i * (C + C.t())) - g * (
-        N_i * std::exp(arma::as_scalar(- V_i * V_i.t())) *
-        -2 * V_i -
-        tmp_v
-    );
+    arma::rowvec output = (-f * V_i * (C + C.t())) +
+        2 * V_i * g * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + tmp_dbl);
 
     output *= F;
 
