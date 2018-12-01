@@ -23,16 +23,66 @@ using namespace Rcpp;
  that should be more than you would ever expect to be produced sequentially.
  */
 
+
+/*
+ ******************
+ ******************
+ ******************
+
+ Change below to output a vector of rows or a matrix.
+ This will be more efficient than doing them individually.
+
+ ******************
+ ******************
+ ******************
+ */
+void dF_dVi__(arma::rowvec& dF_dVi_vec,
+              const arma::rowvec& V_i,
+              const std::vector<arma::rowvec>& V_nei,
+              const double& N_i,
+              const std::vector<double>& N_nei,
+              const double& f,
+              const double& g,
+              const arma::mat& C,
+              const double& r0,
+              const double& d) {
+
+    // double F = F_t_deriv_cpp(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
+    //
+    // double tmp_dbl = 0;
+    // for (uint32_t j = 0; j < V_nei.size(); j++) {
+    //     const arma::rowvec& V_j(V_nei[j]);
+    //     const double& N_j(N_nei[j]);
+    //     tmp_dbl += (N_j / std::exp(d * arma::as_scalar(V_j * V_j.t())));
+    // }
+    //
+    // dF_dVi_vec = (-f * V_i * (C + C.t())) +
+    //     2 * V_i * g * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + tmp_dbl);
+    //
+    // dF_dVi_vec *= F;
+    //
+    // return;
+
+    return;
+
+}
+
+
+
+//' Version of above for use in R for testing.
+//'
+//' @noRd
+//'
 //[[Rcpp::export]]
-arma::rowvec dF_dVi(const arma::rowvec& V_i,
-                    const std::vector<arma::rowvec>& V_nei,
-                    const double& N_i,
-                    const std::vector<double>& N_nei,
-                    const double& f,
-                    const double& g,
-                    const arma::mat& C,
-                    const double& r0,
-                    const double& d) {
+arma::rowvec dF_dVi_cpp(const arma::rowvec& V_i,
+                        const std::vector<arma::rowvec>& V_nei,
+                        const double& N_i,
+                        const std::vector<double>& N_nei,
+                        const double& f,
+                        const double& g,
+                        const arma::mat& C,
+                        const double& r0,
+                        const double& d) {
 
     if (N_nei.size() != V_nei.size()) stop("N_nei.size() != V_nei.size()");
     if (V_i.n_elem != V_nei[0].n_elem) stop("V_i.n_elem != V_nei[0].n_elem");
@@ -40,7 +90,7 @@ arma::rowvec dF_dVi(const arma::rowvec& V_i,
         stop("C.n_cols != V_i.n_elem || C.n_rows != V_i.n_elem");
     }
 
-    double F = F_t_deriv_(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
+    double F = F_t_deriv_cpp(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
 
     double tmp_dbl = 0;
     for (uint32_t j = 0; j < V_nei.size(); j++) {
@@ -49,30 +99,16 @@ arma::rowvec dF_dVi(const arma::rowvec& V_i,
         tmp_dbl += (N_j / std::exp(d * arma::as_scalar(V_j * V_j.t())));
     }
 
-    arma::rowvec output = (-f * V_i * (C + C.t())) +
+    arma::rowvec dF_dVi_vec = (-f * V_i * (C + C.t())) +
         2 * V_i * g * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + tmp_dbl);
 
-    output *= F;
+    dF_dVi_vec *= F;
 
-    return output;
+    return dF_dVi_vec;
 
 }
 
-// double F_t_deriv_(const arma::rowvec V_i,
-//                   const std::vector<arma::rowvec>& V_nei,
-//                   const double& N_i,
-//                   const std::vector<double>& N_nei,
-//                   const double& f,
-//                   const double& g,
-//                   const arma::mat& C,
-//                   const double& r0,
-//                   const double& d) {
-//
-//     double A = A_i_VN_(V_i, V_nei, N_i, N_nei, g, d);
-//     double r = r_V_(V_i, f, C, r0);
-//     double F = std::exp(r - A);
-//     return F;
-// }
+
 
 
 

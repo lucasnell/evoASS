@@ -2,7 +2,7 @@
 
 S3method(print,adaptive_dynamics)
 export(F_t)
-export(F_t_)
+export(F_t_cpp)
 export(adaptive_dynamics)
 export(add_perterbation)
 import(methods)

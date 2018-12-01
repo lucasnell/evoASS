@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adaptive_dynamics_ <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
-    .Call(`_evoASS_adaptive_dynamics_`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
+adaptive_dynamics_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
+    .Call(`_evoASS_adaptive_dynamics_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
 }
 
 #' One round of quantitative genetics.
@@ -19,8 +19,12 @@ adaptive_dynamics_ <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, m
 #'
 NULL
 
-dF_dVi <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
-    .Call(`_evoASS_dF_dVi`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
+#' Version of above for use in R for testing.
+#'
+#' @noRd
+#'
+dF_dVi_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
+    .Call(`_evoASS_dF_dVi_cpp`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
 }
 
 #' Normal distribution truncated above zero.
@@ -29,8 +33,8 @@ dF_dVi <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
 #'
 #' @noRd
 #'
-trunc_rnorm_ <- function(N, mu, sigma) {
-    .Call(`_evoASS_trunc_rnorm_`, N, mu, sigma)
+trunc_rnorm_cpp <- function(N, mu, sigma) {
+    .Call(`_evoASS_trunc_rnorm_cpp`, N, mu, sigma)
 }
 
 #' Fitness at time t.
@@ -52,8 +56,8 @@ trunc_rnorm_ <- function(N, mu, sigma) {
 #'
 #' @export
 #'
-F_t_ <- function(V, N, f, g, C, r0, d) {
-    .Call(`_evoASS_F_t_`, V, N, f, g, C, r0, d)
+F_t_cpp <- function(V, N, f, g, C, r0, d) {
+    .Call(`_evoASS_F_t_cpp`, V, N, f, g, C, r0, d)
 }
 
 #' Same as above, but for only one clone.
@@ -64,11 +68,11 @@ F_t_ <- function(V, N, f, g, C, r0, d) {
 #' @param V_nei List of row vectors of traits for non-focal clones.
 #' @param N_i Abundance for focal clone.
 #' @param N_nei Row vector of abundances for non-focal clones.
-#' @inheritParams F_t_
+#' @inheritParams F_t_cpp
 #'
 #' @noRd
 #'
-F_t_deriv_ <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
-    .Call(`_evoASS_F_t_deriv_`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
+F_t_deriv_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
+    .Call(`_evoASS_F_t_deriv_cpp`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
 }
 

@@ -17,7 +17,7 @@ using namespace Rcpp;
 //' @noRd
 //'
 //[[Rcpp::export]]
-List adaptive_dynamics_(
+List adaptive_dynamics_cpp(
         const std::vector<arma::rowvec>& V0,
         const std::vector<double>& N0,
         const double& f,

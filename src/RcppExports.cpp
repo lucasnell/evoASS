@@ -6,9 +6,9 @@
 
 using namespace Rcpp;
 
-// adaptive_dynamics_
-List adaptive_dynamics_(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
-RcppExport SEXP _evoASS_adaptive_dynamics_(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
+// adaptive_dynamics_cpp
+List adaptive_dynamics_cpp(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
+RcppExport SEXP _evoASS_adaptive_dynamics_cpp(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -26,13 +26,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type max_clones(max_clonesSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
-    rcpp_result_gen = Rcpp::wrap(adaptive_dynamics_(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every));
+    rcpp_result_gen = Rcpp::wrap(adaptive_dynamics_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every));
     return rcpp_result_gen;
 END_RCPP
 }
-// dF_dVi
-arma::rowvec dF_dVi(const arma::rowvec& V_i, const std::vector<arma::rowvec>& V_nei, const double& N_i, const std::vector<double>& N_nei, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
-RcppExport SEXP _evoASS_dF_dVi(SEXP V_iSEXP, SEXP V_neiSEXP, SEXP N_iSEXP, SEXP N_neiSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
+// dF_dVi_cpp
+arma::rowvec dF_dVi_cpp(const arma::rowvec& V_i, const std::vector<arma::rowvec>& V_nei, const double& N_i, const std::vector<double>& N_nei, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
+RcppExport SEXP _evoASS_dF_dVi_cpp(SEXP V_iSEXP, SEXP V_neiSEXP, SEXP N_iSEXP, SEXP N_neiSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -45,26 +45,26 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(dF_dVi(V_i, V_nei, N_i, N_nei, f, g, C, r0, d));
+    rcpp_result_gen = Rcpp::wrap(dF_dVi_cpp(V_i, V_nei, N_i, N_nei, f, g, C, r0, d));
     return rcpp_result_gen;
 END_RCPP
 }
-// trunc_rnorm_
-std::vector<double> trunc_rnorm_(const uint32_t& N, const double& mu, const double& sigma);
-RcppExport SEXP _evoASS_trunc_rnorm_(SEXP NSEXP, SEXP muSEXP, SEXP sigmaSEXP) {
+// trunc_rnorm_cpp
+std::vector<double> trunc_rnorm_cpp(const uint32_t& N, const double& mu, const double& sigma);
+RcppExport SEXP _evoASS_trunc_rnorm_cpp(SEXP NSEXP, SEXP muSEXP, SEXP sigmaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const uint32_t& >::type N(NSEXP);
     Rcpp::traits::input_parameter< const double& >::type mu(muSEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma(sigmaSEXP);
-    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_(N, mu, sigma));
+    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_cpp(N, mu, sigma));
     return rcpp_result_gen;
 END_RCPP
 }
-// F_t_
-arma::rowvec F_t_(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
-RcppExport SEXP _evoASS_F_t_(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
+// F_t_cpp
+arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
+RcppExport SEXP _evoASS_F_t_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -75,13 +75,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(F_t_(V, N, f, g, C, r0, d));
+    rcpp_result_gen = Rcpp::wrap(F_t_cpp(V, N, f, g, C, r0, d));
     return rcpp_result_gen;
 END_RCPP
 }
-// F_t_deriv_
-double F_t_deriv_(const arma::rowvec V_i, const std::vector<arma::rowvec>& V_nei, const double& N_i, const std::vector<double>& N_nei, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
-RcppExport SEXP _evoASS_F_t_deriv_(SEXP V_iSEXP, SEXP V_neiSEXP, SEXP N_iSEXP, SEXP N_neiSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
+// F_t_deriv_cpp
+double F_t_deriv_cpp(const arma::rowvec V_i, const std::vector<arma::rowvec>& V_nei, const double& N_i, const std::vector<double>& N_nei, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
+RcppExport SEXP _evoASS_F_t_deriv_cpp(SEXP V_iSEXP, SEXP V_neiSEXP, SEXP N_iSEXP, SEXP N_neiSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -94,17 +94,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(F_t_deriv_(V_i, V_nei, N_i, N_nei, f, g, C, r0, d));
+    rcpp_result_gen = Rcpp::wrap(F_t_deriv_cpp(V_i, V_nei, N_i, N_nei, f, g, C, r0, d));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_evoASS_adaptive_dynamics_", (DL_FUNC) &_evoASS_adaptive_dynamics_, 14},
-    {"_evoASS_dF_dVi", (DL_FUNC) &_evoASS_dF_dVi, 9},
-    {"_evoASS_trunc_rnorm_", (DL_FUNC) &_evoASS_trunc_rnorm_, 3},
-    {"_evoASS_F_t_", (DL_FUNC) &_evoASS_F_t_, 7},
-    {"_evoASS_F_t_deriv_", (DL_FUNC) &_evoASS_F_t_deriv_, 9},
+    {"_evoASS_adaptive_dynamics_cpp", (DL_FUNC) &_evoASS_adaptive_dynamics_cpp, 14},
+    {"_evoASS_dF_dVi_cpp", (DL_FUNC) &_evoASS_dF_dVi_cpp, 9},
+    {"_evoASS_trunc_rnorm_cpp", (DL_FUNC) &_evoASS_trunc_rnorm_cpp, 3},
+    {"_evoASS_F_t_cpp", (DL_FUNC) &_evoASS_F_t_cpp, 7},
+    {"_evoASS_F_t_deriv_cpp", (DL_FUNC) &_evoASS_F_t_deriv_cpp, 9},
     {NULL, NULL, 0}
 };
 

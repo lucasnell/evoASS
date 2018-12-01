@@ -187,8 +187,8 @@ do_sim <- function(sim_env) {
                 new_N <- matrix(1.01 * min_N, 1, n_muts)
                 new_V <- lapply(which(muts),
                                 function(i) {
-                                    cbind(evoASS:::trunc_rnorm_(mu = V[i,1], sigma = mut_sd),
-                                          evoASS:::trunc_rnorm_(mu = V[i,2], sigma = mut_sd))
+                                    cbind(evoASS:::trunc_rnorm_cpp(mu = V[i,1], sigma = mut_sd),
+                                          evoASS:::trunc_rnorm_cpp(mu = V[i,2], sigma = mut_sd))
                                 })
                 new_V <- do.call(rbind, new_V)
                 N <- cbind(N, new_N)

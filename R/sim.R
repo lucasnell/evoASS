@@ -187,8 +187,8 @@ adaptive_dynamics <- function(
         V0 <- lapply(split(V0, 1:nrow(V0)), rbind)
     } else stop("V0 must be numeric or matrix")
 
-    sim_output <- adaptive_dynamics_(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
-                                     mut_prob, show_progress, max_clones, save_every)
+    sim_output <- adaptive_dynamics_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
+                                        mut_prob, show_progress, max_clones, save_every)
 
     time_pts <- sim_output[["T"]]
     if (length(sim_output$N) != length(time_pts)) {
@@ -301,7 +301,7 @@ add_perterbation <- function(ad_obj, new_prop,
         for (i in 1:ncol(new_clones)) {
             if (i %in% which_traits) {
                 j <- which(which_traits == i)
-                # new_clones[,i] <- evoASS:::trunc_rnorm_(n_new_clones,
+                # new_clones[,i] <- evoASS:::trunc_rnorm_cpp(n_new_clones,
                 #                                         new_trait_means[j],
                 #                                         new_trait_sigmas[j])
                 new_clones[,i] <- rnorm(n = n_new_clones,
@@ -319,7 +319,7 @@ add_perterbation <- function(ad_obj, new_prop,
                     filter(time == max(time)) %>%
                     spread(trait, value) %>%
                     .[["N"]],
-                evoASS:::trunc_rnorm_(n_new_clones, new_N_mean, new_N_sd))
+                evoASS:::trunc_rnorm_cpp(n_new_clones, new_N_mean, new_N_sd))
 
     new_call <- ad_obj$call
     new_call$V0 <- quote(new_traits)

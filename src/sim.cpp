@@ -14,9 +14,9 @@ using namespace Rcpp;
 //' @noRd
 //'
 //[[Rcpp::export]]
-std::vector<double> trunc_rnorm_(const uint32_t& N,
-                                 const double& mu,
-                                 const double& sigma) {
+std::vector<double> trunc_rnorm_cpp(const uint32_t& N,
+                                    const double& mu,
+                                    const double& sigma) {
 
     std::vector<double> out(N);
     for (double& x : out) x = trunc_rnorm__(mu, sigma);
@@ -47,13 +47,13 @@ std::vector<double> trunc_rnorm_(const uint32_t& N,
 //' @export
 //'
 //[[Rcpp::export]]
-arma::rowvec F_t_(const std::vector<arma::rowvec>& V,
-                  const std::vector<double>& N,
-                  const double& f,
-                  const double& g,
-                  const arma::mat& C,
-                  const double& r0,
-                  const double& d) {
+arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& g,
+                     const arma::mat& C,
+                     const double& r0,
+                     const double& d) {
 
     arma::rowvec F(V.size());
 
@@ -71,20 +71,20 @@ arma::rowvec F_t_(const std::vector<arma::rowvec>& V,
 //' @param V_nei List of row vectors of traits for non-focal clones.
 //' @param N_i Abundance for focal clone.
 //' @param N_nei Row vector of abundances for non-focal clones.
-//' @inheritParams F_t_
+//' @inheritParams F_t_cpp
 //'
 //' @noRd
 //'
 //[[Rcpp::export]]
-double F_t_deriv_(const arma::rowvec V_i,
-                  const std::vector<arma::rowvec>& V_nei,
-                  const double& N_i,
-                  const std::vector<double>& N_nei,
-                  const double& f,
-                  const double& g,
-                  const arma::mat& C,
-                  const double& r0,
-                  const double& d) {
+double F_t_deriv_cpp(const arma::rowvec V_i,
+                     const std::vector<arma::rowvec>& V_nei,
+                     const double& N_i,
+                     const std::vector<double>& N_nei,
+                     const double& f,
+                     const double& g,
+                     const arma::mat& C,
+                     const double& r0,
+                     const double& d) {
 
     double A = A_i_VN_(V_i, V_nei, N_i, N_nei, g, d);
     double r = r_V_(V_i, f, C, r0);

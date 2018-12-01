@@ -56,7 +56,7 @@ inline double r_V_(const arma::rowvec& Vi,
 
 //' A (interspecific + intraspecific density dependence) for line i based on V and N.
 //'
-//' This version is only used for `F_t_deriv_` fxn.
+//' This version is only used for `F_t_deriv_cpp` fxn.
 //'
 //' @noRd
 //'
@@ -163,7 +163,7 @@ inline void A_VNI_(T& A,
 
 //' Fitness at time t.
 //'
-//' @inheritParams F_t_
+//' @inheritParams F_t_cpp
 //'
 //' @noRd
 //'
@@ -188,15 +188,15 @@ inline void F_t__(T& F,
     return;
 }
 
-double F_t_deriv_(const arma::rowvec V_i,
-                  const std::vector<arma::rowvec>& V_nei,
-                  const double& N_i,
-                  const std::vector<double>& N_nei,
-                  const double& f,
-                  const double& g,
-                  const arma::mat& C,
-                  const double& r0,
-                  const double& d);
+double F_t_deriv_cpp(const arma::rowvec V_i,
+                     const std::vector<arma::rowvec>& V_nei,
+                     const double& N_i,
+                     const std::vector<double>& N_nei,
+                     const double& f,
+                     const double& g,
+                     const arma::mat& C,
+                     const double& r0,
+                     const double& d);
 
 
 #endif

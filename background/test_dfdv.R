@@ -24,10 +24,10 @@ test_dfdVi <- function(seed, q, n) {
     r0_ <- exp(rnorm(1, log(0.25), 0.25))
     d_ <- rnorm(1, 0, 0.2)
     foo <- function(x) {
-        evoASS:::F_t_deriv_(V_i = rbind(x), V_nei_, N_i_, N_nei_, f_, g_, C_, r0_, d_)
+        evoASS:::F_t_deriv_cpp(V_i = rbind(x), V_nei_, N_i_, N_nei_, f_, g_, C_, r0_, d_)
     }
     num_diff <- grad(foo, x = as.numeric(V_i_))
-    sym_diff <- evoASS:::dF_dVi(V_i_, V_nei_, N_i_, N_nei_, f_, g_, C_, r0_, d_)
+    sym_diff <- evoASS:::dF_dVi_cpp(V_i_, V_nei_, N_i_, N_nei_, f_, g_, C_, r0_, d_)
     return(num_diff - sym_diff)
 }
 
