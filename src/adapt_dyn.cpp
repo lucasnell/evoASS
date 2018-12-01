@@ -38,7 +38,7 @@ List adaptive_dynamics_cpp(
     if (V0.size() != N0.size()) stop("V0 and N0 must be the same size");
 
     // RNG
-    pcg32 eng = seeded_pcg();
+    pcg64 eng = seeded_pcg();
     std::normal_distribution<double> distr(0, 1); // can remove if using truncated version
 
     // # traits:

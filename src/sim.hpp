@@ -23,7 +23,7 @@ inline double trunc_rnorm__(const double& mu, const double& sigma) {
 }
 
 
-inline double trunc_rnorm__(const double& mu, const double& sigma, pcg32& eng) {
+inline double trunc_rnorm__(const double& mu, const double& sigma, pcg64& eng) {
 
     double a_bar = (0 - mu) / sigma;
 

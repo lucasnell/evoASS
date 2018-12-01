@@ -90,7 +90,7 @@ public:
     }
 
     // perturb trait values
-    void perturb(pcg32& eng, std::lognormal_distribution<double>& distr) {
+    void perturb(pcg64& eng, std::lognormal_distribution<double>& distr) {
         for (uint32_t i = 0; i < V.size(); i++) {
             for (uint32_t j = 0; j < V[i].n_elem; j++) {
                 V[i](j) *= distr(eng);

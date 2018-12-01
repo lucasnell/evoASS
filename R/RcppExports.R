@@ -21,6 +21,8 @@ NULL
 
 #' Version of above for use in R for testing.
 #'
+#' Calculates for one species' traits at a time.
+#'
 #' @noRd
 #'
 dF_dVi_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {

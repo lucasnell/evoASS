@@ -71,6 +71,8 @@ void dF_dVi__(arma::rowvec& dF_dVi_vec,
 
 //' Version of above for use in R for testing.
 //'
+//' Calculates for one species' traits at a time.
+//'
 //' @noRd
 //'
 //[[Rcpp::export]]
@@ -133,7 +135,7 @@ void one_quantgen_rep(OneRepInfo& info,
                       const uint32_t& max_t,
                       const double& min_N,
                       const uint32_t& save_every,
-                      pcg32& eng) {
+                      pcg64& eng) {
 
 
     if (save_every > 0) {
