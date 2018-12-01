@@ -83,4 +83,68 @@ for densities.
 
 # Quantitative genetics
 
+Writing out the fitness function entirely:
+
+$$
+\begin{align}
+\begin{split}
+F_{i} = \exp \{ 
+    & ~ r_0 - f ~ V_i * C * V_i^T - g ~ N_i ~\text{e}^{- V_i * V_i^T } - \\
+    & ~ \sum_{j \ne i}^{n}{ g ~ N_j ~\text{e}^{- V_i * V_i^T - d ~ V_j * V_j^T } } \}
+\end{split}
+\end{align}
+$$
+
+Simplifying a bit:
+
+$$
+\begin{align}
+F_{i} = \exp \left\{ 
+        r_0 - f ~ V_i * C * V_i^T - g ~\text{e}^{ - V_i * V_i^T } 
+        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^T } } ~ \right)
+    \right\}
+\end{align}
+$$
+
+Now I can calculate the partial derivative $\frac{\partial F_i}{\partial V_i}$:
+
+$$
+\begin{align}
+\begin{split}
+\frac{\partial F_i}{\partial V_i} = \exp & \left\{
+        r_0 - f ~ V_i * C * V_i^T - g ~\text{e}^{ - V_i * V_i^T } 
+        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^T } } ~ \right)
+    \right\} \cdot \\
+    & \quad \left[ 
+        -f ~ V_i * (C + C^T) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^T} 
+        \left(
+            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^T} }
+        \right)
+    \right]
+\end{split}
+\end{align}
+$$
+
+
+Then trait values changed for species $i$ as follows:
+
+$$
+V_i &= V_i + \left( \frac{1}{F_i} \frac{\partial F_i}{\partial V_i} \right) \sigma^2_i
+$$
+
+where $\sigma^2_i$ is the additive genetic variance.
+
+This expands and simplifies to the following:
+
+$$
+\begin{align}
+V_i &= V_i +  \sigma^2_i \cdot
+    \left[ 
+        -f ~ V_i * (C + C^T) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^T} 
+        \left(
+            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^T} }
+        \right)
+    \right]
+\end{align}
+$$
 
