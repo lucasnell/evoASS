@@ -1,0 +1,131 @@
+%% AMS-LaTeX Created with the Wolfram Language for Students - Personal Use Only : www.wolfram.com
+
+\documentclass{article}
+\usepackage{amsmath, amssymb, graphics, setspace}
+
+\newcommand{\mathsym}[1]{{}}
+\newcommand{\unicode}[1]{{}}
+
+\newcounter{mathematicapage}
+\begin{document}
+
+\title{Figuring out $\partial $F/$\partial $Vi}
+\author{}
+\date{}
+\maketitle
+
+\section*{Below are two scenarios of inputs, one simple the other causing problems:}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{xVi}=\{1,2,3\};}\\
+\pmb{\text{xVnei}=\{\{1,2,3\},\{1,1,1\},\{2,2,2\}\};}\\
+\pmb{\text{xNi}=10;}\\
+\pmb{\text{xNnei}=\{20,30,10\};}\\
+\pmb{\text{xf}=0.2;}\\
+\pmb{\text{xg}=0.1;}\\
+\pmb{\text{xCC}=\{\{1,0.1,0.1\},\{0.1,1,0.1\},\{0.1,0.1,1\}\};}\\
+\pmb{\text{xr0}=0.25;}\\
+\pmb{\text{xd}=0.1;}\\
+\pmb{}\\
+\pmb{\text{zVi}=\{3.23531713336706,1.02777096442878,0.2787772170268\};}\\
+\pmb{\text{zVnei}=\{\{5.27526782592759,1.44656382501125,0.14410174684599\},}\\
+\pmb{\{9.97409204719588,1.06037032557651,2.78145811287686\},}\\
+\pmb{\{5.59907909948379,2.24725058535114,1.8701455486007\}\};}\\
+\pmb{\text{zNi}=9.4145709397;}\\
+\pmb{\text{zNnei}=\{7.34398103217961,19.0046921810612,10.0717215593192\};}\\
+\pmb{\text{zf}=0.2484041452;}\\
+\pmb{\text{zg}=0.1476385485;}\\
+\pmb{\text{zCC}=\{\{1,-0.0450021495231871,-0.0450021495231871\},}\\
+\pmb{\{-0.0450021495231871,1,-0.0450021495231871\},}\\
+\pmb{\{-0.0450021495231871,-0.0450021495231871,1\}\};}\\
+\pmb{\text{zr0}=0.4257492712;}\\
+\pmb{\text{zd}=-0.0917747103;}\)
+\end{doublespace}
+
+\section*{Function for F, calculated for both scenarios:}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{fitness}[\text{Vi$\_$},\text{Vnei$\_$},\text{Ni$\_$},\text{Nnei$\_$},\text{f$\_$},\text{g$\_$},\text{CC$\_$},\text{r0$\_$},\text{d$\_$}] \text{:=} \text{Exp}[\text{r0} - f * \text{Vi}.\text{CC}.\text{Vi} - }\\
+\pmb{g * \text{Ni} * \text{Exp}[- \text{Vi}.\text{Vi}]- }\\
+\pmb{\quad \text{Sum}[}\\
+\pmb{\quad g * \text{Nnei}[[j]] * \text{Exp}[- \text{Vi}.\text{Vi} - d * \text{Vnei}[[j]].\text{Vnei}[[j]]],}\\
+\pmb{\quad \{j, \text{Length}[\text{Vnei}]\}}\\
+\pmb{\quad ]}\\
+\pmb{]}\\
+\pmb{\text{fitness}[\text{xVi},\text{xVnei},\text{xNi},\text{xNnei},\text{xf},\text{xg},\text{xCC},\text{xr0},\text{xd}]}\\
+\pmb{\text{fitness}[\text{zVi},\text{zVnei},\text{zNi},\text{zNnei},\text{zf},\text{zg},\text{zCC},\text{zr0},\text{zd}]}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(0.0502873\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(0.0555569\)
+\end{doublespace}
+
+\section*{Math expression for F:}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{Fexpr}\text{:=} \text{Exp}[\text{r0} - f * \text{Vi}.\text{CC}.\text{Vi} - }\\
+\pmb{g *\text{  }\text{Exp}[- \text{Vi}.\text{Vi}]* (}\\
+\pmb{\text{Ni} +}\\
+\pmb{\quad \text{Sum}[}\\
+\pmb{\quad \text{Indexed}[\text{Nnei}, j] / \text{Exp}[d * \text{Indexed}[\text{Vnei}, j].\text{Indexed}[\text{Vnei}, j]],}\\
+\pmb{\quad \{j, n-1\}}\\
+\pmb{\quad ]}\\
+\pmb{)}\\
+\pmb{]}\)
+\end{doublespace}
+
+\subsection*{Making sure the output is accurate:}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{Fexpr} \text{/.} \{\text{Vi}\to \text{zVi},\text{Vnei}\to \text{zVnei},\text{Ni}\to \text{zNi},\text{Nnei}\to \text{zNnei},f\to \text{zf},g\to \text{zg},\text{CC}\to \text{zCC},\text{r0}\to \text{zr0},}\\
+\pmb{d\to \text{zd}, n \to  \text{Length}[\text{zVnei}] + 1\}}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(0.0555569\)
+\end{doublespace}
+
+\subsection*{Showing it in mathematical form :}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{Fexpr}}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(e^{\text{r0}-f \text{Vi}.\text{CC}.\text{Vi}-e^{-\text{Vi}.\text{Vi}} g \left(\text{Ni}+\sum _j^{-1+n} e^{-d \text{Vnei}_{}.\text{Vnei}_{}} \text{Nnei}_{}\right)}\)
+\end{doublespace}
+
+\section*{Taking partial derivative:}
+
+\begin{doublespace}
+\noindent\(\pmb{D[\text{Fexpr}, \{\text{Vi}\}]}\\
+\pmb{D[\text{Fexpr}, \{\text{Vi}\}] \text{/.} \{\text{Vi}\to \text{xVi},\text{Vnei}\to \text{xVnei},\text{Ni}\to \text{xNi},\text{Nnei}\to \text{xNnei},f\to \text{xf},g\to \text{xg},\text{CC}\to \text{xCC},}\\
+\pmb{\text{r0}\to \text{xr0},d\to \text{xd}, n \to  \text{Length}[\text{xVnei}] + 1\}}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(\left\{e^{\text{r0}-f \text{Vi}.\text{CC}.\text{Vi}-e^{-\text{Vi}.\text{Vi}} g \left(\text{Ni}+\sum _j^{-1+n} e^{-d \text{Vnei}_{}.\text{Vnei}_{}} \text{Nnei}_{}\right)} \left(-f (1.\text{CC}.\text{Vi}+\text{Vi}.\text{CC}.1)-e^{-\text{Vi}.\text{Vi}} g (-1.\text{Vi}-\text{Vi}.1) \left(\text{Ni}+\sum _j^{-1+n} e^{-d \text{Vnei}_{}.\text{Vnei}_{}} \text{Nnei}_{}\right)\right)\right\}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(\{0.0502873 (-\text{3.340120149854875$\grave{ }$*${}^{\wedge}$-6} (-1.\{1,2,3\}-\{1,2,3\}.1)-0.2 (1.\{1.5,2.4,3.3\}+\{1.5,2.4,3.3\}.1))\}\)
+\end{doublespace}
+
+\subsubsection*{Odd that it{'}s not showing a simplified version. Now I{'}ll try removing the \`{ }.1\`{ } and \`{ }1.\`{ }.}
+
+\begin{doublespace}
+\noindent\(\pmb{\text{{``}0.0502873{''}} }\\
+\pmb{(-\text{3.340120149854875$\grave{ }$*${}^{\wedge}$-6} (-\{1,2,3\}-\{1,2,3\})-}\\
+\pmb{\text{{``}0.2{''}} (\{\text{{``}1.5{''}},\text{{``}2.4{''}},\text{{``}3.3{''}}\}+\{\text{{``}1.5{''}},\text{{``}2.4{''}},\text{{``}3.3{''}}\}))}\)
+\end{doublespace}
+
+\begin{doublespace}
+\noindent\(\{-0.030172,-0.0482751,-0.0663782\}\)
+\end{doublespace}
+
+\subsubsection*{Ah, that' s much better. Let{'}s see that in mathematical form, then simplify it:}
+
