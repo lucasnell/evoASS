@@ -2,6 +2,17 @@
 # Testing that selection strength function (`sel_str_cpp`) works.
 
 
+suppressPackageStartupMessages({
+    library(numDeriv)
+    library(ggplot2)
+    library(dplyr)
+    library(purrr)
+    library(tidyr)
+})
+# Used on my local machine for better plotting:
+# source(".Rprofile")
+
+
 # q is # traits, n is # species
 test_ss <- function(seed, q, n) {
     stopifnot(q >= 1 && n >= 2)
@@ -16,13 +27,14 @@ test_ss <- function(seed, q, n) {
     d_ <- rnorm(1, 0, 0.2)
     F_ <- evoASS:::F_t_cpp(V_, N_, f_, g_, C_, r0_, d_)
 
+    # Numerical derivatives:
     df_dVis <- lapply(1:n, function(i) {
-        V_i_ <- V_[[i]]
-        V_nei_ <- V_[-i]
-        N_i_ <- N_[i]
-        N_nei_ <- N_[-i]
-        as.numeric(evoASS:::dF_dVi_cpp(V_i_, V_nei_, N_i_, N_nei_,
-                                       f_, g_, C_, r0_, d_))
+        foo <- function(x) {
+            V__ <- V_
+            V__[[i]] <- rbind(x)
+            evoASS:::F_t_cpp(V__, N_, f_, g_, C_, r0_, d_)[[i]]
+        }
+        return(grad(foo, x = as.numeric(V_[[i]])))
     })
 
     ss <- evoASS:::sel_str_cpp(V_, N_, f_, g_, C_, r0_, d_)
@@ -41,5 +53,20 @@ diffs <- do.call(rbind, diffs)
 
 # Highest |difference|:
 diffs[abs(diffs) == max(abs(diffs))]
+
+
+# Plot of differences:
+as_data_frame(diffs) %>%
+    set_names(paste(1:3)) %>%
+    gather("column", "diff", factor_key = TRUE) %>%
+    ggplot(aes(column, diff, color = column)) +
+    theme_minimal() +
+    theme(strip.text = element_blank(), strip.background = element_blank()) +
+    facet_wrap(~ column, scales = "free") +
+    geom_jitter(shape = 1, alpha = 0.5) +
+    scale_color_brewer(palette = "Dark2", guide = FALSE) +
+    NULL
+
+
 
 
