@@ -2,6 +2,7 @@
 
 S3method(perturb,adapt_dyn)
 S3method(print,adapt_dyn)
+S3method(print,quant_gen)
 export(F_t_cpp)
 export(adapt_dyn)
 export(perturb)

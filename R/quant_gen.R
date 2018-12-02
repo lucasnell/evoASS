@@ -93,3 +93,30 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
 
     return(qg_obj)
 }
+
+
+
+
+#' Print a `quant_gen` object.
+#'
+#' @param x an object of class \code{quant_gen}.
+#' @param digits the number of digits to be printed.
+#' @param ... arguments passed to and from other methods.
+#'
+#' @export
+#' @noRd
+#'
+print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+
+    cat(crayon::cyan$bold("# Output from quantitative genetics\n"))
+    cat(crayon::green("< N and V >\n"))
+    print(x$nv, digits, ...)
+    cat(crayon::green("< Fitness and selection >\n"))
+    print(x$fs, digits, ...)
+
+    invisible(x)
+
+}
+
+
+

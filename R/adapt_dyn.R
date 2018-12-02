@@ -22,7 +22,7 @@
 #'     Conversely, if `d > 0`, then increases in `V_j` decrease competition
 #'     experienced by clone `i`, leading to nonconflicting coevolution.
 #' @param max_t Maximum time simulated.
-#' @param min_N Minimum N that's considered extinct.
+#' @param min_N Minimum N that's considered extant.
 #' @param mut_sd Standard deviation for generating mutated trait values.
 #' @param mut_prob Probability of a mutation.
 #' @param show_progress Boolean for whether to show a progress bar.
@@ -114,8 +114,10 @@ adapt_dyn <- function(
 print.adapt_dyn <- function(x, digits = max(3, getOption("digits") - 3),
                                     ...) {
 
-    cat("< Output from adaptive dynamics >\n")
+    cat(crayon::cyan$bold("# Output from adaptive dynamics\n"))
     print(x$data, digits, ...)
+
+    invisible(x)
 
 }
 

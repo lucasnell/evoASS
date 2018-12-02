@@ -41,7 +41,7 @@ experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{max_t}{Maximum time simulated.}
 
-\item{min_N}{Minimum N that's considered extinct.}
+\item{min_N}{Minimum N that's considered extant.}
 
 \item{mut_sd}{Standard deviation for generating mutated trait values.}
 
