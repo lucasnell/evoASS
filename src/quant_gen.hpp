@@ -8,6 +8,15 @@
 using namespace Rcpp;
 
 
+void sel_str__(arma::mat& ss_mat,
+               const std::vector<arma::rowvec>& V,
+               const std::vector<double>& N,
+               const double& f,
+               const double& g,
+               const arma::mat& C,
+               const double& r0,
+               const double& d);
+
 /*
  Output info for one repetition:
  */
