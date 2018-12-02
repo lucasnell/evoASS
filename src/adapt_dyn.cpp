@@ -110,7 +110,7 @@ List adaptive_dynamics_cpp(const std::vector<arma::rowvec>& V0,
         Rcpp::checkUserInterrupt();
 
         // Fill in density dependences:
-        A_VNI_<std::vector<double>>(A, all_V, N, I, g, d);
+        A_VNI__<std::vector<double>>(A, all_V, N, I, g, d);
 
         // Extinct clones (if any):
         std::vector<uint32_t> extinct;
@@ -159,7 +159,7 @@ List adaptive_dynamics_cpp(const std::vector<arma::rowvec>& V0,
                 arma::rowvec& old_V(all_V[I[i]]);
                 for (uint32_t j = 0; j < q; j++) {
                     // new_V(j) = R::rnorm(old_V(j), mut_sd);
-                    // new_V(j) = trunc_rnorm__(old_V(j), mut_sd, eng);
+                    // new_V(j) = trunc_rnorm_(old_V(j), mut_sd, eng);
                     new_V(j) = distr(eng) * mut_sd + old_V(j);
                 }
 

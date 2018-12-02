@@ -14,7 +14,10 @@
 #include <omp.h>  // omp
 #endif
 
+
 using namespace Rcpp;
+
+
 
 /*
  Note that this is the "instantaneous" version of quantitative genetics.
@@ -127,54 +130,6 @@ arma::uvec unq_spp(const std::vector<arma::rowvec>& V,
     return unqs;
 }
 
-
-
-
-
-
-//' Derivative of fitness with respect to the trait.
-//'
-//' NOT the same as `selection_strength` above.
-//' For use in R for testing.
-//'
-//' Calculates for one species' traits at a time.
-//'
-//' @noRd
-//'
-//[[Rcpp::export]]
-arma::rowvec dF_dVi_cpp(const arma::rowvec& V_i,
-                        const std::vector<arma::rowvec>& V_nei,
-                        const double& N_i,
-                        const std::vector<double>& N_nei,
-                        const double& f,
-                        const double& g,
-                        const arma::mat& C,
-                        const double& r0,
-                        const double& d) {
-
-    if (N_nei.size() != V_nei.size()) stop("N_nei.size() != V_nei.size()");
-    if (V_i.n_elem != V_nei[0].n_elem) stop("V_i.n_elem != V_nei[0].n_elem");
-    if (C.n_cols != V_i.n_elem || C.n_rows != V_i.n_elem) {
-        stop("C.n_cols != V_i.n_elem || C.n_rows != V_i.n_elem");
-    }
-
-    double F = F_t_deriv_cpp(V_i, V_nei, N_i, N_nei, f, g, C, r0, d);
-
-    double tmp_dbl = 0;
-    for (uint32_t j = 0; j < V_nei.size(); j++) {
-        const arma::rowvec& V_j(V_nei[j]);
-        const double& N_j(N_nei[j]);
-        tmp_dbl += (N_j / std::exp(d * arma::as_scalar(V_j * V_j.t())));
-    }
-
-    arma::rowvec dF_dVi_vec = (-f * V_i * (C + C.t())) +
-        2 * V_i * g * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + tmp_dbl);
-
-    dF_dVi_vec *= F;
-
-    return dF_dVi_vec;
-
-}
 
 
 

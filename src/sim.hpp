@@ -8,13 +8,16 @@
 using namespace Rcpp;
 
 
-
-inline double trunc_rnorm__(const double& mu, const double& sigma) {
+//' Normal distribution truncated above zero.
+//'
+//' @noRd
+//'
+inline double trunc_rnorm_(const double& mu, const double& sigma, pcg64& eng) {
 
     double a_bar = (0 - mu) / sigma;
 
     double p = R::pnorm5(a_bar, 0, 1, 1, 0);
-    double u = R::runif(p, 1);
+    double u = runif_ab(eng, p, 1);
 
     double x = R::qnorm5(u, 0, 1, 1, 0);
     x = x * sigma + mu;
@@ -22,13 +25,18 @@ inline double trunc_rnorm__(const double& mu, const double& sigma) {
     return x;
 }
 
-
-inline double trunc_rnorm__(const double& mu, const double& sigma, pcg64& eng) {
+//' Same as above, but using R's RNG.
+//'
+//' Used in `trunc_rnorm_cpp` only, for testing.
+//'
+//' @noRd
+//'
+inline double trunc_rnorm_(const double& mu, const double& sigma) {
 
     double a_bar = (0 - mu) / sigma;
 
     double p = R::pnorm5(a_bar, 0, 1, 1, 0);
-    double u = runif_ab(eng, p, 1);
+    double u = R::runif(p, 1);
 
     double x = R::qnorm5(u, 0, 1, 1, 0);
     x = x * sigma + mu;
@@ -53,36 +61,6 @@ inline double r_V_(const arma::rowvec& Vi,
 }
 
 
-
-//' A (interspecific + intraspecific density dependence) for line i based on V and N.
-//'
-//' This version is only used for `F_t_deriv_cpp` fxn.
-//'
-//' @noRd
-//'
-inline double A_i_VN_(const arma::rowvec V_i,
-                      const std::vector<arma::rowvec>& V_nei,
-                      const double& N_i,
-                      const std::vector<double>& N_nei,
-                      const double& g,
-                      const double& d) {
-
-    // Values of sum of squared trait values for each clone
-    std::vector<double> W;
-    W.reserve(V_nei.size() + 1);
-    W.push_back(arma::as_scalar(V_i * V_i.t()));
-    for (uint32_t j = 0; j < V_nei.size(); j++) {
-        W.push_back(arma::as_scalar(V_nei[j] * V_nei[j].t()));
-    }
-
-    // Effects of intra- and inter-specific competition
-    double A = g * std::exp(-1 * W[0]) * N_i; // intra
-    for (uint32_t j = 0; j < V_nei.size(); j++) {
-        A += (g * std::exp(-1 * (W[0] + d * W[j+1])) * N_nei[j]);
-    }
-
-    return A;
-}
 
 
 //' A (interspecific + intraspecific density dependence) based on V and N.
@@ -126,16 +104,17 @@ inline void A_VN_(T& A,
 //' Same as above, but using a vector of indices `I`.
 //'
 //' It's assumed higher-level functions will control the `A` vector.
+//' Used in `adaptive_dynamics_cpp` function.
 //'
 //' @noRd
 //'
 template <typename T>
-inline void A_VNI_(T& A,
-                   const std::vector<arma::rowvec>& V,
-                   const std::vector<double>& N,
-                   const std::vector<uint32_t>& I,
-                   const double& g,
-                   const double& d) {
+inline void A_VNI__(T& A,
+                    const std::vector<arma::rowvec>& V,
+                    const std::vector<double>& N,
+                    const std::vector<uint32_t>& I,
+                    const double& g,
+                    const double& d) {
 
     // Values of sum of squared trait values for each clone
     std::vector<double> W;
@@ -188,15 +167,6 @@ inline void F_t__(T& F,
     return;
 }
 
-double F_t_deriv_cpp(const arma::rowvec V_i,
-                     const std::vector<arma::rowvec>& V_nei,
-                     const double& N_i,
-                     const std::vector<double>& N_nei,
-                     const double& f,
-                     const double& g,
-                     const arma::mat& C,
-                     const double& r0,
-                     const double& d);
 
 
 #endif
