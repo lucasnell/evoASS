@@ -17,21 +17,20 @@ using namespace Rcpp;
 //' @noRd
 //'
 //[[Rcpp::export]]
-List adaptive_dynamics_cpp(
-        const std::vector<arma::rowvec>& V0,
-        const std::vector<double>& N0,
-        const double& f,
-        const double& g,
-        const double& eta,
-        const double& r0,
-        const double& d,
-        const double& max_t,
-        const double& min_N,
-        const double& mut_sd,
-        const double& mut_prob,
-        const bool& show_progress,
-        const uint32_t& max_clones,
-        const uint32_t& save_every) {
+List adaptive_dynamics_cpp(const std::vector<arma::rowvec>& V0,
+                           const std::vector<double>& N0,
+                           const double& f,
+                           const double& g,
+                           const double& eta,
+                           const double& r0,
+                           const double& d,
+                           const double& max_t,
+                           const double& min_N,
+                           const double& mut_sd,
+                           const double& mut_prob,
+                           const bool& show_progress,
+                           const uint32_t& max_clones,
+                           const uint32_t& save_every) {
 
     if (V0.size() == 0) stop("empty V0 vector");
     if (N0.size() == 0) stop("empty N0 vector");
