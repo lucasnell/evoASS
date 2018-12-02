@@ -23,32 +23,45 @@ void sel_str__(arma::mat& ss_mat,
 class OneRepInfo {
 public:
 
-    std::vector<double> N;
-    std::vector<arma::rowvec> V;
+    std::vector<double> N;          // abundances
+    std::vector<arma::rowvec> V;    // traits
+    std::vector<uint32_t> spp;      // species indexes (based on N0 and V0)
     double fitness;
     double selection;
     // Info for output if tracking through time:
     std::vector<double> t;
     std::vector<std::vector<double>> N_t;
     std::vector<std::vector<arma::rowvec>> V_t;
+    std::vector<std::vector<uint32_t>> spp_t;
 
     OneRepInfo () {};
-    OneRepInfo(const std::vector<double>& N_,
-               const std::vector<arma::rowvec>& V_)
-        : N(N_), V(V_), fitness(-1), selection(-1),
-          t(), N_t(), V_t(), A(V_.size()), ss_mat(V_.size(), V_[0].n_elem) {};
-    // Don't use this way if save_every == 0!
     OneRepInfo(const std::vector<double>& N_,
                const std::vector<arma::rowvec>& V_,
                const uint32_t& max_t,
                const uint32_t& save_every)
-        : N(N_), V(V_), fitness(-1), selection(-1),
-          t(((max_t - 1) / save_every) + 2),
-          N_t(((max_t - 1) / save_every) + 2, std::vector<double>(N.size())),
-          V_t(((max_t - 1) / save_every) + 2,
-              std::vector<arma::rowvec>(V_.size(), arma::rowvec(V_[0].n_elem))),
+        : N(N_), V(V_), spp(N_.size()), fitness(-1), selection(-1),
+          t(), N_t(), V_t(),
           A(V_.size()),
-          ss_mat(V_.size(), V_[0].n_elem) {};
+          ss_mat(V_.size(), V_[0].n_elem),
+          n(N_.size()), q(V_[0].n_elem) {
+
+        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i;
+
+        if (save_every > 0) {
+
+            uint32_t n_saves = static_cast<uint32_t>(
+                std::ceil(static_cast<double>(max_t - 1) /
+                    static_cast<double>(save_every))) + 1U;
+            t.reserve(n_saves);
+            N_t.reserve(n_saves);
+            V_t.reserve(n_saves);
+            spp_t.reserve(n_saves);
+
+        }
+
+        return;
+
+    };
 
 
     /*
@@ -82,6 +95,7 @@ public:
             N.clear();
             V.clear();
             A.clear();
+            spp.clear();
             return true;
         }
 
@@ -104,6 +118,7 @@ public:
                 N.erase(N.begin() + extinct[j]);
                 V.erase(V.begin() + extinct[j]);
                 A.erase(A.begin() + extinct[j]);
+                spp.erase(spp.begin() + extinct[j]);
             }
         }
 
@@ -126,14 +141,17 @@ public:
         // If everything's extinct...
         if (N.size() == 0) {
             // Fill last set of N's with a zero:
-            this->N_t.push_back(std::vector<double>(1, 0));
+            this->N_t.push_back(std::vector<double>(1, 0.0));
             // Fill last V with a `NaN` (closest to NA I know of):
             std::vector<arma::rowvec> V__(1, arma::rowvec(1));
             V__[0](0) = arma::datum::nan;
             this->V_t.push_back(V__);
+            // Fill last set of spp's with a zero:
+            this->spp_t.push_back(std::vector<uint32_t>(1, 0U));
         } else {
             this->N_t.push_back(N);
             this->V_t.push_back(V);
+            this->spp_t.push_back(spp);
         }
         return;
     }
@@ -160,11 +178,12 @@ public:
     }
 
 
-
 private:
 
     std::vector<double> A;  // Density dependence
     arma::mat ss_mat;       // Selection strength
+    uint32_t n;             // Starting # species
+    uint32_t q;             // # traits
 
 
 };

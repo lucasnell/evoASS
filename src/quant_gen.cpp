@@ -160,11 +160,8 @@ void one_quant_gen__(OneRepInfo& info,
                      pcg64& eng) {
 
 
-    if (save_every > 0) {
-        info = OneRepInfo(N0, V0, max_t, save_every);
-    } else {
-        info = OneRepInfo(N0, V0);
-    }
+    info = OneRepInfo(N0, V0, max_t, save_every);
+
     // For perturbations:
     std::lognormal_distribution<double> distr(0.0, delta);
 
@@ -175,7 +172,7 @@ void one_quant_gen__(OneRepInfo& info,
     uint32_t t = 0;
     bool all_gone = false;
 
-    while (!all_gone && t < max_t) {
+    while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
         all_gone = info.iterate(f, g, C, r0, d, add_var, min_N, rm_extinct);
@@ -184,7 +181,7 @@ void one_quant_gen__(OneRepInfo& info,
     }
 
     // perturb trait values
-    info.perturb(eng, distr);
+    if (delta > 0) info.perturb(eng, distr);
 
     t = 0;
     while (!all_gone && t < max_t) {
@@ -192,7 +189,7 @@ void one_quant_gen__(OneRepInfo& info,
         // Update abundances and traits:
         all_gone = info.iterate(f, g, C, r0, d, add_var, min_N, rm_extinct);
 
-        if (save_every > 0 && ((t+1) % save_every == 0 || (t+1) == max_t)) {
+        if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t);
         }
 
@@ -304,13 +301,14 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
                 const std::vector<double>& N_t(info.N_t[t]);
                 const std::vector<arma::rowvec>& V_t(info.V_t[t]);
+                const std::vector<uint32_t>& spp_t(info.spp_t[t]);
                 const double& t_(info.t[t]);
                 for (uint32_t k = 0; k < N_t.size(); k++) {
 
                     nv(j+k,0) = i;          // rep
                     nv(j+k,1) = t_;         // time
-                    nv(j+k,2) = k;          // species
-                    nv(j+k,3) = info.N[k];  // N
+                    nv(j+k,2) = spp_t[k];   // species
+                    nv(j+k,3) = N_t[k];     // N
                     // V:
                     for (uint32_t l = 0; l < q; l++) nv(j+k, 4+l) = V_t[k](l);
 
@@ -349,6 +347,9 @@ List quant_gen_cpp(const uint32_t& n_reps,
     }
 
     List out = List::create(_["NV"] = nv, _["FS"] = fs);
+
+
+    // List out = rep_infos[0].to_list();
 
     return out;
 
