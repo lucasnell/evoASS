@@ -41,7 +41,7 @@
 #' @importFrom purrr map_dbl
 #'
 #'
-adaptive_dynamics <- function(
+adapt_dyn <- function(
     V0,
     N0,
     f = 0.1,
@@ -59,8 +59,8 @@ adaptive_dynamics <- function(
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
-    if (call_[1] != as.call(quote(adaptive_dynamics()))) {
-        call_[1] <- as.call(quote(adaptive_dynamics()))
+    if (call_[1] != as.call(quote(adapt_dyn()))) {
+        call_[1] <- as.call(quote(adapt_dyn()))
     }
 
     if (inherits(V0, "numeric")) {
@@ -69,8 +69,8 @@ adaptive_dynamics <- function(
         V0 <- lapply(split(V0, 1:nrow(V0)), rbind)
     } else stop("V0 must be numeric or matrix")
 
-    sim_output <- adaptive_dynamics_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
-                                        mut_prob, show_progress, max_clones, save_every)
+    sim_output <- adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
+                                mut_prob, show_progress, max_clones, save_every)
 
     time_pts <- sim_output[["T"]]
     if (length(sim_output$N) != length(time_pts)) {
@@ -96,22 +96,22 @@ adaptive_dynamics <- function(
 
     ad_obj <- list(data = NVt, call = call_)
 
-    class(ad_obj) <- "adaptive_dynamics"
+    class(ad_obj) <- "adapt_dyn"
 
     return(ad_obj)
 
 }
 
-#' Print a `adaptive_dynamics` object.
+#' Print a `adapt_dyn` object.
 #'
-#' @param x an object of class \code{adaptive_dynamics}.
+#' @param x an object of class \code{adapt_dyn}.
 #' @param digits the number of digits to be printed.
 #' @param ... arguments passed to and from other methods.
 #'
 #' @export
 #' @noRd
 #'
-print.adaptive_dynamics <- function(x, digits = max(3, getOption("digits") - 3),
+print.adapt_dyn <- function(x, digits = max(3, getOption("digits") - 3),
                                     ...) {
 
     cat("< Output from adaptive dynamics >\n")
@@ -125,9 +125,12 @@ print.adaptive_dynamics <- function(x, digits = max(3, getOption("digits") - 3),
 
 
 
-#' Add a perturbation to an `adaptive_dynamics` object.
+
+
+
+#' @describeIn adapt_dyn Add a perturbation to an `adapt_dyn` object.
 #'
-#' @param ad_obj `adaptive_dynamics` object.
+#' @param obj An `adapt_dyn` object.
 #' @param new_prop Proportion of new clones.
 #' @param new_trait_means Mean(s) of new clones' trait(s).
 #' @param new_N_mean Mean of new clones' abundances.
@@ -135,33 +138,30 @@ print.adaptive_dynamics <- function(x, digits = max(3, getOption("digits") - 3),
 #' @param which_traits Traits to change. Defaults to `1:length(new_trait_means)`.
 #' @param new_trait_sigmas SDs of new clones' trait(s).
 #'     Defaults to SD of each trait at the end of the previous run of
-#'     `adaptive_dynamics()`.
-#' @param ... Arguments to pass to `adaptive_dynamics()`.
+#'     `adapt_dyn()`.
+#' @param ... Arguments to pass to `adapt_dyn()`.
 #'
 #'
 #' @export
 #'
-add_perterbation <- function(ad_obj, new_prop,
-                             new_trait_means,
-                             new_N_mean, new_N_sd,
-                             which_traits = NULL,
-                             new_trait_sigmas = NULL,
-                             ...) {
+perturb.adapt_dyn <- function(obj, new_prop,
+                              new_trait_means,
+                              new_N_mean, new_N_sd,
+                              which_traits = NULL,
+                              new_trait_sigmas = NULL,
+                              ...) {
 
     stopifnot(new_prop >= 0)
 
-    if (!inherits(ad_obj, "adaptive_dynamics")) {
-        stop("ad_obj must be adaptive_dynamics object")
-    }
     if (is.null(which_traits)) which_traits <- 1:length(new_trait_means)
     if (length(which_traits) != length(new_trait_means)) {
         stop("\nwhich_traits, and delta_mus must all be the same length.")
     }
 
-    if (ncol(ad_obj$data) != 5) {
+    if (ncol(obj$data) != 5) {
         stop("\nad_obj should not be edited before inputting here.")
     }
-    old_clones <- ad_obj %>%
+    old_clones <- obj %>%
         .[["data"]] %>%
         filter(time == max(time)) %>%
         spread(trait, value) %>%
@@ -196,14 +196,14 @@ add_perterbation <- function(ad_obj, new_prop,
     }
 
     new_traits <- rbind(old_clones, new_clones)
-    new_Ns <- c(ad_obj %>%
+    new_Ns <- c(obj %>%
                     .[["data"]] %>%
                     filter(time == max(time)) %>%
                     spread(trait, value) %>%
                     .[["N"]],
                 evoASS:::trunc_rnorm_cpp(n_new_clones, new_N_mean, new_N_sd))
 
-    new_call <- ad_obj$call
+    new_call <- obj$call
     new_call$V0 <- quote(new_traits)
     new_call$N0 <- quote(new_Ns)
     new_args <- list(...)
@@ -213,12 +213,12 @@ add_perterbation <- function(ad_obj, new_prop,
     new_ad <- eval(new_call)
 
     new_ad$data <- new_ad %>% .[["data"]] %>%
-        mutate(time = time + max(ad_obj$data$time))
+        mutate(time = time + max(obj$data$time))
 
-    ad_obj$data <- ad_obj$data %>% filter(time < max(time))
+    obj$data <- obj$data %>% filter(time < max(time))
 
-    ad_obj$data <- bind_rows(ad_obj$data, new_ad$data)
+    obj$data <- bind_rows(obj$data, new_ad$data)
 
-    return(ad_obj)
+    return(obj)
 
 }

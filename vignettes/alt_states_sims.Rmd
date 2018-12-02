@@ -35,7 +35,7 @@ suppressPackageStartupMessages({
 ```{r adaptive_dynamics}
 
 set.seed(4)
-ad_sims <- adaptive_dynamics(
+ad_sims <- adapt_dyn(
         V0 = c(1, 1),
         N0 = 1,
         f = 0.1,  # cost of the trait on the growth rate

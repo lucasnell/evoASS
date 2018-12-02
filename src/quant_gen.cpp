@@ -142,22 +142,22 @@ arma::uvec unq_spp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-void one_quantgen__(OneRepInfo& info,
-                    const std::vector<arma::rowvec>& V0,
-                    const std::vector<double>& N0,
-                    const double& f,
-                    const double& g,
-                    const double& nu,
-                    const double& r0,
-                    const double& d,
-                    const arma::vec& add_var,
-                    const double& delta,
-                    const uint32_t& start_t,
-                    const uint32_t& max_t,
-                    const double& min_N,
-                    const uint32_t& save_every,
-                    const bool& rm_extinct,
-                    pcg64& eng) {
+void one_quant_gen__(OneRepInfo& info,
+                     const std::vector<arma::rowvec>& V0,
+                     const std::vector<double>& N0,
+                     const double& f,
+                     const double& g,
+                     const double& eta,
+                     const double& r0,
+                     const double& d,
+                     const arma::vec& add_var,
+                     const double& delta,
+                     const uint32_t& start_t,
+                     const uint32_t& max_t,
+                     const double& min_N,
+                     const uint32_t& save_every,
+                     const bool& rm_extinct,
+                     pcg64& eng) {
 
 
     if (save_every > 0) {
@@ -169,7 +169,7 @@ void one_quantgen__(OneRepInfo& info,
     std::lognormal_distribution<double> distr(0.0, delta);
 
     arma::mat C(V0[0].n_elem, V0[0].n_elem);
-    C.fill(nu);
+    C.fill(eta);
     C.diag().fill(1.0);
 
     uint32_t t = 0;
@@ -213,12 +213,12 @@ void one_quantgen__(OneRepInfo& info,
 //' @noRd
 //'
 //[[Rcpp::export]]
-List quantgen_cpp(const uint32_t& n_reps,
+List quant_gen_cpp(const uint32_t& n_reps,
                   const std::vector<arma::rowvec>& V0,
                   const std::vector<double>& N0,
                   const double& f,
                   const double& g,
-                  const double& nu,
+                  const double& eta,
                   const double& r0,
                   const double& d,
                   const arma::vec& add_var,
@@ -261,9 +261,9 @@ List quantgen_cpp(const uint32_t& n_reps,
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         if (!Progress::check_abort()) {
-            one_quantgen__(rep_infos[i], V0, N0, f, g, nu, r0, d, add_var,
-                           delta, start_t, max_t, min_N, save_every,
-                           rm_extinct, eng);
+            one_quant_gen__(rep_infos[i], V0, N0, f, g, eta, r0, d, add_var,
+                            delta, start_t, max_t, min_N, save_every,
+                            rm_extinct, eng);
             prog_bar.increment();
         }
     }

@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adaptive_dynamics_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
-    .Call(`_evoASS_adaptive_dynamics_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
+adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
+    .Call(`_evoASS_adapt_dyn_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.
@@ -42,26 +42,13 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
     .Call(`_evoASS_sel_str_cpp`, V, N, f, g, C, r0, d)
 }
 
-#' Derivative of fitness with respect to the trait.
-#'
-#' NOT the same as `selection_strength` above.
-#' For use in R for testing.
-#'
-#' Calculates for one species' traits at a time.
-#'
-#' @noRd
-#'
-dF_dVi_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
-    .Call(`_evoASS_dF_dVi_cpp`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
-}
-
 #' Multiple repetitions of quantitative genetics.
 #'
 #'
 #' @noRd
 #'
-quantgen_cpp <- function(n_reps, V0, N0, f, g, nu, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_evoASS_quantgen_cpp`, n_reps, V0, N0, f, g, nu, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores)
+quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores) {
+    .Call(`_evoASS_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.
@@ -95,21 +82,5 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 #'
 F_t_cpp <- function(V, N, f, g, C, r0, d) {
     .Call(`_evoASS_F_t_cpp`, V, N, f, g, C, r0, d)
-}
-
-#' Same as above, but for only one clone.
-#'
-#' This is used for computing partial derivatives.
-#'
-#' @param V_i Row vector of traits for focal clone.
-#' @param V_nei List of row vectors of traits for non-focal clones.
-#' @param N_i Abundance for focal clone.
-#' @param N_nei Row vector of abundances for non-focal clones.
-#' @inheritParams F_t_cpp
-#'
-#' @noRd
-#'
-F_t_deriv_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
-    .Call(`_evoASS_F_t_deriv_cpp`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
 }
 

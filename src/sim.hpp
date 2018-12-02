@@ -104,7 +104,7 @@ inline void A_VN_(T& A,
 //' Same as above, but using a vector of indices `I`.
 //'
 //' It's assumed higher-level functions will control the `A` vector.
-//' Used in `adaptive_dynamics_cpp` function.
+//' Used in `adapt_dyn_cpp` function.
 //'
 //' @noRd
 //'
