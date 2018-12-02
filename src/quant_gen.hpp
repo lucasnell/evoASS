@@ -36,7 +36,7 @@ public:
     OneRepInfo(const std::vector<double>& N_,
                const std::vector<arma::rowvec>& V_)
         : N(N_), V(V_), fitness(-1), selection(-1),
-          t(), N_t(), V_t(), A(V_.size()) {};
+          t(), N_t(), V_t(), A(V_.size()), ss_mat(V_.size(), V_[0].n_elem) {};
     // Don't use this way if save_every == 0!
     OneRepInfo(const std::vector<double>& N_,
                const std::vector<arma::rowvec>& V_,
@@ -47,19 +47,24 @@ public:
           N_t(((max_t - 1) / save_every) + 2, std::vector<double>(N.size())),
           V_t(((max_t - 1) / save_every) + 2,
               std::vector<arma::rowvec>(V_.size(), arma::rowvec(V_[0].n_elem))),
-              A(V_.size()) {};
+          A(V_.size()),
+          ss_mat(V_.size(), V_[0].n_elem) {};
 
 
-    // One iteration that updates abundances and traits:
+    /*
+     One iteration that updates abundances and traits.
+     It returns a boolean for whether all species are extinct.
+     */
     bool iterate(const double& f,
                  const double& g,
                  const arma::mat& C,
                  const double& r0,
                  const double& d,
+                 const arma::vec& add_var,
                  const double& min_N,
                  const bool& rm_extinct) {
 
-        // Extinct clones (if any):
+        // Setting up vector of extinct clones (if any):
         std::vector<uint32_t> extinct;
         extinct.reserve(V.size());
         // Fill in density dependences:
@@ -72,20 +77,27 @@ public:
             if (N[i] < min_N) extinct.push_back(i);
         }
 
-        // If everything is gone, stop simulations:
-        if (extinct.size() == N.size()) return true;
+        // If everything is gone, clear vectors and stop simulations:
+        if (extinct.size() == N.size()) {
+            N.clear();
+            V.clear();
+            A.clear();
+            return true;
+        }
 
         /*
-         ***************
-         ***************
-
-         LEFT OFF:  UPDATE TRAITS!!
-
-         ***************
-         ***************
+         Update traits
          */
+        // Fill in selection-strength matrix:
+        sel_str__(ss_mat, V, N, f, g, C, r0, d);
+        // Then include additive genetic variance when adding to trait values:
+        for (uint32_t i = 0; i < V.size(); i++) {
+            V[i] += (add_var(i) * ss_mat.row(i));
+        }
 
-        // Remove extinct clones (starting at the back):
+        /*
+         Remove extinct clones (starting at the back):
+         */
         if (rm_extinct) {
             for (uint32_t i = 0, j; i < extinct.size(); i++) {
                 j = extinct.size() - i - 1;
@@ -111,8 +123,39 @@ public:
     // save info for output
     void save_time(const uint32_t& t) {
         this->t.push_back(t);
-        this->N_t.push_back(N);
-        this->V_t.push_back(V);
+        // If everything's extinct...
+        if (N.size() == 0) {
+            // Fill last set of N's with a zero:
+            this->N_t.push_back(std::vector<double>(1, 0));
+            // Fill last V with a `NaN` (closest to NA I know of):
+            std::vector<arma::rowvec> V__(1, arma::rowvec(1));
+            V__[0](0) = arma::datum::nan;
+            this->V_t.push_back(V__);
+        } else {
+            this->N_t.push_back(N);
+            this->V_t.push_back(V);
+        }
+        return;
+    }
+
+
+    void fitness_selection(const double& f,
+                           const double& g,
+                           const arma::mat& C,
+                           const double& r0,
+                           const double& d) {
+
+        // Temporary objects:
+        arma::vec WN(this->V.size());
+        arma::mat SV;
+        // Filling in fitnesses and selection strengths:
+        F_t__<arma::vec>(WN, this->V, this->N, f, g, C, r0, d);
+        sel_str__(SV, this->V, this->N, f, g, C, r0, d);
+
+        // Fill final values:
+        this->fitness = arma::prod(WN);
+        this->selection = arma::accu(SV);
+
         return;
     }
 
@@ -120,7 +163,9 @@ public:
 
 private:
 
-    std::vector<double> A;
+    std::vector<double> A;  // Density dependence
+    arma::mat ss_mat;       // Selection strength
+
 
 };
 

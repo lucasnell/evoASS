@@ -10,16 +10,42 @@ adaptive_dynamics_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd
     .Call(`_evoASS_adaptive_dynamics_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
 }
 
-#' One round of quantitative genetics.
+#' Derivative of fitness with respect to the trait divided by mean fitness.
 #'
-#' Higher-up function(s) should create `C` from `eta` and should handle any outputs.
+#' The function below calculates this selection strength for all traits
+#' for all species.
+#'
+#' @noRd
+#'
+NULL
+
+#' Search for unique species in a matrix of species trait values.
+#'
+#' @noRd
+#'
+NULL
+
+#' One repetition of quantitative genetics.
+#'
+#' Higher-up function(s) should handle the info put into `info`.
 #'
 #'
 #' @noRd
 #'
 NULL
 
-#' Version of above for use in R for testing.
+#' R-exported version of above, so it can be tested in R for accuracy.
+#'
+#' @noRd
+#'
+sel_str_cpp <- function(V, N, f, g, C, r0, d) {
+    .Call(`_evoASS_sel_str_cpp`, V, N, f, g, C, r0, d)
+}
+
+#' Derivative of fitness with respect to the trait.
+#'
+#' NOT the same as `selection_strength` above.
+#' For use in R for testing.
 #'
 #' Calculates for one species' traits at a time.
 #'
@@ -27,6 +53,15 @@ NULL
 #'
 dF_dVi_cpp <- function(V_i, V_nei, N_i, N_nei, f, g, C, r0, d) {
     .Call(`_evoASS_dF_dVi_cpp`, V_i, V_nei, N_i, N_nei, f, g, C, r0, d)
+}
+
+#' Multiple repetitions of quantitative genetics.
+#'
+#'
+#' @noRd
+#'
+quantgen_cpp <- function(n_reps, V0, N0, f, g, nu, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores) {
+    .Call(`_evoASS_quantgen_cpp`, n_reps, V0, N0, f, g, nu, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.
