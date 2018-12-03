@@ -106,13 +106,33 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
 #' @export
 #' @noRd
 #'
+#' @importFrom magrittr %>%
+#' @importFrom tidyr gather
+#' @importFrom dplyr filter
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarize
+#' @importFrom dplyr ungroup
+#'
 print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 
-    cat(crayon::cyan$bold("# Output from quantitative genetics\n"))
-    cat(crayon::green("< N and V >\n"))
-    print(x$nv, digits, ...)
-    cat(crayon::green("< Fitness and selection >\n"))
-    print(x$fs, digits, ...)
+    blu_ <- crayon::make_style("dodgerblue")
+
+    cat(crayon::inverse$bold(" -- Output from quant_gen -- \n"))
+    unq_nspp <- x$nv %>%
+        filter(time == max(time), trait == levels(trait)[1]) %>%
+        group_by(rep) %>%
+        summarize(n_ = n()) %>%
+        ungroup() %>%
+        .[["n_"]] %>%
+        unique()
+    cat(blu_("* Coexistence:", any(unq_nspp > 1), "\n"))
+
+    fs_ <- x$fs %>%
+        gather("par","value", fit:sel) %>%
+        group_by(par) %>%
+        summarize(min = min(value), max = max(value))
+    cat(blu_(sprintf("* Fitness range = %.3g, %.3g\n", fs_$min[1], fs_$max[1])))
+    cat(blu_(sprintf("* Selection range = %.3g, %.3g\n", fs_$min[2], fs_$max[2])))
 
     invisible(x)
 

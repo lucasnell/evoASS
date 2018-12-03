@@ -129,7 +129,7 @@ $$
 Then trait values changed for species $i$ as follows:
 
 $$
-V_i &= V_i + \left( \frac{1}{F_i} \frac{\partial F_i}{\partial V_i} \right) \sigma^2_i
+V_i = V_i + \left( \frac{1}{F_i} \frac{\partial F_i}{\partial V_i} \right) \sigma^2_i
 $$
 
 where $\sigma^2_i$ is the additive genetic variance.
