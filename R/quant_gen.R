@@ -68,6 +68,7 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
             mutate_at(vars(rep, spp, trait), factor) %>%
             arrange(rep, time, spp, trait) %>%
+            mutate(value = ifelse(is.nan(value), NA, value)) %>%
             identity()
     } else {
         NV_ <- as_data_frame(qg$NV) %>%
@@ -78,6 +79,7 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
             mutate_at(vars(rep, spp, trait), factor) %>%
             arrange(rep, spp, trait) %>%
+            mutate(value = ifelse(is.nan(value), NA, value)) %>%
             identity()
     }
 

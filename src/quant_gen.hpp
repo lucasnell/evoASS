@@ -143,8 +143,8 @@ public:
             // Fill last set of N's with a zero:
             this->N_t.push_back(std::vector<double>(1, 0.0));
             // Fill last V with a `NaN` (closest to NA I know of):
-            std::vector<arma::rowvec> V__(1, arma::rowvec(1));
-            V__[0](0) = arma::datum::nan;
+            std::vector<arma::rowvec> V__(1, arma::rowvec(q));
+            V__[0].fill(arma::datum::nan);
             this->V_t.push_back(V__);
             // Fill last set of spp's with a zero:
             this->spp_t.push_back(std::vector<uint32_t>(1, 0U));
