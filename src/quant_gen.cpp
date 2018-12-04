@@ -104,9 +104,9 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-arma::uvec unq_spp(const std::vector<arma::rowvec>& V,
-                   const std::vector<double>& N,
-                   const double& precision) {
+arma::uvec unq_spp_(const std::vector<arma::rowvec>& V,
+                    const std::vector<double>& N,
+                    const double& precision) {
 
     double precision_ = precision * precision;
 
@@ -151,7 +151,8 @@ void one_quant_gen__(OneRepInfo& info,
                      const double& r0,
                      const double& d,
                      const arma::vec& add_var,
-                     const double& delta,
+                     const double& mut_sd,
+                     const bool& keep_pos,
                      const uint32_t& start_t,
                      const uint32_t& max_t,
                      const double& min_N,
@@ -160,10 +161,7 @@ void one_quant_gen__(OneRepInfo& info,
                      pcg64& eng) {
 
 
-    info = OneRepInfo(N0, V0, max_t, save_every);
-
-    // For perturbations:
-    std::lognormal_distribution<double> distr(0.0, delta);
+    info = OneRepInfo(N0, V0, max_t, save_every, keep_pos, mut_sd);
 
     arma::mat C(V0[0].n_elem, V0[0].n_elem);
     C.fill(eta);
@@ -181,7 +179,7 @@ void one_quant_gen__(OneRepInfo& info,
     }
 
     // perturb trait values
-    if (delta > 0) info.perturb(eng, distr);
+    if (mut_sd > 0) info.perturb(eng);
 
     t = 0;
     while (!all_gone && t < max_t) {
@@ -219,7 +217,8 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const double& r0,
                   const double& d,
                   const arma::vec& add_var,
-                  const double& delta,
+                  const double& mut_sd,
+                  const bool& keep_pos,
                   const uint32_t& start_t,
                   const uint32_t& max_t,
                   const double& min_N,
@@ -259,7 +258,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     for (uint32_t i = 0; i < n_reps; i++) {
         if (!Progress::check_abort()) {
             one_quant_gen__(rep_infos[i], V0, N0, f, g, eta, r0, d, add_var,
-                            delta, start_t, max_t, min_N, save_every,
+                            mut_sd, keep_pos, start_t, max_t, min_N, save_every,
                             rm_extinct, eng);
             prog_bar.increment();
         }
@@ -267,7 +266,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
     #ifdef _OPENMP
     }
     #endif
-
 
     /*
      ------------
@@ -347,9 +345,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
     }
 
     List out = List::create(_["NV"] = nv, _["FS"] = fs);
-
-
-    // List out = rep_infos[0].to_list();
 
     return out;
 

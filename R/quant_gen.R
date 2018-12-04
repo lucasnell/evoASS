@@ -4,7 +4,6 @@
 #'
 #' @param n_reps Number of reps to perform.
 #' @param add_var Vector of additive genetic variances for all starting species.
-#' @param delta Standard deviation of perturbation after starting iterations.
 #' @param start_t Number of starting iterations.
 #' @param n_cores Number of cores to use. Defaults to 1.
 #' @inheritParams adapt_dyn
@@ -22,18 +21,20 @@
 #' @importFrom dplyr mutate
 #' @importFrom dplyr arrange
 #'
-quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
-                      max_t, min_N, save_every,
+quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos,
+                      start_t, max_t, min_N, save_every,
                       show_progress = TRUE, n_cores = 1) {
 
     n <- length(N0)
     q <- length(V0[[1]])
 
+    stopifnot(do.call(c, V0) >= 0)
+    stopifnot(N0 >= 0)
     stopifnot(n >= 2 && q >= 2)
     stopifnot(sapply(list(n_reps, start_t, max_t, save_every, n_cores, N0), is.numeric))
     stopifnot(sapply(list(n_reps, start_t, max_t, save_every, n_cores), length) == 1)
     stopifnot(c(n_reps, max_t, n_cores) >= 1)
-    stopifnot(c(start_t, save_every, add_var, delta, min_N, N0) >= 0)
+    stopifnot(c(start_t, save_every, add_var, mut_sd, min_N) >= 0)
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
@@ -50,7 +51,8 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
                         r0 = r0,
                         d = d,
                         add_var = add_var,
-                        delta = delta,
+                        mut_sd = mut_sd,
+                        keep_pos = keep_pos,
                         start_t = start_t,
                         max_t = max_t,
                         min_N = min_N,
@@ -66,7 +68,9 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
             mutate_at(vars(rep, time, spp), ~ as.integer(.x + 1)) %>%
             gather("trait", "value", starts_with("trait_"), factor_key = TRUE) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
-            mutate_at(vars(rep, spp, trait), factor) %>%
+            mutate(rep = factor(rep, levels = 1:n_reps),
+                   spp = factor(spp, levels = 1:n),
+                   trait = factor(trait, levels = 1:q)) %>%
             arrange(rep, time, spp, trait) %>%
             mutate(value = ifelse(is.nan(value), NA, value)) %>%
             identity()
@@ -77,7 +81,9 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t,
             mutate_at(vars(rep, spp), ~ as.integer(.x + 1)) %>%
             gather("trait", "value", starts_with("trait_")) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
-            mutate_at(vars(rep, spp, trait), factor) %>%
+            mutate(rep = factor(rep, levels = 1:n_reps),
+                   spp = factor(spp, levels = 1:n),
+                   trait = factor(trait, levels = 1:q)) %>%
             arrange(rep, spp, trait) %>%
             mutate(value = ifelse(is.nan(value), NA, value)) %>%
             identity()
@@ -128,6 +134,10 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
         .[["n_"]] %>%
         unique()
     cat(blu_("* Coexistence:", any(unq_nspp > 1), "\n"))
+    extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$value)) > 0 ||
+        length(unique(x$nv$rep)) < length(levels(x$nv$rep)) ||
+        length(unique(filter(x$nv, time == max(time))$rep)) < length(levels(x$nv$rep))
+    cat(blu_("* Total extinction:", extinct_, "\n"))
 
     fs_ <- x$fs %>%
         gather("par","value", fit:sel) %>%

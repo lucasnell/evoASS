@@ -27,6 +27,7 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
                    const double& max_t,
                    const double& min_N,
                    const double& mut_sd,
+                   const bool& keep_pos,
                    const double& mut_prob,
                    const bool& show_progress,
                    const uint32_t& max_clones,
@@ -38,7 +39,8 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
 
     // RNG
     pcg64 eng = seeded_pcg();
-    std::normal_distribution<double> distr(0, 1); // can remove if using truncated version
+    std::normal_distribution<double> norm_distr(0, mut_sd);
+    std::lognormal_distribution<double> lnorm_distr(0, mut_sd);
 
     // # traits:
     uint32_t q = V0[0].n_elem;
@@ -74,7 +76,6 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
         I.push_back(clone_I);
         clone_I++;
     }
-
 
 
     /*
@@ -142,7 +143,6 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
         uint32_t n_clones = N.size(); // doing this bc N.size() might increase
         for (uint32_t i = 0; i < n_clones; i++) {
 
-            // double u = R::runif(0, 1);
             double u = runif_01(eng);
 
             if (u < mut_prob) {
@@ -154,13 +154,12 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
                 I.push_back(clone_I);
                 clone_I++;
 
-                all_V.push_back(arma::rowvec(q));
+                all_V.push_back(all_V[I[i]]);
                 arma::rowvec& new_V(all_V.back());
-                arma::rowvec& old_V(all_V[I[i]]);
-                for (uint32_t j = 0; j < q; j++) {
-                    // new_V(j) = R::rnorm(old_V(j), mut_sd);
-                    // new_V(j) = trunc_rnorm_(old_V(j), mut_sd, eng);
-                    new_V(j) = distr(eng) * mut_sd + old_V(j);
+                if (keep_pos) {
+                    for (double& d : new_V) d *= lnorm_distr(eng);
+                } else {
+                    for (double& d : new_V) d += norm_distr(eng);
                 }
 
             }

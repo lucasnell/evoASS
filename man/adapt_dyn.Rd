@@ -7,8 +7,8 @@
 \usage{
 adapt_dyn(V0, N0, f = 0.1, g = 0.1, eta = 0.2, r0 = 0.5,
   d = -0.01, max_t = 10000, min_N = 1e-04, mut_sd = 0.1,
-  mut_prob = 0.01, show_progress = FALSE, max_clones = 10000,
-  save_every = 100)
+  keep_pos = TRUE, mut_prob = 0.01, show_progress = FALSE,
+  max_clones = 10000, save_every = 100)
 
 \method{perturb}{adapt_dyn}(obj, new_prop, new_trait_means, new_N_mean,
   new_N_sd, which_traits = NULL, new_trait_sigmas = NULL, ...)
@@ -43,7 +43,10 @@ experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{min_N}{Minimum N that's considered extant.}
 
-\item{mut_sd}{Standard deviation for generating mutated trait values.}
+\item{mut_sd}{Standard deviation of the normal/lognormal distribution used to generate
+mutated trait values.}
+
+\item{keep_pos}{Boolean for whether to constrain trait values >= 0.}
 
 \item{mut_prob}{Probability of a mutation.}
 

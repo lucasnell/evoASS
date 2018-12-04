@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // adapt_dyn_cpp
-List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
-RcppExport SEXP _evoASS_adapt_dyn_cpp(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
+List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const bool& keep_pos, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
+RcppExport SEXP _evoASS_adapt_dyn_cpp(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,11 +22,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type max_t(max_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
     Rcpp::traits::input_parameter< const double& >::type mut_sd(mut_sdSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type keep_pos(keep_posSEXP);
     Rcpp::traits::input_parameter< const double& >::type mut_prob(mut_probSEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type max_clones(max_clonesSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
-    rcpp_result_gen = Rcpp::wrap(adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every));
+    rcpp_result_gen = Rcpp::wrap(adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -48,8 +49,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // quant_gen_cpp
-List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& delta, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
-RcppExport SEXP _evoASS_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP deltaSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
+List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& mut_sd, const bool& keep_pos, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
+RcppExport SEXP _evoASS_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -62,14 +63,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    Rcpp::traits::input_parameter< const double& >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< const double& >::type mut_sd(mut_sdSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type keep_pos(keep_posSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type start_t(start_tSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type max_t(max_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type n_cores(n_coresSEXP);
-    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores));
+    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -105,9 +107,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_evoASS_adapt_dyn_cpp", (DL_FUNC) &_evoASS_adapt_dyn_cpp, 14},
+    {"_evoASS_adapt_dyn_cpp", (DL_FUNC) &_evoASS_adapt_dyn_cpp, 15},
     {"_evoASS_sel_str_cpp", (DL_FUNC) &_evoASS_sel_str_cpp, 7},
-    {"_evoASS_quant_gen_cpp", (DL_FUNC) &_evoASS_quant_gen_cpp, 16},
+    {"_evoASS_quant_gen_cpp", (DL_FUNC) &_evoASS_quant_gen_cpp, 17},
     {"_evoASS_trunc_rnorm_cpp", (DL_FUNC) &_evoASS_trunc_rnorm_cpp, 3},
     {"_evoASS_F_t_cpp", (DL_FUNC) &_evoASS_F_t_cpp, 7},
     {NULL, NULL, 0}

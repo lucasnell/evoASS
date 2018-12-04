@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every) {
-    .Call(`_evoASS_adapt_dyn_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every)
+adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every) {
+    .Call(`_evoASS_adapt_dyn_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.
@@ -47,8 +47,8 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_evoASS_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, delta, start_t, max_t, min_N, save_every, show_progress, n_cores)
+quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores) {
+    .Call(`_evoASS_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.

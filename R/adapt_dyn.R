@@ -23,7 +23,9 @@
 #'     experienced by clone `i`, leading to nonconflicting coevolution.
 #' @param max_t Maximum time simulated.
 #' @param min_N Minimum N that's considered extant.
-#' @param mut_sd Standard deviation for generating mutated trait values.
+#' @param mut_sd Standard deviation of the normal/lognormal distribution used to generate
+#'     mutated trait values.
+#' @param keep_pos Boolean for whether to constrain trait values >= 0.
 #' @param mut_prob Probability of a mutation.
 #' @param show_progress Boolean for whether to show a progress bar.
 #' @param max_clones Maximum number of clones predicted. This is used only to reserve
@@ -52,6 +54,7 @@ adapt_dyn <- function(
     max_t = 1e4,
     min_N = 1e-4,
     mut_sd = 0.1,
+    keep_pos = TRUE,
     mut_prob = 0.01,
     show_progress = FALSE,
     max_clones = 1e4,
@@ -69,7 +72,7 @@ adapt_dyn <- function(
         V0 <- lapply(split(V0, 1:nrow(V0)), rbind)
     } else stop("V0 must be numeric or matrix")
 
-    sim_output <- adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
+    sim_output <- adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos,
                                 mut_prob, show_progress, max_clones, save_every)
 
     time_pts <- sim_output[["T"]]

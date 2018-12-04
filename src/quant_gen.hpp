@@ -38,12 +38,17 @@ public:
     OneRepInfo(const std::vector<double>& N_,
                const std::vector<arma::rowvec>& V_,
                const uint32_t& max_t,
-               const uint32_t& save_every)
+               const uint32_t& save_every,
+               const bool& keep_pos_,
+               const double& mut_sd)
         : N(N_), V(V_), spp(N_.size()), fitness(-1), selection(-1),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(V_.size(), V_[0].n_elem),
-          n(N_.size()), q(V_[0].n_elem) {
+          n(N_.size()), q(V_[0].n_elem),
+          keep_pos(keep_pos_),
+          lnorm_distr(0.0, mut_sd),
+          norm_distr(0.0, mut_sd) {
 
         for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i;
 
@@ -108,6 +113,14 @@ public:
         for (uint32_t i = 0; i < V.size(); i++) {
             V[i] += (add_var(i) * ss_mat.row(i));
         }
+        // Keeping all traits >= 0:
+        if (this->keep_pos) {
+            for (uint32_t i = 0; i < V.size(); i++) {
+                for (uint32_t j = 0; j < V[i].n_elem; j++) {
+                    if (V[i](j) < 0) V[i](j) *= -1;
+                }
+            }
+        }
 
         /*
          Remove extinct clones (starting at the back):
@@ -126,10 +139,18 @@ public:
     }
 
     // perturb trait values
-    void perturb(pcg64& eng, std::lognormal_distribution<double>& distr) {
-        for (uint32_t i = 0; i < V.size(); i++) {
-            for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                V[i](j) *= distr(eng);
+    void perturb(pcg64& eng) {
+        if (this->keep_pos) {
+            for (uint32_t i = 0; i < V.size(); i++) {
+                for (uint32_t j = 0; j < V[i].n_elem; j++) {
+                    V[i](j) *= lnorm_distr(eng);
+                }
+            }
+        } else {
+            for (uint32_t i = 0; i < V.size(); i++) {
+                for (uint32_t j = 0; j < V[i].n_elem; j++) {
+                    V[i](j) += norm_distr(eng);
+                }
             }
         }
         return;
@@ -184,6 +205,9 @@ private:
     arma::mat ss_mat;       // Selection strength
     uint32_t n;             // Starting # species
     uint32_t q;             // # traits
+    bool keep_pos;          // Whether to keep traits >= 0
+    std::lognormal_distribution<double> lnorm_distr;
+    std::normal_distribution<double> norm_distr;
 
 
 };
