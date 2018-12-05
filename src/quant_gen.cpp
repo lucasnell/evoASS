@@ -113,7 +113,7 @@ void hessian_(arma::cube& hessian,
               const arma::mat& C,
               const double& r0,
               const double& d,
-              const double& add_var,
+              const arma::vec& add_var,
               const double& eps) {
 
     uint32_t n = N.size();
@@ -129,8 +129,7 @@ void hessian_(arma::cube& hessian,
     sel_str__(ss_mat, V, N, f, g, C, r0, d);
     // Trait change based on current trait values:
     std::vector<arma::rowvec> FV(n, arma::rowvec(q));
-    for (uint32_t i = 0; i < n; i++) FV[i] = V[i] + add_var * ss_mat.row(i);
-
+    for (uint32_t i = 0; i < n; i++) FV[i] = V[i] + add_var(i) * ss_mat.row(i);
 
     // Version of traits to manipulate:
     std::vector<arma::rowvec> V_m = V;
@@ -141,7 +140,7 @@ void hessian_(arma::cube& hessian,
         for (uint32_t j = 0; j < q; j++) {
             V_m[i](j) = V[i](j) + eps;
             sel_str__(ss_mat, V_m, N, f, g, C, r0, d);
-            FV_m = V_m[i] + add_var * ss_mat.row(i);
+            FV_m = V_m[i] + add_var(i) * ss_mat.row(i);
             hessian.slice(i).row(j) = (FV_m - FV[i]) / eps;
             V_m[i](j) = V[i](j);
         }
@@ -165,8 +164,11 @@ arma::cube hessian_cpp(const std::vector<arma::rowvec>& V,
                        const arma::mat& C,
                        const double& r0,
                        const double& d,
-                       const double& add_var,
+                       const arma::vec& add_var,
                        const double& eps) {
+
+    if (V.size() != N.size()) stop("V.size() != N.size()");
+    if (add_var.n_elem != N.size()) stop("add_var.n_elem != N.size()");
 
     arma::cube hessian;
 
@@ -313,6 +315,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
     const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
     Progress prog_bar(n_reps, show_progress);
+    bool interrupted = false;
 
     #ifdef _OPENMP
     #pragma omp parallel default(shared) num_threads(n_cores) if (n_cores > 1)
@@ -324,10 +327,10 @@ List quant_gen_cpp(const uint32_t& n_reps,
     // Write the active seed per core or just write one of the seeds.
     #ifdef _OPENMP
     uint32_t active_thread = omp_get_thread_num();
-    active_seeds = seeds[active_thread];
     #else
-    active_seeds = seeds[0];
+    uint32_t active_thread = 0;
     #endif
+    active_seeds = seeds[active_thread];
 
     pcg64 eng = seeded_pcg(active_seeds);
 
@@ -340,11 +343,15 @@ List quant_gen_cpp(const uint32_t& n_reps,
                             mut_sd, keep_pos, start_t, max_t, min_N, save_every,
                             rm_extinct, eng);
             prog_bar.increment();
-        }
+        } else if (active_thread == 0) interrupted = true;
     }
     #ifdef _OPENMP
     }
     #endif
+
+    if (interrupted) {
+        throw(Rcpp::exception("\nUser interrupted process.", false));
+    }
 
     /*
      ------------
@@ -373,6 +380,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
         uint32_t j = 0;
         for (uint32_t i = 0; i < n_reps; i++) {
 
+            Rcpp::checkUserInterrupt();
             const OneRepInfo& info(rep_infos[i]);
             for (uint32_t t = 0; t < info.t.size(); t++) {
 
@@ -408,6 +416,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
         nv.set_size(total_n_spp, 3 + q);
         uint32_t j = 0;
         for (uint32_t i = 0; i < n_reps; i++) {
+            Rcpp::checkUserInterrupt();
             const OneRepInfo& info(rep_infos[i]);
             for (uint32_t k = 0; k < info.N.size(); k++) {
                 nv(j+k,0) = i;          // rep

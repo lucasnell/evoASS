@@ -49,7 +49,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // hessian_cpp
-arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const double& add_var, const double& eps);
+arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
 RcppExport SEXP _evoASS_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -61,7 +61,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
     Rcpp::traits::input_parameter< const double& >::type eps(epsSEXP);
     rcpp_result_gen = Rcpp::wrap(hessian_cpp(V, N, f, g, C, r0, d, add_var, eps));
     return rcpp_result_gen;
