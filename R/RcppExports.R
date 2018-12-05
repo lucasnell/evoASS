@@ -19,6 +19,13 @@ adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_p
 #'
 NULL
 
+#' Compute Hessian matrices for a particular set of species' traits.
+#'
+#' @noRd
+#'
+#'
+NULL
+
 #' Search for unique species in a matrix of species trait values.
 #'
 #' @noRd
@@ -40,6 +47,14 @@ NULL
 #'
 sel_str_cpp <- function(V, N, f, g, C, r0, d) {
     .Call(`_evoASS_sel_str_cpp`, V, N, f, g, C, r0, d)
+}
+
+#' R-exported version of above, so it can be tested in R for accuracy.
+#'
+#' @noRd
+#'
+hessian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
+    .Call(`_evoASS_hessian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
 }
 
 #' Multiple repetitions of quantitative genetics.

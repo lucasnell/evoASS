@@ -100,6 +100,85 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 
 
 
+//' Compute Hessian matrices for a particular set of species' traits.
+//'
+//' @noRd
+//'
+//'
+void hessian_(arma::cube& hessian,
+              const std::vector<arma::rowvec>& V,
+              const std::vector<double>& N,
+              const double& f,
+              const double& g,
+              const arma::mat& C,
+              const double& r0,
+              const double& d,
+              const double& add_var,
+              const double& eps) {
+
+    uint32_t n = N.size();
+    uint32_t q = V[0].n_elem;
+    arma::mat eye_(q, q, arma::fill::eye);
+
+    if (hessian.n_rows != q || hessian.n_cols != q || hessian.n_slices != n) {
+        hessian.set_size(q, q, n);
+    }
+
+    arma::mat ss_mat;
+    // Fill strength of selection matrix:
+    sel_str__(ss_mat, V, N, f, g, C, r0, d);
+    // Trait change based on current trait values:
+    std::vector<arma::rowvec> FV(n, arma::rowvec(q));
+    for (uint32_t i = 0; i < n; i++) FV[i] = V[i] + add_var * ss_mat.row(i);
+
+
+    // Version of traits to manipulate:
+    std::vector<arma::rowvec> V_m = V;
+    // Trait change based on manipulated trait values:
+    arma::rowvec FV_m(q);
+
+    for (uint32_t i = 0; i < n; i++) {
+        for (uint32_t j = 0; j < q; j++) {
+            V_m[i](j) = V[i](j) + eps;
+            sel_str__(ss_mat, V_m, N, f, g, C, r0, d);
+            FV_m = V_m[i] + add_var * ss_mat.row(i);
+            hessian.slice(i).row(j) = (FV_m - FV[i]) / eps;
+            V_m[i](j) = V[i](j);
+        }
+        hessian.slice(i) -= eye_;
+    }
+
+    return;
+}
+
+
+
+//' R-exported version of above, so it can be tested in R for accuracy.
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::cube hessian_cpp(const std::vector<arma::rowvec>& V,
+                       const std::vector<double>& N,
+                       const double& f,
+                       const double& g,
+                       const arma::mat& C,
+                       const double& r0,
+                       const double& d,
+                       const double& add_var,
+                       const double& eps) {
+
+    arma::cube hessian;
+
+    hessian_(hessian, V, N, f, g, C, r0, d, add_var, eps);
+
+    return hessian;
+}
+
+
+
+
+
 //' Search for unique species in a matrix of species trait values.
 //'
 //' @noRd

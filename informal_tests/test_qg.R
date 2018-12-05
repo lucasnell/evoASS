@@ -1,4 +1,44 @@
 
+
+hessian <- function(V, N, f, g, C, r0, d, add_var, eps) {
+
+    n_ <- length(N)
+    q_ <- length(V[[1]])
+
+    SS <- evoASS:::sel_str_cpp(V, N, f, g, C, r0, d)
+    FV_ <- lapply(1:n_, function(i) V[[i]] + add_var * SS[i,])
+    Hessian <- array(0, dim = c(q_, q_, n_))
+    V_ <- V
+    for (i in 1:n_) {  # i=1
+        for (j in 1:q_) {  # j=2
+            V_[[i]][j] <- V[[i]][j] + eps
+            SS_ <- evoASS:::sel_str_cpp(V_, N, f, g, C, r0, d)
+            FV__ <- V_[[i]] + add_var * SS_[i,]
+            # Jacobian[i, ] <- (FV__ - FV_) / eps
+            Hessian[j,,i] <- (FV__ - FV_[[i]]) / eps
+            V_[[i]][j] <- V[[i]][j]
+        }
+        Hessian[,,i] <- Hessian[,,i] - diag(1, q_, q_)
+    }
+
+    return(Hessian)
+
+}
+
+# V
+r0 = 0.25
+d = 0.1
+add_var = 0.1
+eps = -1e-6
+hessian(split(V, row(V)), N, f, g, C, r0, d, add_var, eps) ==
+evoASS:::hessian_cpp(split(V, row(V)), N, f, g, C, r0, d, add_var, eps)
+
+
+
+
+
+
+
 suppressPackageStartupMessages({
     library(dplyr)
     library(magrittr)
@@ -16,7 +56,7 @@ if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") |
 
 
 n <- 100
-q <- 4
+q <- 3
 args <- list(
     n_reps = 100,
     V0 = lapply(1:n, function(i) matrix(1, 1, q)),
@@ -62,16 +102,16 @@ annot_ <- annotate(geom = "text",
 
 
 
-# qgp <-
-qg %>%
+qgp <- qg %>%
     .[["nv"]] %>%
     filter(time == args$max_t) %>%
     mutate(trait = factor(paste0("T", paste(trait)))) %>%
     spread("trait", "value") %>%
-    ggplot(aes(T1, T2, size = T3, color = T4)) +
-    geom_point(shape = 16, alpha = 0.75) +
+    ggplot(aes(T1, T2, size = T3)) + # , color = T4)) +
+    geom_point(shape = 16, alpha = 0.5) +
     scale_color_continuous(low = "gray80", high = "black") +
     NULL
+qgp
 
 
 qgp <- qg %>%

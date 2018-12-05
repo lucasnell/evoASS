@@ -48,6 +48,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// hessian_cpp
+arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const double& add_var, const double& eps);
+RcppExport SEXP _evoASS_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<arma::rowvec>& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    Rcpp::traits::input_parameter< const double& >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(hessian_cpp(V, N, f, g, C, r0, d, add_var, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // quant_gen_cpp
 List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& mut_sd, const bool& keep_pos, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
 RcppExport SEXP _evoASS_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
@@ -109,6 +128,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_evoASS_adapt_dyn_cpp", (DL_FUNC) &_evoASS_adapt_dyn_cpp, 15},
     {"_evoASS_sel_str_cpp", (DL_FUNC) &_evoASS_sel_str_cpp, 7},
+    {"_evoASS_hessian_cpp", (DL_FUNC) &_evoASS_hessian_cpp, 9},
     {"_evoASS_quant_gen_cpp", (DL_FUNC) &_evoASS_quant_gen_cpp, 17},
     {"_evoASS_trunc_rnorm_cpp", (DL_FUNC) &_evoASS_trunc_rnorm_cpp, 3},
     {"_evoASS_F_t_cpp", (DL_FUNC) &_evoASS_F_t_cpp, 7},
