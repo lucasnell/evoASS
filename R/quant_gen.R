@@ -28,9 +28,9 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_po
     n <- length(N0)
     q <- length(V0[[1]])
 
-    stopifnot(do.call(c, V0) >= 0)
+    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
     stopifnot(N0 >= 0)
-    stopifnot(n >= 2 && q >= 2)
+    stopifnot(n >= 1 && q >= 1)
     stopifnot(sapply(list(n_reps, start_t, max_t, save_every, n_cores, N0), is.numeric))
     stopifnot(sapply(list(n_reps, start_t, max_t, save_every, n_cores), length) == 1)
     stopifnot(c(n_reps, max_t, n_cores) >= 1)
@@ -126,17 +126,30 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     blu_ <- crayon::make_style("dodgerblue")
 
     cat(crayon::inverse$bold(" -- Output from quant_gen -- \n"))
-    unq_nspp <- x$nv %>%
-        filter(time == max(time), trait == levels(trait)[1]) %>%
-        group_by(rep) %>%
-        summarize(n_ = n()) %>%
-        ungroup() %>%
-        .[["n_"]] %>%
-        unique()
+    if (x$call$save_every > 0) {
+        unq_nspp <- x$nv %>%
+            filter(time == max(time), trait == levels(trait)[1]) %>%
+            group_by(rep) %>%
+            summarize(n_ = n()) %>%
+            ungroup() %>%
+            .[["n_"]] %>%
+            unique()
+    } else {
+        unq_nspp <- x$nv %>%
+            filter(trait == levels(trait)[1]) %>%
+            group_by(rep) %>%
+            summarize(n_ = n()) %>%
+            ungroup() %>%
+            .[["n_"]] %>%
+            unique()
+    }
     cat(blu_("* Coexistence:", any(unq_nspp > 1), "\n"))
     extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$value)) > 0 ||
-        length(unique(x$nv$rep)) < length(levels(x$nv$rep)) ||
-        length(unique(filter(x$nv, time == max(time))$rep)) < length(levels(x$nv$rep))
+        length(unique(x$nv$rep)) < length(levels(x$nv$rep))
+    if (x$call$save_every > 0) {
+        extinct_ <- extinct_ || length(unique(filter(x$nv, time == max(time))$rep)) <
+            length(levels(x$nv$rep))
+    }
     cat(blu_("* Total extinction:", extinct_, "\n"))
 
     fs_ <- x$fs %>%
