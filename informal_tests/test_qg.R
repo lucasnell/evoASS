@@ -1,44 +1,4 @@
 
-
-hessian <- function(V, N, f, g, C, r0, d, add_var, eps) {
-
-    n_ <- length(N)
-    q_ <- length(V[[1]])
-
-    SS <- evoASS:::sel_str_cpp(V, N, f, g, C, r0, d)
-    FV_ <- lapply(1:n_, function(i) V[[i]] + add_var * SS[i,])
-    Hessian <- array(0, dim = c(q_, q_, n_))
-    V_ <- V
-    for (i in 1:n_) {  # i=1
-        for (j in 1:q_) {  # j=2
-            V_[[i]][j] <- V[[i]][j] + eps
-            SS_ <- evoASS:::sel_str_cpp(V_, N, f, g, C, r0, d)
-            FV__ <- V_[[i]] + add_var * SS_[i,]
-            # Jacobian[i, ] <- (FV__ - FV_) / eps
-            Hessian[j,,i] <- (FV__ - FV_[[i]]) / eps
-            V_[[i]][j] <- V[[i]][j]
-        }
-        Hessian[,,i] <- Hessian[,,i] - diag(1, q_, q_)
-    }
-
-    return(Hessian)
-
-}
-
-# V
-r0 = 0.25
-d = 0.1
-add_var = 0.1
-eps = -1e-6
-hessian(split(V, row(V)), N, f, g, C, r0, d, add_var, eps) ==
-evoASS:::hessian_cpp(split(V, row(V)), N, f, g, C, r0, d, add_var, eps)
-
-
-
-
-
-
-
 suppressPackageStartupMessages({
     library(dplyr)
     library(magrittr)
@@ -55,7 +15,44 @@ if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") |
 }
 
 
-n <- 100
+N = args$N0
+V = args$V0
+f = args$f
+g = args$g
+C = matrix(args$eta, length(V[[1]]), length(V[[1]])); diag(C) = 1
+r0 = args$r0
+d = args$d
+add_var = args$add_var
+eps = -1e-6
+
+n_ <- length(N)
+q_ <- length(V[[1]])
+nq <- n_ * q_
+
+Jacobian <- matrix(NA, nrow = nq, ncol = nq)
+SS <- evoASS:::sel_str_cpp(V, N, f, g, C, r0, d)
+FV_ <- do.call(c, lapply(1:n_, function(i) V[[i]] + add_var[i] * SS[i,]))
+
+V_ <- V
+
+k = 1
+for (i in 1:n_) {  # i=1
+    for (j in 1:q_) {  # j=2
+        V_[[i]][j] <- V[[i]][j] + eps
+        SS_ <- evoASS:::sel_str_cpp(V_, N, f, g, C, r0, d)
+        FV__ <- do.call(c, lapply(1:n_, function(i) V_[[i]] + add_var[i] * SS_[i,]))
+        Jacobian[k, ] <- (FV__ - FV_) / eps
+        V_[[i]][j] <- V[[i]][j]
+        k = k + 1
+    }
+}
+
+all.equal(evoASS:::jacobian_cpp(V, N, f, g, C, r0, d, add_var, eps),
+          Jacobian)
+
+
+
+n <- 4 # 100
 q <- 3
 args <- list(
     n_reps = 100,

@@ -26,6 +26,13 @@ NULL
 #'
 NULL
 
+#' Creat Jacobian matrix for a particular set of species' traits.
+#'
+#'
+#' @noRd
+#'
+NULL
+
 #' Search for unique species in a matrix of species trait values.
 #'
 #' @noRd
@@ -55,6 +62,14 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
 #'
 hessian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
     .Call(`_evoASS_hessian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
+}
+
+#' R-exported version of above, so it can be tested in R for accuracy.
+#'
+#' @noRd
+#'
+jacobian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
+    .Call(`_evoASS_jacobian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
 }
 
 #' Multiple repetitions of quantitative genetics.
