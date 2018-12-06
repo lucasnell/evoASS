@@ -84,17 +84,18 @@ adapt_dyn <- function(
 
     NVt <-
         data_frame(time = 1:length(sim_output$N) %>%
-                       map(~ rep(time_pts[.x], length(sim_output$N[[.x]]))) %>%
+                       map(~ rep(sim_output[["T"]][.x],
+                                 length(sim_output$N[[.x]]))) %>%
                        c(recursive = TRUE),
                    clone = c(sim_output$I, recursive = TRUE),
                    N = c(sim_output$N, recursive = TRUE)) %>%
-        mutate(V1 = map_dbl(clone, ~ sim_output$V[[.x+1]][1]),
-               V2 = map_dbl(clone, ~ sim_output$V[[.x+1]][2])) %>%
-        gather("trait", "value", V1:V2, factor_key = TRUE) %>%
-        mutate(trait = gsub("V", "", trait) %>%
-                   as.integer() %>%
-                   factor()) %>%
+        mutate(V = map(clone, ~ sim_output$V[[.x+1]])) %>%
+        unnest() %>%
+        group_by(time, clone) %>%
+        mutate(trait = paste0("V", 1:n()) %>% factor()) %>%
+        ungroup() %>%
         arrange(time, clone, trait) %>%
+        dplyr::select(time, clone, trait, everything()) %>%
         identity()
 
     ad_obj <- list(data = NVt, call = call_)
@@ -169,7 +170,7 @@ perturb.adapt_dyn <- function(obj, new_prop,
     old_clones <- obj %>%
         .[["data"]] %>%
         filter(time == max(time)) %>%
-        spread(trait, value) %>%
+        spread(trait, V) %>%
         select(-time, -clone, -N) %>%
         as.matrix()
 
@@ -181,22 +182,21 @@ perturb.adapt_dyn <- function(obj, new_prop,
     }
 
     n_old_clones <- nrow(old_clones)
-    n_new_clones <- round(new_prop * n_old_clones)
+    n_new_clones <- pmax(round(new_prop * n_old_clones), 1)
     # if (any(new_trait_means < 0)) stop("new_trait_means cannot be < 0")
     new_clones <- matrix(NA_real_, n_new_clones, ncol(old_clones))
-    if (n_new_clones > 0) {
-        for (i in 1:ncol(new_clones)) {
-            if (i %in% which_traits) {
-                j <- which(which_traits == i)
-                # new_clones[,i] <- evoASS:::trunc_rnorm_cpp(n_new_clones,
-                #                                         new_trait_means[j],
-                #                                         new_trait_sigmas[j])
-                new_clones[,i] <- rnorm(n = n_new_clones,
-                                        mean = new_trait_means[j],
-                                        sd = new_trait_sigmas[j])
+    for (i in 1:ncol(new_clones)) {
+        if (i %in% which_traits) {
+            j <- which(which_traits == i)
+            if (isFALSE(ad_sims$call[["keep_pos"]])) {
+                new_clones[,i] <- new_trait_means[j] +
+                    rnorm(n = n_new_clones) * new_trait_sigmas[j]
             } else {
-                new_clones[,i] <- sample(old_clones[,i], n_new_clones, replace = TRUE)
+                new_clones[,i] <- new_trait_means[j] *
+                    rlnorm(n_new_clones, 0, new_trait_sigmas[j])
             }
+        } else {
+            new_clones[,i] <- sample(old_clones[,i], n_new_clones, replace = TRUE)
         }
     }
 
@@ -204,7 +204,7 @@ perturb.adapt_dyn <- function(obj, new_prop,
     new_Ns <- c(obj %>%
                     .[["data"]] %>%
                     filter(time == max(time)) %>%
-                    spread(trait, value) %>%
+                    spread(trait, V) %>%
                     .[["N"]],
                 evoASS:::trunc_rnorm_cpp(n_new_clones, new_N_mean, new_N_sd))
 

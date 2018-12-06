@@ -34,15 +34,35 @@ suppressPackageStartupMessages({
 
 ```{r adaptive_dynamics}
 
+q <- 3
+n <- 1
+args <- list(
+    V0 = matrix(c(1, 1, 1), 1),
+    N0 = rep(1, n),
+    f = 0.1,  # cost of the trait on the growth rate
+    g = 0.5,  # benefit of the trait on density dependence
+    eta = 0.01,  # the non-additive effects of traits on `r`
+    r0 = 0.5,
+    d = -0.1,  # changes how the focal line is affected by other lines' trait values
+    keep_pos = FALSE,
+    max_t = 1e6,
+    min_N = 1e-4,
+    save_every = 100,
+    show_progress = TRUE,
+    mut_prob = 0.01,
+    mut_sd = 0.75,
+    max_clones = 1e4)
 set.seed(4)
-ad_sims <- adapt_dyn(
-        V0 = c(1, 1),
-        N0 = 1,
-        f = 0.1,  # cost of the trait on the growth rate
-        g = 0.5,  # benefit of the trait on density dependence
-        eta = 0.05 * 1,  # 0.2,  # the non-additive effects of traits on `r`
-        d = -0.001,  # changes how the focal line is affected by other lines' trait values
-        max_t = 1e4)
+ad_sims <- do.call(adapt_dyn, args)
+
+ad_sims %>%
+    .[["data"]] %>% 
+    ggplot(aes(time, V, color = trait)) +
+    geom_point(shape = 1, alpha = 0.5) +
+    scale_color_manual(values = c("dodgerblue3", "firebrick3", "black")) +
+    ylab("Trait value") +
+    xlab("Time")
+
 
 
 
@@ -53,13 +73,29 @@ ad_sims <- adapt_dyn(
 #     ggplot(aes(time, N)) +
 #     geom_line()
 
-ad_sims %>%
-    .[["data"]] %>% 
-    ggplot(aes(time, value, color = trait)) +
-    geom_point(shape = 1, alpha = 0.5) +
-    scale_color_manual(values = c("dodgerblue3", "firebrick3")) +
+
+
+adp <- ad_sims %>%
+    perturb(new_prop = 1,
+            new_trait_means = c(1.09, 0.518, -1.61),
+            new_trait_sigmas = rep(0.0, q),
+            new_N_mean = 11.3 * 0.9, new_N_sd = 0) %>%
+    perturb(new_prop = 1,
+            new_trait_means = c(1.09, 0.518, -1.61),
+            new_trait_sigmas = rep(0.0, q),
+            new_N_mean = 11.3 * 1.1, new_N_sd = 0)
+
+adp %>%
+    .[["data"]] %>%
+    ggplot(aes(time, V, color = trait)) +
+    geom_vline(xintercept = args$max_t * 1:2, linetype = 2, color = "gray80") +
+    geom_point(shape = 1, alpha = 0.5, size = 0.25) +
+    scale_color_manual(values = c("dodgerblue3", "firebrick3", "black")) +
+    # theme(legend.position = c(0.9, 0.5)) +
+    guides(color = guide_legend("Trait:", override.aes = list(size = 2, alpha = 1))) +
     ylab("Trait value") +
     xlab("Time")
+
 
 
 
