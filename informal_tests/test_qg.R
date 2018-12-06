@@ -15,44 +15,7 @@ if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") |
 }
 
 
-N = args$N0
-V = args$V0
-f = args$f
-g = args$g
-C = matrix(args$eta, length(V[[1]]), length(V[[1]])); diag(C) = 1
-r0 = args$r0
-d = args$d
-add_var = args$add_var
-eps = -1e-6
-
-n_ <- length(N)
-q_ <- length(V[[1]])
-nq <- n_ * q_
-
-Jacobian <- matrix(NA, nrow = nq, ncol = nq)
-SS <- evoASS:::sel_str_cpp(V, N, f, g, C, r0, d)
-FV_ <- do.call(c, lapply(1:n_, function(i) V[[i]] + add_var[i] * SS[i,]))
-
-V_ <- V
-
-k = 1
-for (i in 1:n_) {  # i=1
-    for (j in 1:q_) {  # j=2
-        V_[[i]][j] <- V[[i]][j] + eps
-        SS_ <- evoASS:::sel_str_cpp(V_, N, f, g, C, r0, d)
-        FV__ <- do.call(c, lapply(1:n_, function(i) V_[[i]] + add_var[i] * SS_[i,]))
-        Jacobian[k, ] <- (FV__ - FV_) / eps
-        V_[[i]][j] <- V[[i]][j]
-        k = k + 1
-    }
-}
-
-all.equal(evoASS:::jacobian_cpp(V, N, f, g, C, r0, d, add_var, eps),
-          Jacobian)
-
-
-
-n <- 4 # 100
+n <- 100
 q <- 3
 args <- list(
     n_reps = 100,
@@ -148,15 +111,14 @@ qg %>%
 #     scale_color_continuous(low = "gray80", high = "black") +
 #     NULL
 
-hessian <- function(N, V, eps = -1e-6) {
+jacobian <- function(N, V, eps = -1e-6) {
     args_ <- c(list(N = N[[1]], V = V, eps = eps),
                args[c("f", "g", "r0", "d", "add_var")])
     args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
     args_$C <- matrix(args$eta, length(V[[1]]), length(V[[1]]))
     diag(args_$C) <- 1
-    hessian_cube <- do.call(evoASS:::hessian_cpp, args_)
-    if (length(args_$N) == 1) hessian_cube <- hessian_cube[,,1]
-    return(hessian_cube)
+    jacobian_mat <- do.call(evoASS:::jacobian_cpp, args_)
+    return(jacobian_mat)
 }
 
 
@@ -188,36 +150,64 @@ hessian <- function(N, V, eps = -1e-6) {
 # sum(qg_re$diff != 0)
 
 
-hessians <- qg %>%
+jacobs <- qg %>%
     .[["nv"]] %>%
     filter(time == max(time)) %>%
     group_by(rep) %>%
     summarize(N = list(unique(N)),
               V = map(unique(spp), ~ list(value[spp == .x]))) %>%
-    mutate(hessians = map2(N, V, ~ hessian(.x, .y))) %>%
-    .[["hessians"]]
+    mutate(jacobs = map2(N, V, ~ jacobian(.x, .y))) %>%
+    .[["jacobs"]]
 
-# map_dbl(hessians, ~ eigen(.x)$values[1])
-# map_dbl(hessians, ~ eigen(.x)$values[2])
-# hist(map_dbl(hessians, ~ eigen(.x)$values[3]))
-eigen_df <- map_dfr(hessians, ~ as_data_frame(rbind(eigen(.x)$values)))
-sum(eigen_df[,1] > 0)
-sum(eigen_df[,2] > 0)
-sum(eigen_df[,3] > 0)
+eigens <- map_dbl(jacobs, ~ eigen(.x)$values[1])
 
-hessians[[1]]
-hessians[1:2]
-map(hessians[1:2], ~ eigen(.x)[c("values", "vectors")])
+set.seed(999)
+qg2 <- qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    mutate(value = runif(n(), -2, 2))
+jacobs2 <- qg2 %>%
+    group_by(rep) %>%
+    summarize(N = list(unique(N)),
+              V = map(unique(spp), ~ list(value[spp == .x]))) %>%
+    mutate(jacobs = map2(N, V, ~ jacobian(.x, .y))) %>%
+    .[["jacobs"]]
+eigens2 <- map_dbl(jacobs2, ~ eigen(.x)$values[1])
+qg2 <- qg2 %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    mutate(stable = map_dbl(as.integer(rep), ~ eigens2[.x]))
+
+# # map_dbl(jacobs, ~ eigen(.x)$values[2])
+# # hist(map_dbl(jacobs, ~ eigen(.x)$values[3]))
+# eigen_df <- map_dfr(jacobs, ~ as_data_frame(rbind(eigen(.x)$values)))
+# sum(eigen_df[,1] > 0)
+# sum(eigen_df[,2] > 0)
+# sum(eigen_df[,3] > 0)
+#
+# jacobs[[1]]
+# jacobs[1:2]
+# map(jacobs[1:2], ~ eigen(.x)[c("values", "vectors")])
 
 qg %>%
     .[["nv"]] %>%
     filter(time == max(time)) %>%
     mutate(trait = factor(paste0("T", paste(trait)))) %>%
     spread("trait", "value") %>%
-    mutate(stable = map_lgl(as.integer(rep), ~ all(eigen_df[.x,] < 0))) %>%
+    # mutate(stable = map_lgl(as.integer(rep), ~ eigens[.x] < 1)) %>%
+    mutate(stable = map_dbl(as.integer(rep), ~ eigens[.x])) %>%
     ggplot(aes(T1, T2, size = T3)) +
-    geom_point(aes(color = stable), shape = 16, alpha = 0.5) +
-    scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    geom_point(aes(fill = stable), shape = 21, color = "gray50") +
+    # geom_point(data = qg2, aes(fill = stable), shape = 21, color = "gray50") +
+    # scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    scale_fill_gradient2(midpoint = 1.0, low = "dodgerblue", high = "firebrick") +
+    NULL
+
+qg2 %>%
+    ggplot(aes(T1, T2, size = T3)) +
+    geom_point(aes(fill = stable), shape = 21, color = "gray50") +
+    # scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    scale_fill_gradient2(midpoint = 1.0, low = "dodgerblue", high = "firebrick") +
     NULL
 
 
