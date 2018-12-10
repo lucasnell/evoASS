@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 // adapt_dyn_cpp
 List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const double& max_t, const double& min_N, const double& mut_sd, const bool& keep_pos, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every);
-RcppExport SEXP _evoASS_adapt_dyn_cpp(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
+RcppExport SEXP _sauron_adapt_dyn_cpp(SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -33,7 +33,7 @@ END_RCPP
 }
 // sel_str_cpp
 arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
-RcppExport SEXP _evoASS_sel_str_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
+RcppExport SEXP _sauron_sel_str_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -50,7 +50,7 @@ END_RCPP
 }
 // hessian_cpp
 arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
-RcppExport SEXP _evoASS_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
+RcppExport SEXP _sauron_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -69,7 +69,7 @@ END_RCPP
 }
 // jacobian_cpp
 arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
-RcppExport SEXP _evoASS_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
+RcppExport SEXP _sauron_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,7 +88,7 @@ END_RCPP
 }
 // quant_gen_cpp
 List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& mut_sd, const bool& keep_pos, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
-RcppExport SEXP _evoASS_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
+RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -115,7 +115,7 @@ END_RCPP
 }
 // trunc_rnorm_cpp
 std::vector<double> trunc_rnorm_cpp(const uint32_t& N, const double& mu, const double& sigma);
-RcppExport SEXP _evoASS_trunc_rnorm_cpp(SEXP NSEXP, SEXP muSEXP, SEXP sigmaSEXP) {
+RcppExport SEXP _sauron_trunc_rnorm_cpp(SEXP NSEXP, SEXP muSEXP, SEXP sigmaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -128,7 +128,7 @@ END_RCPP
 }
 // F_t_cpp
 arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d);
-RcppExport SEXP _evoASS_F_t_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
+RcppExport SEXP _sauron_F_t_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -145,17 +145,17 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_evoASS_adapt_dyn_cpp", (DL_FUNC) &_evoASS_adapt_dyn_cpp, 15},
-    {"_evoASS_sel_str_cpp", (DL_FUNC) &_evoASS_sel_str_cpp, 7},
-    {"_evoASS_hessian_cpp", (DL_FUNC) &_evoASS_hessian_cpp, 9},
-    {"_evoASS_jacobian_cpp", (DL_FUNC) &_evoASS_jacobian_cpp, 9},
-    {"_evoASS_quant_gen_cpp", (DL_FUNC) &_evoASS_quant_gen_cpp, 17},
-    {"_evoASS_trunc_rnorm_cpp", (DL_FUNC) &_evoASS_trunc_rnorm_cpp, 3},
-    {"_evoASS_F_t_cpp", (DL_FUNC) &_evoASS_F_t_cpp, 7},
+    {"_sauron_adapt_dyn_cpp", (DL_FUNC) &_sauron_adapt_dyn_cpp, 15},
+    {"_sauron_sel_str_cpp", (DL_FUNC) &_sauron_sel_str_cpp, 7},
+    {"_sauron_hessian_cpp", (DL_FUNC) &_sauron_hessian_cpp, 9},
+    {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 9},
+    {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 17},
+    {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
+    {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_evoASS(DllInfo *dll) {
+RcppExport void R_init_sauron(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

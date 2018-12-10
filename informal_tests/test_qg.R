@@ -5,7 +5,7 @@ suppressPackageStartupMessages({
     library(tidyr)
     library(ggplot2)
     library(purrr)
-    library(evoASS)
+    library(sauron)
 })
 # Used in my system for better plotting (if statement checks for macOS):
 if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") ||
@@ -117,7 +117,7 @@ jacobian <- function(N, V, eps = -1e-6) {
     args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
     args_$C <- matrix(args$eta, length(V[[1]]), length(V[[1]]))
     diag(args_$C) <- 1
-    jacobian_mat <- do.call(evoASS:::jacobian_cpp, args_)
+    jacobian_mat <- do.call(sauron:::jacobian_cpp, args_)
     return(jacobian_mat)
 }
 
@@ -211,7 +211,7 @@ qg2 %>%
     NULL
 
 
-# evoASS:::F_t_cpp(V0, N0, f, g, {C <- matrix(0.9, q, q); diag(C) <- 1; C}, r0, d)[[1]]
+# sauron:::F_t_cpp(V0, N0, f, g, {C <- matrix(0.9, q, q); diag(C) <- 1; C}, r0, d)[[1]]
 
 
 # # With no perturbation:

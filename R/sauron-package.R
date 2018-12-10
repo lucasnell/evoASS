@@ -1,12 +1,12 @@
-#' The 'evoASS' package.
+#' The 'sauron' package.
 #'
 #' @description Simulations related to alternative stable states in evolution.
 #'
 #' @docType package
-#' @name evoASS-package
-#' @aliases evoASS
+#' @name sauron-package
+#' @aliases sauron
 #'
-#' @useDynLib evoASS, .registration = TRUE
+#' @useDynLib sauron, .registration = TRUE
 #' @import methods
 #' @importFrom Rcpp evalCpp
 #'

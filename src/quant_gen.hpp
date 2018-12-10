@@ -1,5 +1,5 @@
-#ifndef __EVOASS_QUANT_GEN_H
-#define __EVOASS_QUANT_GEN_H
+#ifndef __SAURON_QUANT_GEN_H
+#define __SAURON_QUANT_GEN_H
 
 
 #include <RcppArmadillo.h>

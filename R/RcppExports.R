@@ -7,7 +7,7 @@
 #' @noRd
 #'
 adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every) {
-    .Call(`_evoASS_adapt_dyn_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every)
+    .Call(`_sauron_adapt_dyn_cpp`, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_pos, mut_prob, show_progress, max_clones, save_every)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.
@@ -53,7 +53,7 @@ NULL
 #' @noRd
 #'
 sel_str_cpp <- function(V, N, f, g, C, r0, d) {
-    .Call(`_evoASS_sel_str_cpp`, V, N, f, g, C, r0, d)
+    .Call(`_sauron_sel_str_cpp`, V, N, f, g, C, r0, d)
 }
 
 #' R-exported version of above, so it can be tested in R for accuracy.
@@ -61,7 +61,7 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
 #' @noRd
 #'
 hessian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
-    .Call(`_evoASS_hessian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
+    .Call(`_sauron_hessian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
 }
 
 #' R-exported version of above, so it can be tested in R for accuracy.
@@ -69,7 +69,7 @@ hessian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
 #' @noRd
 #'
 jacobian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
-    .Call(`_evoASS_jacobian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
+    .Call(`_sauron_jacobian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
 }
 
 #' Multiple repetitions of quantitative genetics.
@@ -78,7 +78,7 @@ jacobian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
 #' @noRd
 #'
 quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_evoASS_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores)
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.
@@ -88,7 +88,7 @@ quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, kee
 #' @noRd
 #'
 trunc_rnorm_cpp <- function(N, mu, sigma) {
-    .Call(`_evoASS_trunc_rnorm_cpp`, N, mu, sigma)
+    .Call(`_sauron_trunc_rnorm_cpp`, N, mu, sigma)
 }
 
 #' Fitness at time t.
@@ -111,6 +111,6 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 #' @export
 #'
 F_t_cpp <- function(V, N, f, g, C, r0, d) {
-    .Call(`_evoASS_F_t_cpp`, V, N, f, g, C, r0, d)
+    .Call(`_sauron_F_t_cpp`, V, N, f, g, C, r0, d)
 }
 

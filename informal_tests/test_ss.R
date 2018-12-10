@@ -25,19 +25,19 @@ test_ss <- function(seed, q, n) {
     diag(C_) <- 1
     r0_ <- exp(rnorm(1, log(0.25), 0.25))
     d_ <- rnorm(1, 0, 0.2)
-    F_ <- evoASS:::F_t_cpp(V_, N_, f_, g_, C_, r0_, d_)
+    F_ <- sauron:::F_t_cpp(V_, N_, f_, g_, C_, r0_, d_)
 
     # Numerical derivatives:
     df_dVis <- lapply(1:n, function(i) {
         foo <- function(x) {
             V__ <- V_
             V__[[i]] <- rbind(x)
-            evoASS:::F_t_cpp(V__, N_, f_, g_, C_, r0_, d_)[[i]]
+            sauron:::F_t_cpp(V__, N_, f_, g_, C_, r0_, d_)[[i]]
         }
         return(grad(foo, x = as.numeric(V_[[i]])))
     })
 
-    ss <- evoASS:::sel_str_cpp(V_, N_, f_, g_, C_, r0_, d_)
+    ss <- sauron:::sel_str_cpp(V_, N_, f_, g_, C_, r0_, d_)
 
     diffs <- lapply(1:n, function(i) ss[i,] * F_[i] - df_dVis[[i]])
     diffs <- do.call(rbind, diffs)

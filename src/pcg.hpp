@@ -1,5 +1,5 @@
-#ifndef __EVOASS_PCG_H
-#define __EVOASS_PCG_H
+#ifndef __SAURON_PCG_H
+#define __SAURON_PCG_H
 
 #include <RcppArmadillo.h>
 #include <vector>

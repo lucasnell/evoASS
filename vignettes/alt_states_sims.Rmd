@@ -27,7 +27,7 @@ options(tibble.print_min = 4L, tibble.print_max = 8L)
 if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
 suppressPackageStartupMessages({
     library(tidyverse)
-    library(evoASS)
+    library(sauron)
 })
 ```
 
