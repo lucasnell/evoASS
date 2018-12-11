@@ -1,10 +1,10 @@
 ---
-title: "Alternative stable states model"
+title: "Competition model"
 author: "Lucas A. Nell"
 date: "10/21/2018"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Alternative stable states model}
+  %\VignetteIndexEntry{Competition model}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 editor_options: 
