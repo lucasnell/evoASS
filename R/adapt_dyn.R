@@ -206,7 +206,7 @@ perturb.adapt_dyn <- function(obj, new_prop,
                     filter(time == max(time)) %>%
                     spread(trait, V) %>%
                     .[["N"]],
-                evoASS:::trunc_rnorm_cpp(n_new_clones, new_N_mean, new_N_sd))
+                trunc_rnorm_cpp(n_new_clones, new_N_mean, new_N_sd))
 
     new_call <- obj$call
     new_call$V0 <- quote(new_traits)
