@@ -18,7 +18,8 @@ knitr::opts_chunk$set(
   dev = "svglite", 
   fig.width = 6,
   fig.height = 4,
-  echo = FALSE
+  echo = FALSE,
+  eval = FALSE
 )
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 options(tibble.print_min = 4L, tibble.print_max = 8L)
@@ -62,10 +63,10 @@ ad_sims %>%
     scale_color_manual(values = c("dodgerblue3", "firebrick3", "black")) +
     ylab("Trait value") +
     xlab("Time")
+```
 
 
-
-
+```{r perturb}
 # ad_sims %>% .[["data"]] %>% 
 #     group_by(time) %>% 
 #     summarize(N = n()) %>% 
@@ -74,7 +75,7 @@ ad_sims %>%
 #     geom_line()
 
 
-
+set.seed(5)
 adp <- ad_sims %>%
     perturb(new_prop = 1,
             new_trait_means = c(1.09, 0.518, -1.61),
@@ -85,7 +86,7 @@ adp <- ad_sims %>%
             new_trait_sigmas = rep(0.0, q),
             new_N_mean = 11.3 * 1.1, new_N_sd = 0)
 
-adp %>%
+perterb_plot <- adp %>%
     .[["data"]] %>%
     ggplot(aes(time, V, color = trait)) +
     geom_vline(xintercept = args$max_t * 1:2, linetype = 2, color = "gray80") +
@@ -97,28 +98,6 @@ adp %>%
     xlab("Time")
 
 
-
-
-set.seed(5)
-perterb_plot <- ad_sims %>%
-    add_perterbation(new_prop = 5,
-                     new_trait_means = c(0, 0),
-                     new_trait_sigmas = rep(0.25, 2),
-                     new_N_mean = 10, new_N_sd = 5) %>%
-    add_perterbation(new_prop = 5,
-                     new_trait_means = c(1.2, -1.6),
-                     new_trait_sigmas = rep(0.25, 2),
-                     new_N_mean = 100, new_N_sd = 5) %>%
-    .[["data"]] %>%
-    ggplot(aes(time, value, color = trait)) +
-    geom_vline(xintercept = c(1e4, 2e4), linetype = 2, color = "gray80") +
-    geom_point(shape = 1, alpha = 0.5, size = 0.25) +
-    scale_color_manual(values = c("dodgerblue3", "firebrick3")) +
-    theme(legend.position = c(0.9, 0.5)) +
-    guides(color = guide_legend("Trait:", override.aes = list(size = 2, alpha = 1))) +
-    ylab("Trait value") +
-    xlab("Time")
-
 perterb_plot <- perterb_plot +
     theme(axis.title = element_blank(),
           axis.ticks = element_blank(),
@@ -127,7 +106,7 @@ perterb_plot <- perterb_plot +
 
 perterb_plot
 
-# ggsave(perterb_plot, filename = "perterb_p.pdf", width = 6.5, height = 4)
+# ggsave(perterb_plot, filename = "~/Desktop/adapt_dyn.pdf", width = 6.5, height = 4)
 
 
 
