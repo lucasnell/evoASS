@@ -17,6 +17,7 @@ if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") |
 
 n <- 100
 q <- 3
+coexist <- FALSE
 args <- list(
     n_reps = 100,
     V0 = lapply(1:n, function(i) matrix(1, 1, q)),
@@ -25,8 +26,8 @@ args <- list(
     g = 0.5,  # benefit of the trait on density dependence
     eta = 0.01,  # the non-additive effects of traits on `r`
     r0 = 0.5,
-    d = -0.1,  # changes how the focal line is affected by other lines' trait values
-    add_var = rep(0.1, n),
+    d = -0.1, # changes how the focal line is affected by other lines' trait values
+    add_var = rep(0.1, n) * 5,
     mut_sd = 0.1,
     keep_pos = FALSE,
     start_t = 100,
@@ -35,6 +36,7 @@ args <- list(
     save_every = 1000,
     show_progress = TRUE,
     n_cores = 4)
+if (coexist) args$d <- 1e-4
 
 qg <- do.call(quant_gen, args)
 qg
@@ -47,6 +49,7 @@ qg %>%
 qg %>%
     .[["nv"]] %>%
     filter(time == max(time)) %>%
+    # filter(rep == 1) %>%
     mutate(trait = factor(paste0("T", paste(trait)))) %>%
     spread("trait", "value") %>%
     ggplot(aes(T1, T2, size = T3)) +
