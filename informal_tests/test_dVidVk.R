@@ -10,117 +10,73 @@ suppressPackageStartupMessages({
     library(purrr)
     library(tidyr)
 })
-# Used on my local machine for better plotting:
-# source(".Rprofile")
+source("informal_tests/get_sim_info.R")
 
 
 
+one_analytical <- function(i, k, par_list) {
 
-one_analytical <- function(i, k, V, N, d, f, g, CCC, sigma2) {
-    n <- length(N)
-    q <- ncol(V)
-    Vi <- V[i,,drop=FALSE]
-    Ni <- N[i]
-    Vk <- V[k,,drop=FALSE]
-    Nk <- N[k]
-    Z <- sum(sapply(1:n,
-                    function(j) {
-                        if (j == i || j == k) return(0)
-                        Vj = V[j,,drop=FALSE]
-                        exp(-d * Vj %*% t(Vj)) * N[j]
+    an_deriv <- with(par_list, {
+        n <- length(N)
+        q <- ncol(V)
+        Vi <- V[i,,drop=FALSE]
+        Ni <- N[i]
+        Vk <- V[k,,drop=FALSE]
+        Nk <- N[k]
+        Z <- sum(sapply(1:n,
+                        function(j) {
+                            if (j == i || j == k) return(0)
+                            Vj = V[j,,drop=FALSE]
+                            exp(-d * Vj %*% t(Vj)) * N[j]
                         }))
 
-    an_deriv <- -4 * sigma2 * Nk * d * g * {
-        (t(Vk) %*% exp(-d * Vk %*% t(Vk))) %*% (exp(- Vi %*% t(Vi)) %*% Vi)
-    }
+        -4 * sigma2 * Nk * d * g * {
+            (t(Vk) %*% exp(-d * Vk %*% t(Vk))) %*% (exp(- Vi %*% t(Vi)) %*% Vi)
+        }
+    })
 
     return(an_deriv)
 }
-one_numeric <- function(i, k, V, N, d, f, g, CCC, sigma2, ...) {
-    n <- length(N)
-    q <- ncol(V)
-    Z = sum(sapply(1:n,
-                   function(j) {
-                       if (j == i || j == k) return(0)
-                       Vj = V[j,,drop=FALSE]
-                       exp(-d * Vj %*% t(Vj)) * N[j]
-                       }))
-    Vi <- V[i,,drop=FALSE]
-    Ni <- N[i]
-    Vk <- V[k,,drop=FALSE]
-    Nk <- N[k]
+one_numeric <- function(i, k, par_list, ...) {
 
-    foo <- function(x) {
-        Vk_ <- rbind(x)
-        V_hat <- Vi + sigma2 * {
-            (Ni + Nk * exp(-d * Vk_ %*% t(Vk_)) + Z) %*% (2 * g * exp(- Vi %*% t(Vi)) %*% Vi) -
-                f * Vi %*% CCC
+    nd_pars <- list(...)
+
+    num_deriv <- with(par_list, {
+        n <- length(N)
+        q <- ncol(V)
+        Z <- sum(sapply(1:n,
+                       function(j) {
+                           if (j == i || j == k) return(0)
+                           Vj = V[j,,drop=FALSE]
+                           exp(-d * Vj %*% t(Vj)) * N[j]
+                       }))
+        Vi <- V[i,,drop=FALSE]
+        Ni <- N[i]
+        Vk <- V[k,,drop=FALSE]
+        Nk <- N[k]
+
+        foo <- function(x) {
+            Vk_ <- rbind(x)
+            V_hat <- Vi + sigma2 * {
+                (Ni + Nk * exp(-d * Vk_ %*% t(Vk_)) + Z) %*% (2 * g * exp(- Vi %*% t(Vi)) %*% Vi) -
+                    f * Vi %*% CCC
+            }
+            return(as.numeric(V_hat))
         }
-        return(as.numeric(V_hat))
-    }
-    num_deriv <- numDeriv::jacobian(foo, x = Vk, ...)
+        nd_pars <- c(list(func = foo, x = Vk), nd_pars)
+        do.call(numDeriv::jacobian, nd_pars)
+    })
 
     return(num_deriv)
 }
 
 
-process_str <- function(str) {
+sim_i <- 1
 
-    str_list <- as.list(strsplit(str, "\n\n")[[1]])
+info <- get_sim_info(sim_i)
 
-    for (i in 3:6) str_list[i] <- as.numeric(str_list[i])
-
-    str_list[[2]] <- gsub("\\}", "\\)", str_list[[2]])
-    str_list[[2]] <- gsub("\\{", "\\c(", str_list[[2]])
-    str_list[[2]] <- eval(parse(text = str_list[[2]]))
-
-    str_list[[1]] <- gsub("\\{\\{", "rbind\\(c\\(", str_list[[1]])
-    str_list[[1]] <- gsub("\\}\\}", "\\)\\)", str_list[[1]])
-    str_list[[1]] <- gsub("\\}, \\{", "\\), c\\(", str_list[[1]])
-    str_list[[1]] <- eval(parse(text = str_list[[1]]))
-
-    names(str_list) <- c("V", "N", "d", "f", "g", "eta")
-
-    str_list$CCC = matrix(str_list$eta, ncol(str_list$V), ncol(str_list$V))
-    diag(str_list$CCC) = 1
-    str_list$CCC = str_list$CCC + t(str_list$CCC)
-    str_list$eta <- NULL
-    str_list$sigma2 <- 0.01
-
-    return(str_list)
-}
-for_py <- function(str) {
-
-    str_list <- strsplit(str, "\n\n")[[1]]
-    names_ <- c("V", "N", "d", "f", "g", "eta")
-
-    for (i in 1:2) {
-        str_list[[i]] <- gsub("\\}", "\\]", str_list[[i]])
-        str_list[[i]] <- gsub("\\{", "\\[", str_list[[i]])
-        str_list[[i]] <- sprintf("%s = np.asarray(%s)", names_[[i]], str_list[[i]])
-    }
-    for (i in 3:6) str_list[i] <- sprintf("%s = %s", names_[[i]], str_list[i])
-
-    clipboard <- pipe("pbcopy", open="w")
-    cat(str_list, file=clipboard, sep="\n")
-    close(clipboard)
-
-    invisible(NULL)
-}
-str <- "{{-1.035135226826545, 0.6294695789187386, -2.9275973068212293}, {1.3871683674832844, -3.074626596462943, -5.461878602265369}, {1.0869232779894977, 2.3165726367479786, -3.1835347901248094}, {8.641910299457635, -2.4916965856629427, -4.854061651674097}}
-
-{13.656503949124152, 10.307808021728777, 25.915553076697318, 14.7712661286843}
-
--0.5425461662696425
-
-0.1402489762085508
-
-0.2829075432843719
-
--0.0940078167926852"
-args <- process_str(str)
-do.call(one_analytical, c(args, list(i = 1, k = 2)))
-do.call(one_numeric, c(args, list(i = 1, k = 2)))
+one_analytical(1, 2, info)
+one_numeric(1, 2, info)
 
 # method.args=list(eps=1e-4, d=0.0001, zero.tol=sqrt(.Machine$double.eps/7e-7), r=4, v=2)
 

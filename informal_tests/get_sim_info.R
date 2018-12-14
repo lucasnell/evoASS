@@ -9,9 +9,9 @@ get_sim_info <- function(sim_i) {
         N = as.numeric(sims[sim_i,colnames(sims)[grepl("^N", colnames(sims))]])
         V = matrix(as.numeric(sims[sim_i,colnames(sims)[grepl("^V", colnames(sims))]]),
                    length(N))
-        CCC = matrix(eta, ncol(V), ncol(V))
-        diag(CCC) = 1
-        CCC = CCC + t(CCC)
+        C = matrix(eta, ncol(V), ncol(V))
+        diag(C) = 1
+        CCC = C + t(C)
         sigma2 = 0.01
     })
 
