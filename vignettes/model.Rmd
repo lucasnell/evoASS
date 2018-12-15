@@ -27,9 +27,9 @@ options(tibble.print_min = 4L, tibble.print_max = 8L)
 
 ## Note on notation
 
-Below, $*$ is vector multiplication
+Below, $*$ is matrix multiplication
 and
-${}^T$ represents transpose.
+${}^{\text{T}}$ represents transpose.
 
 
 ## Model
@@ -41,9 +41,9 @@ $$
 \begin{align}
     F_{i} &= \exp \left\{ r(V_i) - \alpha_{ii}(V_i) N_i - \sum_{j \ne i}^{n}{
         \alpha_{ij}(V_i, V_j) N_j}  \right\}\\
-    r(V_i) &= r_0 - f ~ V_i * C * V_i^T \\
-    \alpha_{ii}(V_i) &= g ~\exp \left\{- V_i * V_i^T \right\} \\
-    \alpha_{ij}(V_i, V_j) &= g ~\exp \left\{- V_i * V_i^T - d ~ V_j * V_j^T \right\} \\
+    r(V_i) &= r_0 - f ~ V_i * C * V_i^{\text{T}} \\
+    \alpha_{ii}(V_i) &= g ~\exp \left\{- V_i * V_i^{\text{T}} \right\} \\
+    \alpha_{ij}(V_i, V_j) &= g ~\exp \left\{- V_i * V_i^{\text{T}} - d ~ V_j * V_j^{\text{T}} \right\} \\
     C &=
         \begin{pmatrix}
             1       & \eta  \\
@@ -89,8 +89,8 @@ $$
 \begin{align}
 \begin{split}
 F_{i} = \exp \{ 
-    & ~ r_0 - f ~ V_i * C * V_i^T - g ~ N_i ~\text{e}^{- V_i * V_i^T } - \\
-    & ~ \sum_{j \ne i}^{n}{ g ~ N_j ~\text{e}^{- V_i * V_i^T - d ~ V_j * V_j^T } } \}
+    & ~ r_0 - f ~ V_i * C * V_i^{\text{T}} - g ~ N_i ~\text{e}^{- V_i * V_i^{\text{T}} } - \\
+    & ~ \sum_{j \ne i}^{n}{ g ~ N_j ~\text{e}^{- V_i * V_i^{\text{T}} - d ~ V_j * V_j^{\text{T}} } } \}
 \end{split}
 \end{align}
 $$
@@ -100,8 +100,8 @@ Simplifying a bit:
 $$
 \begin{align}
 F_{i} = \exp \left\{ 
-        r_0 - f ~ V_i * C * V_i^T - g ~\text{e}^{ - V_i * V_i^T } 
-        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^T } } ~ \right)
+        r_0 - f ~ V_i * C * V_i^{\text{T}} - g ~\text{e}^{ - V_i * V_i^{\text{T}} } 
+        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^{\text{T}} } } ~ \right)
     \right\}
 \end{align}
 $$
@@ -112,13 +112,13 @@ $$
 \begin{align}
 \begin{split}
 \frac{\partial F_i}{\partial V_i} = \exp & \left\{
-        r_0 - f ~ V_i * C * V_i^T - g ~\text{e}^{ - V_i * V_i^T } 
-        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^T } } ~ \right)
+        r_0 - f ~ V_i * C * V_i^{\text{T}} - g ~\text{e}^{ - V_i * V_i^{\text{T}} } 
+        \left( ~ N_i + \sum_{j \ne i}^{n}{ N_j ~ \text{e}^{ - d ~ V_j * V_j^{\text{T}} } } ~ \right)
     \right\} \cdot \\
     & \quad \left[ 
-        -f ~ V_i * (C + C^T) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^T} 
+        -f ~ V_i * (C + C^{\text{T}}) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^{\text{T}}} 
         \left(
-            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^T} }
+            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^{\text{T}}} }
         \right)
     \right]
 \end{split}
@@ -140,9 +140,9 @@ $$
 \begin{align}
 V_i &= V_i +  \sigma^2_i \cdot
     \left[ 
-        -f ~ V_i * (C + C^T) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^T} 
+        -f ~ V_i * (C + C^{\text{T}}) + 2 ~ g ~ V_i ~ \text{e}^{-V_i * V_i^{\text{T}}} 
         \left(
-            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^T} }
+            N_i + \sum_{j \ne i}^{n}{N_j ~ \text{e}^{-d ~ V_j * V_j^{\text{T}}} }
         \right)
     \right]
 \end{align}
