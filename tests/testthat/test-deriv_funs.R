@@ -10,14 +10,12 @@
 #'
 
 
-
 # --------------------*
 # Function to get simulated dataset
 # --------------------*
 get_sim_info <- function(sim_i) {
 
-    sims <- readr::read_csv("informal_tests/simulated_data.csv",
-                            col_types = readr::cols(.default = readr::col_double()))
+    sims <- readr::read_csv("../../informal_tests/simulated_data.csv")
 
     info <- list2env(as.list(sims[sim_i,c("f", "g", "r0", "d", "eta")]))
 
@@ -25,6 +23,7 @@ get_sim_info <- function(sim_i) {
         N = as.numeric(sims[sim_i,colnames(sims)[grepl("^N", colnames(sims))]])
         V = matrix(as.numeric(sims[sim_i,colnames(sims)[grepl("^V", colnames(sims))]]),
                    length(N))
+        V_ = split(V, row(V))
         C = matrix(eta, ncol(V), ncol(V))
         diag(C) = 1
         CCC = C + t(C)
@@ -32,6 +31,7 @@ get_sim_info <- function(sim_i) {
     })
 
     return(as.list(info))
+
 }
 
 
@@ -40,11 +40,9 @@ get_sim_info <- function(sim_i) {
 # --------------------*
 
 calc_dF_dVi <- function(sim_info) {
-    F_ <- with(sim_info, {
-        sauron:::F_t_cpp(split(V, row(V)), N, f, g, C, r0, d)
-    })
+    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, g, C, r0, d))
     ss <- with(sim_info, {
-        sauron:::sel_str_cpp(split(V, row(V)), N, f, g, C, r0, d)
+        sauron:::sel_str_cpp(V_, N, f, g, C, r0, d)
     })
     sauron_results <- diag(as.numeric(F_)) %*% ss
     return(sauron_results)
@@ -82,20 +80,19 @@ check_results <- function(type) {
 
     if (!type %in% c("dF_dVi", "dVi_dVi", "dVi_dVk")) stop("type not recognized")
 
-    py_results_df <- readr::read_csv(sprintf("informal_tests/results/%s.csv", type),
+    py_results_df <- readr::read_csv(sprintf("../../informal_tests/results/%s.csv", type),
                                      col_names = FALSE,
-                                     col_types = readr::cols(.default = readr::col_double()))
+                                     col_types = readr::cols(
+                                         .default = readr::col_double()))
 
-    nsims <- nrow(py_results_df)
-
-    info <- get_sim_info(1)
-
-    n <- length(info$N)
-    q <- ncol(info$V)
+    nsims <- 100
+    n <- 4
+    q <- 3
 
     same_results <- logical(nsims)
 
     for (sim_i in 1:nsims) {
+
 
         py_results <- as.numeric(py_results_df[sim_i,])
         info <- get_sim_info(sim_i)
@@ -118,9 +115,10 @@ check_results <- function(type) {
 
     }
 
-    return(sum(same_results) == nsims)
+    return(sum(same_results))
 }
 
 
-
-sapply(c("dF_dVi", "dVi_dVi", "dVi_dVk"), check_results)
+expect_equal(check_results("dF_dVi"), 100)
+expect_equal(check_results("dVi_dVi"), 100)
+expect_equal(check_results("dVi_dVk"), 100)
