@@ -48,6 +48,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// dVi_dVi
+arma::mat dVi_dVi(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& CCC, const double& f, const double& g, const double& sigma2);
+RcppExport SEXP _sauron_dVi_dVi(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CCCSEXP, SEXP fSEXP, SEXP gSEXP, SEXP sigma2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const double& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type CCC(CCCSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma2(sigma2SEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dVi(i, V, Z, CCC, f, g, sigma2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dVi_dVk
+arma::mat dVi_dVk(const uint32_t& i, const uint32_t& k, const std::vector<double>& N, const arma::mat& V, const double& d, const double& g, const double& sigma2);
+RcppExport SEXP _sauron_dVi_dVk(SEXP iSEXP, SEXP kSEXP, SEXP NSEXP, SEXP VSEXP, SEXP dSEXP, SEXP gSEXP, SEXP sigma2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type k(kSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma2(sigma2SEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dVk(i, k, N, V, d, g, sigma2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // hessian_cpp
 arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
 RcppExport SEXP _sauron_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
@@ -147,6 +181,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_sauron_adapt_dyn_cpp", (DL_FUNC) &_sauron_adapt_dyn_cpp, 15},
     {"_sauron_sel_str_cpp", (DL_FUNC) &_sauron_sel_str_cpp, 7},
+    {"_sauron_dVi_dVi", (DL_FUNC) &_sauron_dVi_dVi, 7},
+    {"_sauron_dVi_dVk", (DL_FUNC) &_sauron_dVi_dVk, 7},
     {"_sauron_hessian_cpp", (DL_FUNC) &_sauron_hessian_cpp, 9},
     {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 9},
     {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 17},

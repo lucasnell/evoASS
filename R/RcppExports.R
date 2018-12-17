@@ -56,6 +56,14 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
     .Call(`_sauron_sel_str_cpp`, V, N, f, g, C, r0, d)
 }
 
+dVi_dVi <- function(i, V, Z, CCC, f, g, sigma2) {
+    .Call(`_sauron_dVi_dVi`, i, V, Z, CCC, f, g, sigma2)
+}
+
+dVi_dVk <- function(i, k, N, V, d, g, sigma2) {
+    .Call(`_sauron_dVi_dVk`, i, k, N, V, d, g, sigma2)
+}
+
 #' R-exported version of above, so it can be tested in R for accuracy.
 #'
 #' @noRd

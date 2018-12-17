@@ -97,6 +97,83 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 }
 
 
+/*
+Z = N[i] + np.sum([np.exp(-d * np.dot(V[j,:], V[j,:].T)) * N[j]
+    for j in range(0, N.size) if j != i])
+
+def symbolic(i, V, Z, CCC, f, g, s2):
+    """Symbolic differentiation using my brain"""
+    q = V.shape[1]
+    I = np.identity(q)
+    Vi = V[i,:]
+    Vi = Vi.reshape((1, q))
+    dVhat = I + s2 * (
+        ( 2 * g * Z * np.exp(-1 * Vi @ Vi.T)[0,0] * (I - 2 * Vi.T @ Vi) ) -
+        (f * CCC)
+    )
+    return dVhat
+ */
+//[[Rcpp::export]]
+arma::mat dVi_dVi(const uint32_t& i, const arma::mat& V, const double& Z,
+                  const arma::mat& CCC, const double& f, const double& g,
+                  const double& sigma2) {
+    uint32_t q = V.n_cols;
+    arma::mat I = arma::eye<arma::mat>(q, q);
+    arma::rowvec Vi = V.row(i);
+    arma::mat dVhat;
+    dVhat = I + sigma2 * (
+        (
+                2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
+                    (I - 2 * (Vi.t() * Vi))
+        ) - (f * CCC)
+    );
+    return dVhat;
+}
+
+
+/*
+def symbolic(i, k, N, V, d, g, s2):
+    """Symbolic differentiation using my brain"""
+    Vi = V[i,:]
+    Vi = Vi.reshape((1, 3))
+    Vk = V[k,:]
+    Vk = Vk.reshape((1, 3))
+    Ni = N[i]
+    Nk = N[k]
+    dVhat = -4 * s2 * Nk * d * g * np.dot(
+        np.dot(Vk.T, np.exp(-d * np.dot(Vk, Vk.T))),
+        np.dot(np.exp(-1 * np.dot(Vi, Vi.T)), Vi))
+    return dVhat
+ */
+//[[Rcpp::export]]
+arma::mat dVi_dVk(const uint32_t& i, const uint32_t& k,
+                  const std::vector<double>& N, const arma::mat& V,
+                  const double& d, const double& g,
+                  const double& sigma2) {
+    arma::rowvec Vi = V.row(i);
+    arma::rowvec Vk = V.row(k);
+    const double& Ni(N[i]);
+    const double& Nk(N[k]);
+    arma::mat dVhat;
+    dVhat = -4 * sigma2 * Nk * d * g * (
+        ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
+        ( arma::exp(-1 * Vi * Vi.t()) * Vi )
+        );
+
+    return dVhat;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
