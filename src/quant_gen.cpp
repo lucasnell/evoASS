@@ -97,75 +97,91 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 }
 
 
-/*
-Z = N[i] + np.sum([np.exp(-d * np.dot(V[j,:], V[j,:].T)) * N[j]
-    for j in range(0, N.size) if j != i])
-
-def symbolic(i, V, Z, CCC, f, g, s2):
-    """Symbolic differentiation using my brain"""
-    q = V.shape[1]
-    I = np.identity(q)
-    Vi = V[i,:]
-    Vi = Vi.reshape((1, q))
-    dVhat = I + s2 * (
-        ( 2 * g * Z * np.exp(-1 * Vi @ Vi.T)[0,0] * (I - 2 * Vi.T @ Vi) ) -
-        (f * CCC)
-    )
-    return dVhat
- */
-//[[Rcpp::export]]
-arma::mat dVi_dVi(const uint32_t& i, const arma::mat& V, const double& Z,
-                  const arma::mat& CCC, const double& f, const double& g,
-                  const double& sigma2) {
-    uint32_t q = V.n_cols;
+//' Partial derivative of species i traits at time t+1 with respect to species i traits
+//' at time t.
+//'
+//'
+//' @noRd
+//'
+void dVi_dVi_(arma::mat& dVhat,
+              const uint32_t& row_start,
+              const uint32_t& col_start,
+              const arma::rowvec& Vi, const double& Z,
+              const arma::mat& CCC, const double& f, const double& g,
+              const double& sigma2) {
+    uint32_t q = Vi.n_elem;
     arma::mat I = arma::eye<arma::mat>(q, q);
-    arma::rowvec Vi = V.row(i);
-    arma::mat dVhat;
-    dVhat = I + sigma2 * (
+    uint32_t row_end = row_start + q - 1;
+    uint32_t col_end = col_start + q - 1;
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I + sigma2 * (
         (
                 2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
                     (I - 2 * (Vi.t() * Vi))
         ) - (f * CCC)
     );
-    return dVhat;
+    return;
 }
 
 
-/*
-def symbolic(i, k, N, V, d, g, s2):
-    """Symbolic differentiation using my brain"""
-    Vi = V[i,:]
-    Vi = Vi.reshape((1, 3))
-    Vk = V[k,:]
-    Vk = Vk.reshape((1, 3))
-    Ni = N[i]
-    Nk = N[k]
-    dVhat = -4 * s2 * Nk * d * g * np.dot(
-        np.dot(Vk.T, np.exp(-d * np.dot(Vk, Vk.T))),
-        np.dot(np.exp(-1 * np.dot(Vi, Vi.T)), Vi))
-    return dVhat
- */
+//' R-exported version of above, to be used in R for testing.
+//'
+//' @noRd
+//'
 //[[Rcpp::export]]
-arma::mat dVi_dVk(const uint32_t& i, const uint32_t& k,
-                  const std::vector<double>& N, const arma::mat& V,
-                  const double& d, const double& g,
-                  const double& sigma2) {
-    arma::rowvec Vi = V.row(i);
-    arma::rowvec Vk = V.row(k);
-    const double& Ni(N[i]);
-    const double& Nk(N[k]);
-    arma::mat dVhat;
-    dVhat = -4 * sigma2 * Nk * d * g * (
-        ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
-        ( arma::exp(-1 * Vi * Vi.t()) * Vi )
-        );
+arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
+                      const arma::mat& CCC, const double& f, const double& g,
+                      const double& sigma2) {
+    uint32_t q = V.n_cols;
+    arma::mat dVhat(q, q);
+
+    // Fill dVhat:
+    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, g, sigma2);
 
     return dVhat;
 }
 
 
+//' Partial derivative of species i traits at time t+1 with respect to species k traits
+//' at time t.
+//'
+//' @noRd
+//'
+//'
+void dVi_dVk_(arma::mat& dVhat,
+              const uint32_t& row_start,
+              const uint32_t& col_start,
+              const double& Nk,
+              const arma::rowvec& Vi,
+              const arma::rowvec& Vk,
+              const double& d, const double& g,
+              const double& sigma2) {
+    uint32_t row_end = row_start + Vi.n_elem - 1;
+    uint32_t col_end = col_start + Vi.n_elem - 1;
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) =
+        -4 * sigma2 * Nk * d * g * (
+                ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
+                ( arma::exp(-1 * Vi * Vi.t()) * Vi )
+        );
+    return;
+}
 
 
+//' R-exported version of above, to be used in R for testing.
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
+                      const std::vector<double>& N, const arma::mat& V,
+                      const double& d, const double& g,
+                      const double& sigma2) {
+    uint32_t q = V.n_cols;
+    arma::mat dVhat(q, q);
+    // Fill dVhat:
+    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, g, sigma2);
+
+    return dVhat;
+}
 
 
 

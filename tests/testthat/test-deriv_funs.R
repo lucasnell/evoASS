@@ -15,7 +15,9 @@
 # --------------------*
 get_sim_info <- function(sim_i) {
 
-    sims <- readr::read_csv("../../informal_tests/simulated_data.csv")
+    sims <- readr::read_csv("../../check_math/simulated_data.csv",
+                            col_types = readr::cols(
+                                .default = readr::col_double()))
 
     info <- list2env(as.list(sims[sim_i,c("f", "g", "r0", "d", "eta")]))
 
@@ -58,7 +60,7 @@ calc_dVi_dVi <- function(sim_info) {
                               }))
         })
         with(sim_info, {
-            sauron:::dVi_dVi(i - 1, V, Z, CCC, f, g, sigma2)
+            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, g, sigma2)
         })
     })
 }
@@ -67,7 +69,7 @@ calc_dVi_dVk <- function(sim_info) {
     mats <- lapply(1:n, function(i) {
         lapply((1:n)[1:n != i], function(k) {
             with(sim_info, {
-                sauron:::dVi_dVk(i-1, k-1, N, V, d, g, sigma2)
+                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, g, sigma2)
             })
         })
     })
@@ -80,7 +82,7 @@ check_results <- function(type) {
 
     if (!type %in% c("dF_dVi", "dVi_dVi", "dVi_dVk")) stop("type not recognized")
 
-    py_results_df <- readr::read_csv(sprintf("../../informal_tests/results/%s.csv", type),
+    py_results_df <- readr::read_csv(sprintf("../../check_math/results/%s.csv", type),
                                      col_names = FALSE,
                                      col_types = readr::cols(
                                          .default = readr::col_double()))

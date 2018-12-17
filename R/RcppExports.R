@@ -19,6 +19,22 @@ adapt_dyn_cpp <- function(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, keep_p
 #'
 NULL
 
+#' Partial derivative of species i traits at time t+1 with respect to species i traits
+#' at time t.
+#'
+#'
+#' @noRd
+#'
+NULL
+
+#' Partial derivative of species i traits at time t+1 with respect to species k traits
+#' at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
 #' Compute Hessian matrices for a particular set of species' traits.
 #'
 #' @noRd
@@ -56,12 +72,20 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
     .Call(`_sauron_sel_str_cpp`, V, N, f, g, C, r0, d)
 }
 
-dVi_dVi <- function(i, V, Z, CCC, f, g, sigma2) {
-    .Call(`_sauron_dVi_dVi`, i, V, Z, CCC, f, g, sigma2)
+#' R-exported version of above, to be used in R for testing.
+#'
+#' @noRd
+#'
+dVi_dVi_cpp <- function(i, V, Z, CCC, f, g, sigma2) {
+    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, g, sigma2)
 }
 
-dVi_dVk <- function(i, k, N, V, d, g, sigma2) {
-    .Call(`_sauron_dVi_dVk`, i, k, N, V, d, g, sigma2)
+#' R-exported version of above, to be used in R for testing.
+#'
+#' @noRd
+#'
+dVi_dVk_cpp <- function(i, k, N, V, d, g, sigma2) {
+    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, g, sigma2)
 }
 
 #' R-exported version of above, so it can be tested in R for accuracy.
