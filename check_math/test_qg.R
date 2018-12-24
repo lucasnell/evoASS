@@ -13,33 +13,129 @@ if ((!is.null(Sys.info()[["sysname"]]) && Sys.info()[["sysname"]] == "Darwin") |
     options("device" = "quartz")
     grDevices::graphics.off()
 }
+get_sim <- function(eta, d) {
+    return(readRDS(sprintf("results/%s-eta_%s-d.rds", eta, d)))
+}
 
 
-n <- 100
-q <- 3
-coexist <- FALSE
-args <- list(
-    n_reps = 100,
-    V0 = lapply(1:n, function(i) matrix(1, 1, q)),
-    N0 = rep(1, n),
-    f = 0.1,  # cost of the trait on the growth rate
-    g = 0.5,  # benefit of the trait on density dependence
-    eta = 0.01,  # the non-additive effects of traits on `r`
-    r0 = 0.5,
-    d = -0.1, # changes how the focal line is affected by other lines' trait values
-    add_var = rep(0.1, n) * 5,
-    mut_sd = 0.1,
-    keep_pos = FALSE,
-    start_t = 100,
-    max_t = 1e6,
-    min_N = 1e-4,
-    save_every = 1000,
-    show_progress = TRUE,
-    n_cores = 4)
-if (coexist) args$d <- 1e-4
+#' null parameterization --> positive eta, negative d
+#'
+#' null + ...
+#' negative eta --> 2 alternative stable states NO coexistence
+#' zero eta --> neutrally stable "shell"
+#' positive d --> coexistence (often many spp)
+#' zero d --> coexistence (often many spp)
+#' negative eta + positive d --> 2 alternative states WITH coexistence
+#'
 
-qg <- do.call(quant_gen, args)
-qg
+
+
+#' | eta  |  d   | results                                                              |
+#' |:----:|:----:|:---------------------------------------------------------------------|
+#' | neg  | neg  | two alternative states, no coexistence                               |
+#' | neg  | zero | two alternative states, with coexistence                             |
+#' | neg  | pos  | two alternative states, with coexistence                             |
+#' | zero | neg  | neutrally stable "shell", no coexistence                             |
+#' | zero | zero | neutrally stable "shell", with coexistence                           |
+#' | zero | pos  | neutrally stable "shell", with coexistence                           |
+#' | pos  | neg  | neutrally stable ring, no coexistence †                              |
+#' | pos  | zero | neutrally stable ring, with coexistence                              |
+#' | pos  | pos  | neutrally stable ring, with coexistence                              |
+#'
+#' † Default parameterization
+#'
+
+
+
+qg <- get_sim("p", "p")
+# qg %>%
+#     .[["nv"]] %>%
+#     filter(time == max(time))
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    ggplot(aes(T1, T2, size = T3)) +
+    geom_point(shape = 16, alpha = 0.5) +
+    scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    NULL
+
+
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    ggplot(aes(T1, T2, size = T3)) +
+    geom_point(shape = 16, alpha = 0.5) +
+    facet_wrap(~ rep, nrow = 10) +
+    scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    scale_size_continuous(range = c(0.5, 2), breaks = -1:1) +
+    theme(strip.background = element_blank(), strip.text = element_blank()) +
+    NULL
+
+
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    group_by(rep) %>%
+    summarize(N = length(unique(spp))) %>%
+    .[["N"]] %>%
+    range()
+
+
+#'
+#' #' Create list for running a set of simulations:
+#' #'
+#' quant_gen_pars <- function(eta_sign, d_sign, n = 100, q = 3) {
+#'     # Other parameter values that I'll keep constant:
+#'     args <- list(
+#'         n_reps = 100,
+#'         V0 = rep(list(matrix(0, 1, q)), n),
+#'         N0 = rep(1, n),
+#'         f = 0.1,  # cost of the trait on the growth rate
+#'         g = 0.5,  # benefit of the trait on density dependence
+#'         r0 = 0.5,
+#'         add_var = rep(0.5, n),
+#'         mut_sd = 1,
+#'         keep_pos = FALSE,
+#'         start_t = 0,
+#'         max_t = 1e6,
+#'         min_N = 1e-4,
+#'         save_every = 1000,
+#'         show_progress = TRUE,
+#'         n_cores = 4)
+#'     # the non-additive effects of traits on `r`:
+#'     if (grepl("^p", eta_sign, TRUE)) {
+#'         args$eta <- 0.01
+#'     } else if (grepl("^z", eta_sign, TRUE)) {
+#'         args$eta <- 0
+#'     } else {
+#'         args$eta <- -0.01
+#'     }
+#'     # changes how the focal line is affected by other lines' trait values:
+#'     if (grepl("^p", d_sign, TRUE)) {
+#'         args$d <- 1e-4
+#'     } else if (grepl("^z", d_sign, TRUE)) {
+#'         args$d <- 0
+#'     } else {
+#'         args$d <- -0.1
+#'     }
+#'
+#'     return(args)
+#' }
+#'
+#'
+#' set.seed(1713696743)
+#' for (e in c("n", "z", "p")) {
+#'     for (d in c("n", "z", "p")) {
+#'         cat(sprintf("\n\neta: %s || d: %s \n", e, d))
+#'         args <- quant_gen_pars(e, d)
+#'         qg <- do.call(quant_gen, args)
+#'         saveRDS(qg, sprintf("results/%s-eta_%s-d.rds", e, d))
+#'     }
+#' }
 
 
 qg %>%
@@ -48,7 +144,7 @@ qg %>%
 
 qg %>%
     .[["nv"]] %>%
-    filter(time == max(time)) %>%
+    filter(time == max(time), rep == 1) %>%
     # filter(rep == 1) %>%
     mutate(trait = factor(paste0("T", paste(trait)))) %>%
     spread("trait", "value") %>%
@@ -114,9 +210,9 @@ qg %>%
 #     scale_color_continuous(low = "gray80", high = "black") +
 #     NULL
 
-jacobian <- function(N, V, eps = -1e-6) {
-    args_ <- c(list(N = N[[1]], V = V, eps = eps),
-               args[c("f", "g", "r0", "d", "add_var")])
+jacobian <- function(N, V) {
+    args_ <- c(list(N = N, V = V),
+               args[c("f", "g", "d", "add_var")])
     args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
     args_$C <- matrix(args$eta, length(V[[1]]), length(V[[1]]))
     diag(args_$C) <- 1
@@ -156,11 +252,16 @@ jacobian <- function(N, V, eps = -1e-6) {
 jacobs <- qg %>%
     .[["nv"]] %>%
     filter(time == max(time)) %>%
+    group_by(rep, spp) %>%
+    summarize(N = N[[1]],
+              V = list(value)) %>%
     group_by(rep) %>%
-    summarize(N = list(unique(N)),
-              V = map(unique(spp), ~ list(value[spp == .x]))) %>%
+    summarize(N = list(N),
+              V = list(V)) %>%
+    ungroup() %>%
     mutate(jacobs = map2(N, V, ~ jacobian(.x, .y))) %>%
-    .[["jacobs"]]
+    .[["jacobs"]] %>%
+    identity()
 
 eigens <- map_dbl(jacobs, ~ eigen(.x)$values[1])
 
@@ -171,10 +272,16 @@ qg2 <- qg %>%
     mutate(value = runif(n(), -2, 2))
 jacobs2 <- qg2 %>%
     group_by(rep) %>%
-    summarize(N = list(unique(N)),
-              V = map(unique(spp), ~ list(value[spp == .x]))) %>%
+    group_by(rep, spp) %>%
+    summarize(N = N[[1]],
+              V = list(value)) %>%
+    group_by(rep) %>%
+    summarize(N = list(N),
+              V = list(V)) %>%
+    ungroup() %>%
     mutate(jacobs = map2(N, V, ~ jacobian(.x, .y))) %>%
-    .[["jacobs"]]
+    .[["jacobs"]] %>%
+    identity()
 eigens2 <- map_dbl(jacobs2, ~ eigen(.x)$values[1])
 qg2 <- qg2 %>%
     mutate(trait = factor(paste0("T", paste(trait)))) %>%
