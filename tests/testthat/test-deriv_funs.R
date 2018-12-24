@@ -29,7 +29,7 @@ get_sim_info <- function(sim_i) {
         C = matrix(eta, ncol(V), ncol(V))
         diag(C) = 1
         CCC = C + t(C)
-        sigma2 = 0.01
+        add_var = 0.01
     })
 
     return(as.list(info))
@@ -60,7 +60,7 @@ calc_dVi_dVi <- function(sim_info) {
                               }))
         })
         with(sim_info, {
-            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, g, sigma2)
+            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, g, add_var)
         })
     })
 }
@@ -69,7 +69,7 @@ calc_dVi_dVk <- function(sim_info) {
     mats <- lapply(1:n, function(i) {
         lapply((1:n)[1:n != i], function(k) {
             with(sim_info, {
-                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, g, sigma2)
+                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, g, add_var)
             })
         })
     })

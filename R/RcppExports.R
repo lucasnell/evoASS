@@ -35,20 +35,6 @@ NULL
 #'
 NULL
 
-#' Compute Hessian matrices for a particular set of species' traits.
-#'
-#' @noRd
-#'
-#'
-NULL
-
-#' Creat Jacobian matrix for a particular set of species' traits.
-#'
-#'
-#' @noRd
-#'
-NULL
-
 #' Search for unique species in a matrix of species trait values.
 #'
 #' @noRd
@@ -76,32 +62,35 @@ sel_str_cpp <- function(V, N, f, g, C, r0, d) {
 #'
 #' @noRd
 #'
-dVi_dVi_cpp <- function(i, V, Z, CCC, f, g, sigma2) {
-    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, g, sigma2)
+dVi_dVi_cpp <- function(i, V, Z, CCC, f, g, add_var) {
+    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, g, add_var)
 }
 
 #' R-exported version of above, to be used in R for testing.
 #'
 #' @noRd
 #'
-dVi_dVk_cpp <- function(i, k, N, V, d, g, sigma2) {
-    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, g, sigma2)
+dVi_dVk_cpp <- function(i, k, N, V, d, g, add_var) {
+    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, g, add_var)
 }
 
-#' R-exported version of above, so it can be tested in R for accuracy.
+#' Calculate the Jacobian of first derivatives.
+#'
+#' Cell [i,j] contains the partial derivative of j with respect to i.
 #'
 #' @noRd
 #'
-hessian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
-    .Call(`_sauron_hessian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
+jacobian_cpp <- function(V, N, f, g, d, C, add_var) {
+    .Call(`_sauron_jacobian_cpp`, V, N, f, g, d, C, add_var)
 }
 
-#' R-exported version of above, so it can be tested in R for accuracy.
+#' Return main eigenvalue for a matrix.
+#'
 #'
 #' @noRd
 #'
-jacobian_cpp <- function(V, N, f, g, C, r0, d, add_var, eps) {
-    .Call(`_sauron_jacobian_cpp`, V, N, f, g, C, r0, d, add_var, eps)
+lambda_cpp <- function(M) {
+    .Call(`_sauron_lambda_cpp`, M)
 }
 
 #' Multiple repetitions of quantitative genetics.

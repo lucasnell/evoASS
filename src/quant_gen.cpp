@@ -36,14 +36,14 @@ using namespace Rcpp;
 //'
 //' @noRd
 //'
-void sel_str__(arma::mat& ss_mat,
-               const std::vector<arma::rowvec>& V,
-               const std::vector<double>& N,
-               const double& f,
-               const double& g,
-               const arma::mat& C,
-               const double& r0,
-               const double& d) {
+inline void sel_str__(arma::mat& ss_mat,
+                      const std::vector<arma::rowvec>& V,
+                      const std::vector<double>& N,
+                      const double& f,
+                      const double& g,
+                      const arma::mat& C,
+                      const double& r0,
+                      const double& d) {
 
     uint32_t n_spp = V.size();      // # species
     uint32_t n_trt = V[0].size();   // # traits
@@ -103,17 +103,17 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-void dVi_dVi_(arma::mat& dVhat,
-              const uint32_t& row_start,
-              const uint32_t& col_start,
-              const arma::rowvec& Vi, const double& Z,
-              const arma::mat& CCC, const double& f, const double& g,
-              const double& sigma2) {
+inline void dVi_dVi_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const arma::rowvec& Vi, const double& Z,
+                     const arma::mat& CCC, const double& f, const double& g,
+                     const double& add_var) {
     uint32_t q = Vi.n_elem;
     arma::mat I = arma::eye<arma::mat>(q, q);
     uint32_t row_end = row_start + q - 1;
     uint32_t col_end = col_start + q - 1;
-    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I + sigma2 * (
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I + add_var * (
         (
                 2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
                     (I - 2 * (Vi.t() * Vi))
@@ -130,12 +130,12 @@ void dVi_dVi_(arma::mat& dVhat,
 //[[Rcpp::export]]
 arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
                       const arma::mat& CCC, const double& f, const double& g,
-                      const double& sigma2) {
+                      const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
 
     // Fill dVhat:
-    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, g, sigma2);
+    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, g, add_var);
 
     return dVhat;
 }
@@ -147,18 +147,18 @@ arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
 //' @noRd
 //'
 //'
-void dVi_dVk_(arma::mat& dVhat,
-              const uint32_t& row_start,
-              const uint32_t& col_start,
-              const double& Nk,
-              const arma::rowvec& Vi,
-              const arma::rowvec& Vk,
-              const double& d, const double& g,
-              const double& sigma2) {
+inline void dVi_dVk_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const double& Nk,
+                     const arma::rowvec& Vi,
+                     const arma::rowvec& Vk,
+                     const double& d, const double& g,
+                     const double& add_var) {
     uint32_t row_end = row_start + Vi.n_elem - 1;
     uint32_t col_end = col_start + Vi.n_elem - 1;
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) =
-        -4 * sigma2 * Nk * d * g * (
+        -4 * add_var * Nk * d * g * (
                 ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
                 ( arma::exp(-1 * Vi * Vi.t()) * Vi )
         );
@@ -174,11 +174,11 @@ void dVi_dVk_(arma::mat& dVhat,
 arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
                       const std::vector<double>& N, const arma::mat& V,
                       const double& d, const double& g,
-                      const double& sigma2) {
+                      const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
     // Fill dVhat:
-    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, g, sigma2);
+    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, g, add_var);
 
     return dVhat;
 }
@@ -189,150 +189,9 @@ arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
 
 
 
-
-
-
-
-//' Compute Hessian matrices for a particular set of species' traits.
+//' Calculate the Jacobian of first derivatives.
 //'
-//' @noRd
-//'
-//'
-void hessian_(arma::cube& hessian,
-              const std::vector<arma::rowvec>& V,
-              const std::vector<double>& N,
-              const double& f,
-              const double& g,
-              const arma::mat& C,
-              const double& r0,
-              const double& d,
-              const arma::vec& add_var,
-              const double& eps) {
-
-    uint32_t n = N.size();
-    uint32_t q = V[0].n_elem;
-    arma::mat eye_(q, q, arma::fill::eye);
-
-    if (hessian.n_rows != q || hessian.n_cols != q || hessian.n_slices != n) {
-        hessian.set_size(q, q, n);
-    }
-
-    arma::mat ss_mat;
-    // Fill strength of selection matrix:
-    sel_str__(ss_mat, V, N, f, g, C, r0, d);
-    // Trait change based on current trait values:
-    std::vector<arma::rowvec> FV(n, arma::rowvec(q));
-    for (uint32_t i = 0; i < n; i++) FV[i] = V[i] + add_var(i) * ss_mat.row(i);
-
-    // Version of traits to manipulate:
-    std::vector<arma::rowvec> V_m = V;
-    // Trait change based on manipulated trait values:
-    arma::rowvec FV_m(q);
-
-    for (uint32_t i = 0; i < n; i++) {
-        for (uint32_t j = 0; j < q; j++) {
-            V_m[i](j) = V[i](j) + eps;
-            sel_str__(ss_mat, V_m, N, f, g, C, r0, d);
-            FV_m = V_m[i] + add_var(i) * ss_mat.row(i);
-            hessian.slice(i).row(j) = (FV_m - FV[i]) / eps;
-            V_m[i](j) = V[i](j);
-        }
-        hessian.slice(i) -= eye_;
-    }
-
-    return;
-}
-
-
-
-//' R-exported version of above, so it can be tested in R for accuracy.
-//'
-//' @noRd
-//'
-//[[Rcpp::export]]
-arma::cube hessian_cpp(const std::vector<arma::rowvec>& V,
-                       const std::vector<double>& N,
-                       const double& f,
-                       const double& g,
-                       const arma::mat& C,
-                       const double& r0,
-                       const double& d,
-                       const arma::vec& add_var,
-                       const double& eps) {
-
-    if (V.size() != N.size()) stop("V.size() != N.size()");
-    if (add_var.n_elem != N.size()) stop("add_var.n_elem != N.size()");
-
-    arma::cube hessian;
-
-    hessian_(hessian, V, N, f, g, C, r0, d, add_var, eps);
-
-    return hessian;
-}
-
-
-
-
-
-//' Creat Jacobian matrix for a particular set of species' traits.
-//'
-//'
-//' @noRd
-//'
-void jacobian_(arma::mat& jacobian,
-               const std::vector<arma::rowvec>& V,
-               const std::vector<double>& N,
-               const double& f,
-               const double& g,
-               const arma::mat& C,
-               const double& r0,
-               const double& d,
-               const arma::vec& add_var,
-               const double& eps) {
-
-    uint32_t n = N.size();
-    uint32_t q = V[0].n_elem;
-    uint32_t nq = n * q;
-
-    if (jacobian.n_rows != nq || jacobian.n_cols != nq) {
-        jacobian.set_size(nq, nq);
-    }
-
-    arma::mat ss_mat;
-    // Fill strength of selection matrix:
-    sel_str__(ss_mat, V, N, f, g, C, r0, d);
-    // Trait change based on current trait values:
-    arma::rowvec FV(nq);
-    for (uint32_t i = 0; i < n; i++) {
-        FV(arma::span(i*q, (i+1)*q-1)) = V[i] + add_var(i) * ss_mat.row(i);
-    }
-
-    // Version of traits to manipulate:
-    std::vector<arma::rowvec> V_m = V;
-    // Trait change based on manipulated trait values:
-    arma::rowvec FV_m(nq);
-
-    uint32_t k = 0;
-    for (uint32_t i = 0; i < n; i++) {
-        for (uint32_t j = 0; j < q; j++) {
-            V_m[i](j) = V[i](j) + eps;
-            sel_str__(ss_mat, V_m, N, f, g, C, r0, d);
-            for (uint32_t ii = 0; ii < n; ii++) {
-                FV_m(arma::span(ii*q, (ii+1)*q-1)) = V_m[ii] +
-                    add_var(ii) * ss_mat.row(ii);
-            }
-            jacobian.row(k) = (FV_m - FV) / eps;
-            V_m[i](j) = V[i](j);
-            k++;
-        }
-    }
-
-    return;
-
-}
-
-
-//' R-exported version of above, so it can be tested in R for accuracy.
+//' Cell [i,j] contains the partial derivative of j with respect to i.
 //'
 //' @noRd
 //'
@@ -341,20 +200,59 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                         const std::vector<double>& N,
                         const double& f,
                         const double& g,
-                        const arma::mat& C,
-                        const double& r0,
                         const double& d,
-                        const arma::vec& add_var,
-                        const double& eps) {
+                        const arma::mat& C,
+                        const arma::vec& add_var) {
 
-    if (V.size() != N.size()) stop("V.size() != N.size()");
-    if (add_var.n_elem != N.size()) stop("add_var.n_elem != N.size()");
+    uint32_t n = N.size();
+    uint32_t q = V[0].n_cols;
 
-    arma::mat jacobian;
+    if (V.size() != n) stop("V.size() != N.size()");
+    if (add_var.n_elem != n) stop("add_var.n_elem != N.size()");
+    for (uint32_t i = 0; i < n; i++) {
+        if (V[i].n_rows != n) stop("V[i].n_rows != n");
+        if (V[i].n_cols != q) stop("V[i].n_cols != q");
+    }
 
-    jacobian_(jacobian, V, N, f, g, C, r0, d, add_var, eps);
+    arma::mat jcb_mat(n*q, n*q);
 
-    return jacobian;
+    arma::vec Z_vec(n);
+    for (uint32_t j = 0; j < n; j++) {
+        Z_vec[j] = (N[j] * std::exp(-d * arma::as_scalar(V[j] * V[j].t())));
+    }
+    arma::mat CCC = C + C.t();
+
+    for (uint32_t i = 0; i < n; i++) {
+
+        const arma::rowvec& Vi(V[i]);
+        const double& add_var_i(add_var[i]);
+        uint32_t row_start = i * q;
+
+        for (uint32_t k = 0; k < n; k++) {
+
+            uint32_t col_start = k * q;
+
+            if (k == i) {
+
+                double Z = N[i];
+                for (uint32_t j = 0; j < n; j++) {
+                    if (j != i) Z += Z_vec[i];
+                }
+                // Fill Jacobian:
+                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, CCC, f, g, add_var_i);
+
+            } else {
+
+                // Fill Jacobian:
+                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], d, g, add_var_i);
+
+            }
+
+        }
+    }
+
+
+    return jcb_mat;
 }
 
 

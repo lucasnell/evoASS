@@ -49,8 +49,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // dVi_dVi_cpp
-arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& CCC, const double& f, const double& g, const double& sigma2);
-RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CCCSEXP, SEXP fSEXP, SEXP gSEXP, SEXP sigma2SEXP) {
+arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& CCC, const double& f, const double& g, const double& add_var);
+RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CCCSEXP, SEXP fSEXP, SEXP gSEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -60,14 +60,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type CCC(CCCSEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
-    Rcpp::traits::input_parameter< const double& >::type sigma2(sigma2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Z, CCC, f, g, sigma2));
+    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Z, CCC, f, g, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
 // dVi_dVk_cpp
-arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k, const std::vector<double>& N, const arma::mat& V, const double& d, const double& g, const double& sigma2);
-RcppExport SEXP _sauron_dVi_dVk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP NSEXP, SEXP VSEXP, SEXP dSEXP, SEXP gSEXP, SEXP sigma2SEXP) {
+arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k, const std::vector<double>& N, const arma::mat& V, const double& d, const double& g, const double& add_var);
+RcppExport SEXP _sauron_dVi_dVk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP NSEXP, SEXP VSEXP, SEXP dSEXP, SEXP gSEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -77,33 +77,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
     Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
-    Rcpp::traits::input_parameter< const double& >::type sigma2(sigma2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dVi_dVk_cpp(i, k, N, V, d, g, sigma2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// hessian_cpp
-arma::cube hessian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
-RcppExport SEXP _sauron_hessian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::vector<arma::rowvec>& >::type V(VSEXP);
-    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
-    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
-    Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
-    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
-    Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    Rcpp::traits::input_parameter< const double& >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(hessian_cpp(V, N, f, g, C, r0, d, add_var, eps));
+    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dVk_cpp(i, k, N, V, d, g, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
 // jacobian_cpp
-arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const arma::mat& C, const double& r0, const double& d, const arma::vec& add_var, const double& eps);
-RcppExport SEXP _sauron_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP CSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP epsSEXP) {
+arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& g, const double& d, const arma::mat& C, const arma::vec& add_var);
+RcppExport SEXP _sauron_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP gSEXP, SEXP dSEXP, SEXP CSEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -111,12 +92,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type g(gSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
-    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    Rcpp::traits::input_parameter< const double& >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(jacobian_cpp(V, N, f, g, C, r0, d, add_var, eps));
+    rcpp_result_gen = Rcpp::wrap(jacobian_cpp(V, N, f, g, d, C, add_var));
+    return rcpp_result_gen;
+END_RCPP
+}
+// lambda_cpp
+double lambda_cpp(const arma::mat& M);
+RcppExport SEXP _sauron_lambda_cpp(SEXP MSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
+    rcpp_result_gen = Rcpp::wrap(lambda_cpp(M));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -183,8 +173,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sauron_sel_str_cpp", (DL_FUNC) &_sauron_sel_str_cpp, 7},
     {"_sauron_dVi_dVi_cpp", (DL_FUNC) &_sauron_dVi_dVi_cpp, 7},
     {"_sauron_dVi_dVk_cpp", (DL_FUNC) &_sauron_dVi_dVk_cpp, 7},
-    {"_sauron_hessian_cpp", (DL_FUNC) &_sauron_hessian_cpp, 9},
-    {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 9},
+    {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 7},
+    {"_sauron_lambda_cpp", (DL_FUNC) &_sauron_lambda_cpp, 1},
     {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 17},
     {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
     {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
