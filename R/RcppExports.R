@@ -84,15 +84,6 @@ jacobian_cpp <- function(V, N, f, g, d, C, add_var) {
     .Call(`_sauron_jacobian_cpp`, V, N, f, g, d, C, add_var)
 }
 
-#' Return main eigenvalue for a matrix.
-#'
-#'
-#' @noRd
-#'
-lambda_cpp <- function(M) {
-    .Call(`_sauron_lambda_cpp`, M)
-}
-
 #' Multiple repetitions of quantitative genetics.
 #'
 #'

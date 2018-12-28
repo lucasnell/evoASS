@@ -20,6 +20,7 @@
 #' @importFrom dplyr starts_with
 #' @importFrom dplyr mutate
 #' @importFrom dplyr arrange
+#' @importFrom dplyr vars
 #'
 quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos,
                       start_t, max_t, min_N, save_every,
@@ -72,8 +73,7 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_po
                    spp = factor(spp, levels = 1:n),
                    trait = factor(trait, levels = 1:q)) %>%
             arrange(rep, time, spp, trait) %>%
-            mutate(value = ifelse(is.nan(value), NA, value)) %>%
-            identity()
+            mutate(value = ifelse(is.nan(value), NA, value))
     } else {
         NV_ <- as_data_frame(qg$NV) %>%
             set_names(c("rep", "spp", "N",
@@ -85,13 +85,12 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_po
                    spp = factor(spp, levels = 1:n),
                    trait = factor(trait, levels = 1:q)) %>%
             arrange(rep, spp, trait) %>%
-            mutate(value = ifelse(is.nan(value), NA, value)) %>%
-            identity()
+            mutate(value = ifelse(is.nan(value), NA, value))
     }
 
     FS_ <- as_data_frame(qg$FS) %>%
         set_names(c("fit", "sel")) %>%
-        mutate(rep = 1L:n()) %>%
+        mutate(rep = 1L:(dplyr::n())) %>%
         dplyr::select(rep, fit, sel)
 
 

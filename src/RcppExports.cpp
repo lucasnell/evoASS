@@ -99,17 +99,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// lambda_cpp
-double lambda_cpp(const arma::mat& M);
-RcppExport SEXP _sauron_lambda_cpp(SEXP MSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
-    rcpp_result_gen = Rcpp::wrap(lambda_cpp(M));
-    return rcpp_result_gen;
-END_RCPP
-}
 // quant_gen_cpp
 List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& mut_sd, const bool& keep_pos, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
 RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP keep_posSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
@@ -174,7 +163,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sauron_dVi_dVi_cpp", (DL_FUNC) &_sauron_dVi_dVi_cpp, 7},
     {"_sauron_dVi_dVk_cpp", (DL_FUNC) &_sauron_dVi_dVk_cpp, 7},
     {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 7},
-    {"_sauron_lambda_cpp", (DL_FUNC) &_sauron_lambda_cpp, 1},
     {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 17},
     {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
     {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
