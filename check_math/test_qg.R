@@ -18,17 +18,6 @@ get_sim <- function(eta, d) {
 }
 
 
-#' null parameterization --> positive eta, negative d
-#'
-#' null + ...
-#' negative eta --> 2 alternative stable states NO coexistence
-#' zero eta --> neutrally stable "shell"
-#' positive d --> coexistence (often many spp)
-#' zero d --> coexistence (often many spp)
-#' negative eta + positive d --> 2 alternative states WITH coexistence
-#'
-
-
 
 #' | eta  |  d   | results                                                              |
 #' |:----:|:----:|:---------------------------------------------------------------------|
@@ -47,10 +36,24 @@ get_sim <- function(eta, d) {
 
 
 
-qg <- get_sim("p", "p")
-# qg %>%
-#     .[["nv"]] %>%
-#     filter(time == max(time))
+qg <- get_sim("n", "n")
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>% .[["value"]] %>% round(digits = 8) %>% unique()
+
+
+V <- qg %>%
+    .[["nv"]] %>%
+    filter(rep == 1, time == 1) %>% {
+        N <<- {distinct(., spp, N)}$N
+        .
+    } %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    select(starts_with("T", FALSE)) %>%
+    as.matrix()
+
+
 qg %>%
     .[["nv"]] %>%
     filter(time == max(time)) %>%
@@ -83,6 +86,17 @@ qg %>%
     summarize(N = length(unique(spp))) %>%
     .[["N"]] %>%
     range()
+
+
+qg %>%
+    .[["nv"]] %>%
+    filter(rep == 1, time < 1e4) %>%
+    distinct(time, spp, N) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(group = spp), alpha = 0.5) +
+    # geom_line(aes(y = value, group = spp), alpha = 0.5) +
+    # facet_wrap(~ ) +
+    NULL
 
 
 #'
@@ -138,77 +152,6 @@ qg %>%
 #' }
 
 
-qg %>%
-    .[["nv"]] %>%
-    filter(time == max(time))
-
-qg %>%
-    .[["nv"]] %>%
-    filter(time == max(time), rep == 1) %>%
-    # filter(rep == 1) %>%
-    mutate(trait = factor(paste0("T", paste(trait)))) %>%
-    spread("trait", "value") %>%
-    ggplot(aes(T1, T2, size = T3)) +
-    geom_point(shape = 16, alpha = 0.5) +
-    scale_color_manual(values = c("dodgerblue", "firebrick")) +
-    NULL
-
-# # Start with one, see if it goes anywhere:
-# re_quantgen <- function(N_, V_, args_, ...) {
-#     other_args <- list(...)
-#     args_[names(other_args)] <- other_args
-#     args_[["N0"]] <- N_
-#     if (!inherits(V_, "list")) V_ <- list(V_)
-#     args_[["V0"]] <- V_
-#     args_[["mut_sd"]] <- 0
-#     args_[["start_t"]] <- 0
-#     args_[["save_every"]] <- 0
-#     do.call(quant_gen, args_)$nv
-# }
-# # Start with all, see where they go:
-# combined_quantgen <- function(qg_obj, args_, ...) {
-#
-#     other_args <- list(...)
-#     args_[names(other_args)] <- other_args
-#
-#     NV_df <- qg_obj %>%
-#         .[["nv"]] %>%
-#         filter(time == max(time)) %>%
-#         mutate(trait = paste0("V", trait)) %>%
-#         spread("trait", "value") %>%
-#         dplyr::select(N, starts_with("V", ignore.case = FALSE))
-#
-#     N_ <- pmax(NV_df$N / nrow(NV_df), 0.1)
-#
-#     V_ <- NV_df %>%
-#         dplyr::select(-N) %>%
-#         as.matrix() %>%
-#         split(row(.))
-#
-#     args_[["N0"]] <- N_
-#     args_[["V0"]] <- V_
-#
-#     return(do.call(quant_gen, args_))
-# }
-#
-# qg_c <- combined_quantgen(qg, args, max_t = 1e5, save_every = 0, mut_sd = 0.001)
-#
-# qg_c$nv %>%
-#     filter(rep == 1, trait == 1) %>%
-#     ggplot(aes(time, value)) +
-#     geom_line(aes(group = interaction(spp, rep)), alpha = 0.5) +
-#     facet_wrap(~ trait) +
-#     scale_color_brewer(palette = "Dark2") +
-#     scale_linetype_manual(values = rep(1, n), guide = FALSE)
-#
-# qg_c %>%
-#     .[["nv"]] %>%
-#     mutate(trait = factor(paste0("T", paste(trait)))) %>%
-#     spread("trait", "value") %>%
-#     ggplot(aes(T1, T2, size = T3)) + # , color = T4)) +
-#     geom_point(shape = 16, alpha = 0.5) +
-#     scale_color_continuous(low = "gray80", high = "black") +
-#     NULL
 
 jacobian <- function(N, V) {
     args_ <- c(list(N = N, V = V),
@@ -219,34 +162,6 @@ jacobian <- function(N, V) {
     jacobian_mat <- do.call(sauron:::jacobian_cpp, args_)
     return(jacobian_mat)
 }
-
-
-# # Start with one, see if it goes anywhere:
-# re_quantgen <- function(N_, V_, args_, ...) {
-#     other_args <- list(...)
-#     args_[names(other_args)] <- other_args
-#     args_[["N0"]] <- N_
-#     if (!inherits(V_, "list")) V_ <- list(V_)
-#     args_[["V0"]] <- V_
-#     args_[["mut_sd"]] <- 0
-#     args_[["start_t"]] <- 0
-#     args_[["save_every"]] <- 0
-#     args_[["add_var"]] <- args_[["add_var"]][1:length(N_)]
-#     z <- do.call(quant_gen, args_)$nv
-#     return(range(z$value - rep(do.call(c, V_), args_$n_reps)))
-# }
-#
-# # All zeros:
-# qg_re <- qg %>%
-#     .[["nv"]] %>%
-#     filter(time == max(time)) %>%
-#     group_by(rep) %>%
-#     summarize(N = list(unique(N)),
-#               V = map(unique(spp), ~ list(value[spp == .x]))) %>%
-#     mutate(diff = map2(N, V, ~ re_quantgen(.x, .y, args, show_progress = FALSE, max_t = 1e5))) %>%
-#     select(rep, diff) %>%
-#     unnest()
-# sum(qg_re$diff != 0)
 
 
 jacobs <- qg %>%
