@@ -1,10 +1,10 @@
 ---
-title: "Alternative stable states simulations"
+title: "Simulations"
 author: "Lucas A. Nell"
 date: "10/25/2018"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Alternative stable states simulations}
+  %\VignetteIndexEntry{Simulations}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 editor_options: 
@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
   fig.width = 6,
   fig.height = 4,
   echo = FALSE,
-  eval = FALSE
+  eval = TRUE
 )
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 options(tibble.print_min = 4L, tibble.print_max = 8L)
@@ -33,80 +33,189 @@ suppressPackageStartupMessages({
 ```
 
 
-```{r adaptive_dynamics}
+## Doing and saving simulations
 
-q <- 3
-n <- 1
-args <- list(
-    V0 = matrix(1, 1, q),
-    N0 = rep(1, n),
-    f = 0.1,  # cost of the trait on the growth rate
-    g = 0.5,  # benefit of the trait on density dependence
-    eta = 0.01,  # the non-additive effects of traits on `r`
-    r0 = 0.5,
-    d = -0.1,  # changes how the focal line is affected by other lines' trait values
-    keep_pos = FALSE,
-    max_t = 1e6,
-    min_N = 1e-4,
-    save_every = 100,
-    show_progress = TRUE,
-    mut_prob = 0.01,
-    mut_sd = 0.75,
-    max_clones = 1e4)
-set.seed(4)
-ad_sims <- do.call(adapt_dyn, args)
+```{r do_sims}
+# Create list for running a set of simulations:
+quant_gen_pars <- function(eta_sign, d_sign, q, n = 100) {
+    # Other parameter values that I'll keep constant:
+    args <- list(
+        n_reps = 100,
+        V0 = rep(list(matrix(0, 1, q)), n),
+        N0 = rep(1, n),
+        f = 0.1,  # cost of the trait on the growth rate
+        g = 0.5,  # benefit of the trait on density dependence
+        r0 = 0.5,
+        add_var = rep(0.5, n),
+        mut_sd = 1,
+        keep_pos = FALSE,
+        start_t = 0,
+        max_t = 1e6,
+        min_N = 1e-4,
+        save_every = 1000,
+        show_progress = TRUE,
+        n_cores = 4)
+    # the non-additive effects of traits on `r`:
+    if (grepl("^p", eta_sign, TRUE)) {
+        args$eta <- 0.01
+    } else if (grepl("^z", eta_sign, TRUE)) {
+        args$eta <- 0
+    } else {
+        args$eta <- -0.01
+    }
+    # changes how the focal line is affected by other lines' trait values:
+    if (grepl("^p", d_sign, TRUE)) {
+        args$d <- 1e-4
+    } else if (grepl("^z", d_sign, TRUE)) {
+        args$d <- 0
+    } else {
+        args$d <- -0.1
+    }
 
-ad_sims %>%
-    .[["data"]] %>% 
-    ggplot(aes(time, V, color = trait)) +
-    geom_point(shape = 1, alpha = 0.5) +
-    scale_color_manual(values = c("dodgerblue3", "firebrick3", "black")) +
-    ylab("Trait value") +
-    xlab("Time")
+    return(args)
+}
 ```
 
 
-```{r perturb}
-# ad_sims %>% .[["data"]] %>% 
-#     group_by(time) %>% 
-#     summarize(N = n()) %>% 
-#     ungroup() %>% 
-#     ggplot(aes(time, N)) +
-#     geom_line()
+### Two traits
 
 
-set.seed(5)
-adp <- ad_sims %>%
-    perturb(new_prop = 1,
-            new_trait_means = c(1.09, 0.518, -1.61),
-            new_trait_sigmas = rep(0.0, q),
-            new_N_mean = 11.3 * 0.9, new_N_sd = 0) %>%
-    perturb(new_prop = 1,
-            new_trait_means = c(1.09, 0.518, -1.61),
-            new_trait_sigmas = rep(0.0, q),
-            new_N_mean = 11.3 * 1.1, new_N_sd = 0)
-
-perterb_plot <- adp %>%
-    .[["data"]] %>%
-    ggplot(aes(time, V, color = trait)) +
-    geom_vline(xintercept = args$max_t * 1:2, linetype = 2, color = "gray80") +
-    geom_point(shape = 1, alpha = 0.5, size = 0.25) +
-    scale_color_manual(values = c("dodgerblue3", "firebrick3", "gray60")) +
-    # theme(legend.position = c(0.9, 0.5)) +
-    guides(color = guide_legend("Trait:", override.aes = list(size = 2, alpha = 1))) +
-    ylab("Trait value") +
-    xlab("Time")
+```{r, run_sims_q2, eval = FALSE}
+# Takes ~ 2.1 hrs
+set.seed(2028111205)
+seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
+i <- 1
+for (e in c("n", "z", "p")) {
+    for (d in c("n", "z", "p")) {
+        cat(sprintf("\n\neta: %s || d: %s (%i / 9) \n", e, d, i))
+        set.seed(seeds[i])
+        args <- quant_gen_pars(e, d, q = 2)
+        qg <- do.call(quant_gen, args)
+        saveRDS(qg, sprintf("results/q2/%s-eta_%s-d.rds", e, d))
+        i <- i + 1
+    }
+}
+```
 
 
-perterb_plot <- perterb_plot +
-    theme(axis.title = element_blank(),
-          axis.ticks = element_blank(),
-          axis.text = element_blank(),
-          legend.position = "none")
+### Three traits
 
-perterb_plot
+```{r, run_sims_q3, eval = FALSE}
+# Takes ~3.5 hrs
+set.seed(1713696743)
+seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
+i <- 1
+for (e in c("n", "z", "p")) {
+    for (d in c("n", "z", "p")) {
+        cat(sprintf("\n\neta: %s || d: %s (%i / 9) \n", e, d, i))
+        set.seed(seeds[i])
+        args <- quant_gen_pars(e, d, q = 3)
+        qg <- do.call(quant_gen, args)
+        saveRDS(qg, sprintf("results/q3/%s-eta_%s-d.rds", e, d))
+        i <- i + 1
+    }
+}
+```
 
-# ggsave(perterb_plot, filename = "~/Desktop/adapt_dyn.pdf", width = 6.5, height = 4)
+Function to get the relevant rds file for a given simulation scenario:
+```{r get_sim_fxn}
+get_sim <- function(eta_sign, d_sign, q) {
+    return(readRDS(sprintf("results/q%i/%s-eta_%s-d.rds", q, eta_sign, d_sign)))
+}
+```
+
+
+## Jacobian matrices to assess stability
+
+```{r jacobian_mats}
+# Jacobian for one simulation rep:
+one_jacobian <- function(N, V, call_) {
+    other_args <- as.list(call_)[c("eta", "f", "g", "d", "add_var")]
+    args_ <- c(list(N = N, V = V),
+               other_args[c("f", "g", "d", "add_var")])
+    args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
+    args_$C <- matrix(other_args$eta, length(V[[1]]), length(V[[1]]))
+    diag(args_$C) <- 1
+    jacobian_mat <- do.call(sauron:::jacobian_cpp, args_)
+    return(jacobian_mat)
+}
+# Same but for a `quant_gen` object containing multiple reps:
+jacobians <- function(qg_obj) {
+    jc_mats <- qg_obj %>%
+        .[["nv"]] %>%
+        filter(time == max(time)) %>%
+        group_by(rep, spp) %>%
+        summarize(N = N[[1]],
+                  V = list(value)) %>%
+        group_by(rep) %>%
+        summarize(N = list(N),
+                  V = list(V)) %>%
+        ungroup() %>%
+        mutate(jacobs = map2(N, V, ~ one_jacobian(.x, .y, qg_obj$call))) %>%
+        .[["jacobs"]]
+    return(jc_mats)
+}
+# Vector of primary eigenvalues for a `quant_gen` object containing multiple reps:
+eigens <- function(qg_obj) map_dbl(jacobians(qg_obj),
+                                   ~ Re(eigen(.x, only.values = TRUE, 
+                                              symmetric = FALSE)$values[1]))
+```
+
+
+## Results
+
+
+> CHECK THAT STABILITY IS CORRECT BELOW!!!
+
+### 3 traits
+
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable "shell"      | No          |
+|         | 0      | neutrally stable "shell"      | Yes         |
+|         | $+$    | neutrally stable "shell"      | Yes         |
+| $+$     | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
+
+
+### 2 traits
+
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
+| $+$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+
+## Plots
+
+### 2 traits
+
+```{r two-trait-plots}
+eta_sign <- "z"
+d_sign <- "p"
+q <- 3
+# args <- quant_gen_pars(eta, d, q = 2)
+# # args$d <- 
+# args$eta <- 0.1
+# args$f <- 0.2
+# args$g <- 1
+# args$n_reps <- 4
+# qg <- do.call(quant_gen, args)
+qg <- get_sim(eta_sign, d_sign, q)
+
+eigs <- eigens(qg)
+
+
 
 
 
