@@ -218,20 +218,115 @@ eigs <- eigens(qg)
 
 
 
+Rcpp::sourceCpp("check_math/jacobian.cpp")
 
+C <- matrix(qg$call$eta, q, q)
+diag(C) <- 1
 
-ad_sims %>% .[["data"]] %>% 
-    group_by(time) %>% 
-    summarize(N = sum(N)) %>% 
+reps <- qg$nv %>% 
+    filter(time == max(time)) %>% 
+    group_by(rep, spp, N) %>% 
+    summarize(traits = list(value)) %>% 
     ungroup() %>% 
-    ggplot(aes(time, N)) +
-    geom_line() +
-    theme_classic()
+    split(.$rep)
+
+eigs_tony <- numeric(100)
+for (repi in 1:100) {
+    N <- reps[[repi]]$N
+    V <- reps[[repi]]$traits
+    jc_tony <- jacobian_cpp(V, N, qg$call$f, qg$call$g, C, qg$call$r0, qg$call$d, 
+                        qg$call$add_var[1:length(N)], -1e-6)
+    eigs_tony[repi] <- Re(eigen(jc_tony, only.values = TRUE, symmetric = FALSE)$values[1])
+    if (repi %% 10 == 0) cat(repi, "\n")
+}
+
+range(eigs_tony - 1)
+
+jc_sauron <- sauron:::jacobian_cpp(V, N, qg$call$f, qg$call$g,
+                        qg$call$d, C, qg$call$add_var[1:length(N)])
+eigen(jc_sauron, only.values = TRUE, symmetric = FALSE)$values[1]
+
+new_sauron <- jc_sauron
+for (i in 1:(length(N)-1)) {
+    for (j in (i + 1):length(N)) {
+        row_a <- (i-1) * q + 1
+        col_a <- (j-1) * q + 1
+        a <- new_sauron[row_a:(row_a + q - 1), col_a:(col_a + q - 1)]
+        b <- new_sauron[col_a:(col_a + q - 1), row_a:(row_a + q - 1)]
+        # Now assigning new values:
+        new_sauron[col_a:(col_a + q - 1), row_a:(row_a + q - 1)] <- a
+        new_sauron[row_a:(row_a + q - 1), col_a:(col_a + q - 1)] <- b
+    }
+}
+eigen(new_sauron, only.values = TRUE, symmetric = FALSE)$values[1] - 1
+eigen(jc_sauron, only.values = TRUE, symmetric = FALSE)$values[1] - 1
+
+
+
+
+
+for (e in c("n", "z", "p")) {
+    for (d in c("n", "z", "p")) {
+        cat(sprintf("eta: %s || d: %s \n", e, d))
+        qg_ <- get_sim(e, d, q = 2)
+        qg_ %>% 
+            eigens() %>% 
+            range() %>% 
+            print()
+        cat("\n")
+    }
+}; rm(qg_)
+
+# qg %>%
+#     .[["nv"]] %>%
+#     distinct(rep, time, spp, N) %>% 
+#     ggplot(aes(time, N)) +
+#     geom_line(aes(group = spp), alpha = 0.5) +
+#     facet_wrap(~ rep)
+# 
+# qg %>%
+#     .[["nv"]] %>%
+#     filter(trait == 1) %>% 
+#     ggplot(aes(time, value)) +
+#     geom_line(aes(group = spp), alpha = 0.5) +
+#     facet_wrap(~ rep)
+
+
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    ggplot(aes(T1, T2)) + #, size = T3)) +
+    geom_point(shape = 16, alpha = 0.5, size = 3) +
+    scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    NULL
+
+# How many species survived together?
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    group_by(rep) %>%
+    summarize(N = length(unique(spp))) %>%
+    .[["N"]] %>%
+    range()
+
+
+
+qg %>%
+    .[["nv"]] %>%
+    filter(time == max(time)) %>%
+    mutate(trait = factor(paste0("T", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    ggplot(aes(T1, T2)) + #, size = T3)) +
+    geom_point(shape = 16, alpha = 0.5) +
+    facet_wrap(~ rep, nrow = 10) +
+    scale_color_manual(values = c("dodgerblue", "firebrick")) +
+    scale_size_continuous(range = c(0.5, 2), breaks = -1:1) +
+    theme(strip.background = element_blank(), strip.text = element_blank()) +
+    NULL
 
 
 
 ```
-
-
-
 
