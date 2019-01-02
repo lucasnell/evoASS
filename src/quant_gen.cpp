@@ -113,12 +113,13 @@ inline void dVi_dVi_(arma::mat& dVhat,
     arma::mat I = arma::eye<arma::mat>(q, q);
     uint32_t row_end = row_start + q - 1;
     uint32_t col_end = col_start + q - 1;
-    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I + add_var * (
-        (
-                2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
-                    (I - 2 * (Vi.t() * Vi))
-        ) - (f * CCC)
-    );
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I +
+        add_var * (
+                (
+                        2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
+                            (I - 2 * (Vi.t() * Vi))
+                ) - (f * CCC)
+        );
     return;
 }
 
@@ -210,8 +211,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
     if (V.size() != n) stop("V.size() != N.size()");
     if (add_var.n_elem != n) stop("add_var.n_elem != N.size()");
     for (uint32_t i = 0; i < n; i++) {
-        if (V[i].n_rows != n) stop("V[i].n_rows != n");
-        if (V[i].n_cols != q) stop("V[i].n_cols != q");
+        if (V[i].n_elem != q) stop("V[i].n_cols != q");
     }
 
     arma::mat jcb_mat(n*q, n*q);
@@ -220,23 +220,24 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
     for (uint32_t j = 0; j < n; j++) {
         Z_vec[j] = (N[j] * std::exp(-d * arma::as_scalar(V[j] * V[j].t())));
     }
+
     arma::mat CCC = C + C.t();
 
     for (uint32_t i = 0; i < n; i++) {
 
         const arma::rowvec& Vi(V[i]);
         const double& add_var_i(add_var[i]);
-        uint32_t row_start = i * q;
+        uint32_t col_start = i * q;
 
         for (uint32_t k = 0; k < n; k++) {
 
-            uint32_t col_start = k * q;
+            uint32_t row_start = k * q;
 
             if (k == i) {
 
                 double Z = N[i];
                 for (uint32_t j = 0; j < n; j++) {
-                    if (j != i) Z += Z_vec[i];
+                    if (j != i) Z += Z_vec[j];
                 }
                 // Fill Jacobian:
                 dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, CCC, f, g, add_var_i);
@@ -249,6 +250,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
             }
 
         }
+
     }
 
 
