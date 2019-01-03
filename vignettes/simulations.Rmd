@@ -298,7 +298,8 @@ plot2 <- map_dfr(1:length(sims2),
     ggplot(aes(T1, T2)) + #, size = T3)) +
     geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
-    scale_color_manual(values = c("dodgerblue3", "goldenrod1", "black"),
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
     theme(legend.position = "top") +
     xlab("Trait 1") +
@@ -322,7 +323,8 @@ plot3 <- map_dfr(1:length(sims3),
     ggplot(aes(T1, T2, size = T3)) +
     geom_point(aes(color = eta, alpha = scenario), shape = 16) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
-    scale_color_manual(values = c("dodgerblue3", "goldenrod1", "black"),
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
                        guide = guide_legend(override.aes = list(size = 4))) +
     scale_alpha_manual(values = c(c(0.5, 0.25, 0.5), rep(c(0.5, 0.05, 0.01), 2)),
                        guide = FALSE) +
@@ -336,19 +338,26 @@ plot3
 ```
 
 
-By taking a "slice" at T3 ~ 0, we can verify that it's a shell when $\eta = 0$ and a ring
-when $\eta > 0$.
+By taking "slices" at varying values of trait 3, we can verify that it's a shell
+when $\eta = 0$ and a ring when $\eta > 0$.
+We can also see that when $\eta < 0$, both alternative stable points exist on the
+neutrally stable shell (see blue points on panels labelled
+"Trait 3: -1.17" and "Trait 3: 1.17").
 
 ```{r three-traits-plots2}
-# # Value of trait 3 to filter for:
-# t3 <- sims3[[1]]$nv$value %>% 
-#     signif(digits = 10) %>%
-#     abs() %>%
-#     unique()
-# n_per <- 10
+# Values of trait 3 to filter for:
+t3 <- sims3[[1]]$nv$value %>%
+    signif(digits = 10) %>% 
+    abs() %>% 
+    unique() %>% 
+    `+`(seq(0.5, -1, -0.5)) %>% 
+    map(~ .x * c(-1,1)) %>% 
+    unlist() %>% 
+    sort()
 
-filter_unq <- function(..., precision = 1e-2) {
+filter_unq <- function(..., precision = 1e-2, min_pts = 100) {
     V <- do.call(cbind, list(...))
+    if (nrow(V) <= min_pts) return(rep(TRUE, nrow(V)))
     V <- split(V, row(V))
     sauron:::unq_spp_cpp(V, precision) == 1
 }
@@ -358,76 +367,65 @@ q3 <- map_dfr(1:length(sims3),
             mutate(trait = factor(paste0("T", paste(trait)))) %>%
             spread("trait", "value") %>%
             mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
-    filter(T3 <= 0, eta >= 0) %>% 
-    group_by(d) %>%
-    filter(filter_unq(T1, T2, T3, precision = 5e-2)) %>%
-    ungroup() %>%
+    # filter(T3 <= 0) %>%
     mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x))))
 
+filter_trait <- function(trait, f_vec, prec = 0.01) {
+    prec <- prec^2
+    map_lgl(trait, function(x) any((x - f_vec)^2 < prec))
+}
+match_trait <- function(trait, f_vec, trait_name = "T3") {
+    m_vec <- map_dbl(trait, function(x) {
+        diff <- (x - f_vec)^2
+        i <- which(diff == min(diff))
+        return(f_vec[i])
+    })
+    m_vec <- factor(m_vec, levels = sort(f_vec), 
+                  labels = sprintf("%s: %.3g", trait_name, f_vec))
+    return(m_vec)
+}
 
-library(akima)
-library(rgl)
-
-
-spline_interpolated <- interp(q3$T1, q3$T2, q3$T3,
-                              nx = 200, ny = 200,
-                              linear = FALSE, extrap = FALSE, jitter = 0)
-
-
-x.si <- spline_interpolated$x
-y.si <- spline_interpolated$y
-z.si <- spline_interpolated$z
-
-persp3d(x.si, y.si, z.si, col = "gray")
-
-
-map_dfr(1:length(sims3),
-        ~ sims3[[.x]]$nv %>%
-            mutate(trait = factor(paste0("T", paste(trait)))) %>%
-            spread("trait", "value") %>%
-            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
-    filter(T3 <= 0) %>% 
-    # group_by(d) %>% 
-    # filter(filter_unq(T1, T2, T3, precision = 1e-1)) %>%
+z <- q3 %>% 
+    filter(filter_trait(T3, t3)) %>% 
+    mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
+    filter(eta != 0, stage %in% sprintf("Trait 3: %.2f", c(1.17, -1.17))) %>% 
+    arrange(stage, eta, d) %>% 
+    # group_by(stage, eta, d) %>%
+    # filter((abs(T3) - t3[7])^2 == min((abs(T3) - t3[7])^2)) %>%
+    # filter(1:n() == 1) %>%
+    filter(filter_unq(T1, T2, T3, precision = 1e-1)) %>%
+    # ungroup() %>%
+    # group_by(eta, stage) %>% 
+    # summarize_at(vars(starts_with("T")), mean) %>% 
     # ungroup() %>% 
-    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x)))) %>%
-    ggplot(aes(T1, T2, color = T3)) +
-    geom_point(alpha = 0.5, shape = 16) +
-    facet_wrap(~ d + eta, nrow = 2, labeller = label_both) +
-    scale_color_continuous(high = "#132B43", low = "#56B1F7")
+    identity()
 
-map_dfr(1:length(sims3),
-        ~ sims3[[.x]]$nv %>%
-            mutate(trait = factor(paste0("T", paste(trait)))) %>%
-            spread("trait", "value") %>%
-            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
-    filter(eta == 0) %>% 
-    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x)))) %>%
-    group_by(d) %>% 
-    filter(filter_unq(T1, T2, T3, precision = 2e-1)) %>%
-    ungroup() %>% 
-    ggplot(aes(T1, T2, size = T3)) +
+z %>% 
+    filter(eta == -0.01, stage %in% sprintf("Trait 3: %.2f", -1.17)) %>%
+    filter(filter_unq(T1, T2, T3, precision = 1e-1))
+    
+mean((c(0.415,-1.58,1.17) - c(-1.58,0.403,1.18))^2)
+
+
+q3 %>% 
+    filter(filter_trait(T3, t3)) %>% 
+    mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
+    group_by(eta) %>%
+    filter(filter_unq(T1, T2, T3, precision = 1e-1, min_pts = 25)) %>%
+    ungroup() %>%
+    arrange(eta) %>% 
+    ggplot(aes(T1, T2, size = T3, color = eta)) +
     geom_point(alpha = 0.5, shape = 16) +
-    facet_wrap(~ d, nrow = 1, labeller = label_both)
-    
-    
-    
-    # filter((d >= 0 & T3^2 < 0.01^2) | (d < 0 & T3^2 < 0.2^2), eta >= 0) %>% 
-    # filter((d >= 0 & (T3 - t3)^2 < 0.01^2) | (d < 0 & (T3 - t3)^2 < 0.1^2)) %>%
-    filter((T3 - t3)^2 < 0.01^2 | (T3 - (t3/2))^2 < 0.01^2 | (T3 - (0))^2 < 0.01^2) %>%
-    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x)))) %>%
-    group_by(eta, d) %>% 
-    filter(1:n() %in% sample.int()) %>% 
-    arrange(eta) %>%
-    ggplot(aes(T1, T2, size = T3)) +
-    geom_point(aes(color = eta), alpha = 0.5, shape = 16) +
-    facet_wrap(~ d, nrow = 1, labeller = label_both) +
-    scale_color_manual(values = c("dodgerblue3", "goldenrod1", "black"),
+    facet_wrap( ~ stage, nrow = 2) +
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
-    theme(legend.position = "top") +
+    theme(legend.position = "top", strip.text = element_text(size = 8)) +
     xlab("Trait 1") +
     ylab("Trait 2") +
+    scale_size_continuous("Trait 3", breaks = c(-1.5, -0.5)) +
     NULL
+
 ```
 
 
