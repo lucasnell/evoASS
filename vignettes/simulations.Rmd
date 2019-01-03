@@ -92,7 +92,7 @@ for (e in c("n", "z", "p")) {
         set.seed(seeds[i])
         args <- quant_gen_pars(e, d, q = 2)
         qg <- do.call(quant_gen, args)
-        saveRDS(qg, sprintf("results/q2/%s-eta_%s-d.rds", e, d))
+        saveRDS(qg, sprintf("results/q2/%s-eta_%s-d.rds", e, d), compress = FALSE)
         i <- i + 1
     }
 }
@@ -112,7 +112,7 @@ for (e in c("n", "z", "p")) {
         set.seed(seeds[i])
         args <- quant_gen_pars(e, d, q = 3)
         qg <- do.call(quant_gen, args)
-        saveRDS(qg, sprintf("results/q3/%s-eta_%s-d.rds", e, d))
+        saveRDS(qg, sprintf("results/q3/%s-eta_%s-d.rds", e, d), compress = FALSE)
         i <- i + 1
     }
 }

@@ -15,7 +15,7 @@ editor_options:
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  dev = "svglite", 
+  dev = "png", 
   fig.width = 6,
   fig.height = 4,
   echo = TRUE,
@@ -72,7 +72,7 @@ I considered a state "stable" when $\lambda < 1$ and
 "neutrally stable" when $\lambda = 1$.
 For each scenario of $\eta$ and $d$ (each being negative, zero, or positive),
 I calculated $\lambda$ for each of the 100 reps.
-In the tables below, the column `lambda` contains the range of $\lambda$ values
+In the tables below, the column $\lambda$ contains the range of $\lambda$ values
 among all reps.
 
 
@@ -127,6 +127,7 @@ stab_df2 %>%
     mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
     mutate_at(vars(eta, d), 
               function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    rename(`$\\eta$` = eta, `$d$` = d, `$\\lambda$` = lambda) %>% 
     knitr::kable(align = c("l", "l", "r"))
 ```
 
@@ -145,6 +146,7 @@ stab_df3 %>%
     mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
     mutate_at(vars(eta, d), 
               function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    rename(`$\\eta$` = eta, `$d$` = d, `$\\lambda$` = lambda) %>% 
     knitr::kable(align = c("l", "l", "r"))
 ```
 
@@ -154,11 +156,11 @@ stab_df3 %>%
 For each scenario of $\eta$ and $d$ (each being negative, zero, or positive),
 I calculated the number of total species present at the final time point
 for each of the 100 reps.
-Below, the column `n_spp` contains the range of final species totals among all reps.
+Below, the column "n_spp" contains the range of final species totals among all reps.
 
 #### Coexistence - 2 traits
 
-```{r q2-coexistence}
+```{r q2-coexistence, echo = FALSE}
 coex_df2 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
     mutate(n_spp = map_chr(1:n(),
                              function(i) {
@@ -174,12 +176,13 @@ coex_df2 %>%
     mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
     mutate_at(vars(eta, d), 
               function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    rename(`$\\eta$` = eta, `$d$` = d) %>% 
     knitr::kable(align = c("l", "l", "r"))
 ```
 
 #### Coexistence - 3 traits
 
-```{r q3-coexistence}
+```{r q3-coexistence, echo = FALSE}
 coex_df3 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
     mutate(n_spp = map_chr(1:n(),
                              function(i) {
@@ -195,6 +198,7 @@ coex_df3 %>%
     mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
     mutate_at(vars(eta, d), 
               function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    rename(`$\\eta$` = eta, `$d$` = d) %>% 
     knitr::kable(align = c("l", "l", "r"))
 ```
 
@@ -298,19 +302,24 @@ plot3b <- map_dfr(1:length(sims3),
             mutate(trait = factor(paste0("T", paste(trait)))) %>%
             spread("trait", "value") %>%
             mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
-    mutate_at(vars(eta, d), function(x) factor(paste(x),
-                                               levels = sort(unique(x))[c(2, 1, 3)])) %>% 
     filter(filter_trait(T3, t3)) %>% 
     mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
+    # Making factor levels weird, then ordering by eta, so that eta == 0 values
+    # are plotted first (otherwise the other eta-valued points won't be visible):
+    mutate_at(vars(eta, d), function(x) factor(paste(x),
+                                               levels = sort(unique(x))[c(2, 1, 3)])) %>% 
     arrange(eta) %>% 
+    # Now converting eta and d back to normal ordering so their legends are in
+    # proper order:
     mutate_at(vars(eta, d), function(x) factor(x, levels = levels(x)[c(2, 1, 3)])) %>% 
+    # Plotting:
     ggplot(aes(T1, T2, size = T3, color = eta)) +
     geom_point(alpha = 0.5, shape = 16, size = 3) +
     facet_wrap( ~ stage, nrow = 2) +
     scale_color_manual(expression(bold(eta)),
                        values = c("dodgerblue3", "goldenrod1", "black"),
                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
-    theme(legend.position = "top", strip.text = element_text(size = 8)) +
+    theme(legend.position = "top", strip.text = element_text(size = 9)) +
     xlab("Trait 1") +
     ylab("Trait 2") +
     NULL
@@ -324,31 +333,36 @@ plot3b
 
 ## Summary
 
-### 2 traits
+* 💕 = coexistence
+* 👎 = no coexistence
 
-| $\eta$  |  $d$   | Pattern                       | Coexistence |
-|:-------:|:------:|:------------------------------|------------:|
-| $-$     | $-$    | two alternative stable states | No          |
-|         | 0      | two alternative stable states | Yes         |
-|         | $+$    | two alternative stable states | Yes         |
-| 0       | $-$    | neutrally stable ring         | No          |
-|         | 0      | neutrally stable ring         | Yes         |
-|         | $+$    | neutrally stable ring         | Yes         |
-| $+$     | $-$    | two alternative stable states | No          |
-|         | 0      | two alternative stable states | Yes         |
-|         | $+$    | two alternative stable states | Yes         |
 
-### 3 traits
+### Summary - 2 traits:
 
-| $\eta$  |  $d$   | Pattern                       | Coexistence |
-|:-------:|:------:|:------------------------------|------------:|
-| $-$     | $-$    | two alternative stable states | No          |
-|         | 0      | two alternative stable states | Yes         |
-|         | $+$    | two alternative stable states | Yes         |
-| 0       | $-$    | neutrally stable "shell"      | No          |
-|         | 0      | neutrally stable "shell"      | Yes         |
-|         | $+$    | neutrally stable "shell"      | Yes         |
-| $+$     | $-$    | neutrally stable ring         | No          |
-|         | 0      | neutrally stable ring         | Yes         |
-|         | $+$    | neutrally stable ring         | Yes         |
+| $\eta$  |  $d$   | Pattern                       |    |
+|:-------:|:------:|:------------------------------|---:|
+| $-$     | $-$    | two alternative stable states | 👎 |
+|         | 0      | two alternative stable states | 💕 |
+|         | $+$    | two alternative stable states | 💕 |
+| 0       | $-$    | neutrally stable ring         | 👎 |
+|         | 0      | neutrally stable ring         | 💕 |
+|         | $+$    | neutrally stable ring         | 💕 |
+| $+$     | $-$    | two alternative stable states | 👎 |
+|         | 0      | two alternative stable states | 💕 |
+|         | $+$    | two alternative stable states | 💕 |
+
+
+### Summary - 3 traits:
+
+| $\eta$  |  $d$   | Pattern                       |    |
+|:-------:|:------:|:------------------------------|---:|
+| $-$     | $-$    | two alternative stable states | 👎 |
+|         | 0      | two alternative stable states | 💕 |
+|         | $+$    | two alternative stable states | 💕 |
+| 0       | $-$    | neutrally stable "shell"      | 👎 |
+|         | 0      | neutrally stable "shell"      | 💕 |
+|         | $+$    | neutrally stable "shell"      | 💕 |
+| $+$     | $-$    | neutrally stable ring         | 👎 |
+|         | 0      | neutrally stable ring         | 💕 |
+|         | $+$    | neutrally stable ring         | 💕 |
 
