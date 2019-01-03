@@ -1,0 +1,354 @@
+---
+title: "Simulation results"
+author: "Lucas A. Nell"
+date: "01/03/2019"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulation results}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "svglite", 
+  fig.width = 6,
+  fig.height = 4,
+  echo = TRUE,
+  eval = TRUE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+suppressPackageStartupMessages({
+    library(tidyverse)
+    library(sauron)
+})
+```
+
+
+## Load saved simulation output
+
+```{r get-sim-info}
+# Function to get the relevant rds file for a given simulation scenario:
+get_sim <- function(eta_sign, d_sign, q) {
+    return(readRDS(sprintf("results/q%i/%s-eta_%s-d.rds", q, eta_sign, d_sign)))
+}
+# 2 traits:
+sims2 <- map2(rep(1:3, each = 3), rep(1:3, 3), 
+              function(e, d, .q) {
+                  chrs <- c("n", "z", "p")
+                  qg_ <- get_sim(chrs[e], chrs[d], .q)
+                  qg_$nv <- qg_$nv %>% filter(time == max(time))
+                  return(qg_)
+              }, .q = 2)
+# 3 traits:
+sims3 <- map2(rep(1:3, each = 3), rep(1:3, 3), 
+              function(e, d, .q) {
+                  chrs <- c("n", "z", "p")
+                  qg_ <- get_sim(chrs[e], chrs[d], .q)
+                  qg_$nv <- qg_$nv %>% filter(time == max(time))
+                  return(qg_)
+              }, .q = 3)
+```
+
+
+
+
+## Results
+
+### Stability
+
+For stability I'm computing the primary eigenvalue of the Jacobian matrix of
+first derivatives.
+The eigenvalue is hereafter referred to as $\lambda$.
+I considered a state "stable" when $\lambda < 1$ and
+"neutrally stable" when $\lambda = 1$.
+For each scenario of $\eta$ and $d$ (each being negative, zero, or positive),
+I calculated $\lambda$ for each of the 100 reps.
+In the tables below, the column `lambda` contains the range of $\lambda$ values
+among all reps.
+
+
+##### Stability functions:
+
+```{r jacobian_mats}
+# Jacobian for one simulation rep:
+one_jacobian <- function(N, V, call_) {
+    other_args <- as.list(call_)[c("eta", "f", "g", "d", "add_var")]
+    args_ <- c(list(N = N, V = V),
+               other_args[c("f", "g", "d", "add_var")])
+    args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
+    args_$C <- matrix(other_args$eta, length(V[[1]]), length(V[[1]]))
+    diag(args_$C) <- 1
+    jacobian_mat <- do.call(sauron:::jacobian_cpp, args_)
+    return(jacobian_mat)
+}
+# Same but for a `quant_gen` object containing multiple reps:
+jacobians <- function(qg_obj) {
+    jc_mats <- qg_obj$nv %>%
+        filter(time == max(time)) %>%
+        group_by(rep, spp) %>%
+        summarize(N = N[[1]],
+                  V = list(value)) %>%
+        group_by(rep) %>%
+        summarize(N = list(N),
+                  V = list(V)) %>%
+        ungroup() %>%
+        mutate(jacobs = map2(N, V, ~ one_jacobian(.x, .y, qg_obj$call))) %>%
+        .[["jacobs"]]
+    return(jc_mats)
+}
+# Vector of primary eigenvalues for a `quant_gen` object containing multiple reps:
+eigens <- function(qg_obj) map_dbl(jacobians(qg_obj),
+                                   ~ Re(eigen(.x, only.values = TRUE, 
+                                              symmetric = FALSE)$values[1]))
+```
+
+
+#### Stability - 2 traits:
+
+```{r q2-stability, echo = FALSE}
+# (Takes ~10 sec)
+stab_df2 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
+    mutate(lambda = map_chr(1:n(), 
+                             function(i) {
+                                 eigs_ <- sims2[[i]] %>% eigens()
+                                 return(sprintf("(%.4g, %.4g)", min(eigs_), max(eigs_)))
+                             }))
+stab_df2 %>% 
+    arrange(eta, d) %>% 
+    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
+    mutate_at(vars(eta, d), 
+              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    knitr::kable(align = c("l", "l", "r"))
+```
+
+#### Stability - 3 traits:
+
+```{r q3-stability, echo = FALSE}
+# (Takes ~10 sec)
+stab_df3 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
+    mutate(lambda = map_chr(1:n(), 
+                             function(i) {
+                                 eigs_ <- sims3[[i]] %>% eigens()
+                                 return(sprintf("(%.4g, %.4g)", min(eigs_), max(eigs_)))
+                             }))
+stab_df3 %>% 
+    arrange(eta, d) %>% 
+    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
+    mutate_at(vars(eta, d), 
+              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    knitr::kable(align = c("l", "l", "r"))
+```
+
+
+### Coexistence
+
+For each scenario of $\eta$ and $d$ (each being negative, zero, or positive),
+I calculated the number of total species present at the final time point
+for each of the 100 reps.
+Below, the column `n_spp` contains the range of final species totals among all reps.
+
+#### Coexistence - 2 traits
+
+```{r q2-coexistence}
+coex_df2 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
+    mutate(n_spp = map_chr(1:n(),
+                             function(i) {
+                                 n_spp_ <- sims2[[i]]$nv %>% 
+                                     filter(time == max(time)) %>%
+                                     group_by(rep) %>%
+                                     summarize(N = length(unique(spp))) %>%
+                                     .[["N"]]
+                                 return(sprintf("(%.4g, %.4g)", min(n_spp_), max(n_spp_)))
+                             }))
+coex_df2 %>% 
+    arrange(eta, d) %>% 
+    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
+    mutate_at(vars(eta, d), 
+              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    knitr::kable(align = c("l", "l", "r"))
+```
+
+#### Coexistence - 3 traits
+
+```{r q3-coexistence}
+coex_df3 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
+    mutate(n_spp = map_chr(1:n(),
+                             function(i) {
+                                 n_spp_ <- sims3[[i]]$nv %>% 
+                                     filter(time == max(time)) %>%
+                                     group_by(rep) %>%
+                                     summarize(N = length(unique(spp))) %>%
+                                     .[["N"]]
+                                 return(sprintf("(%.4g, %.4g)", min(n_spp_), max(n_spp_)))
+                             }))
+coex_df3 %>% 
+    arrange(eta, d) %>% 
+    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
+    mutate_at(vars(eta, d), 
+              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+    knitr::kable(align = c("l", "l", "r"))
+```
+
+
+### Shapes
+
+#### Shapes - 2 traits
+
+```{r two-trait-plots, echo = FALSE, fig.height=3}
+plot2 <- map_dfr(1:length(sims2),
+                  ~ sims2[[.x]]$nv %>%
+                      mutate(trait = factor(paste0("T", paste(trait)))) %>%
+                      spread("trait", "value") %>%
+                      mutate(eta = sims2[[.x]]$call$eta, d = sims2[[.x]]$call$d)) %>% 
+    # To make sure zeros get plotted first:
+    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = paste(c(0, sort(unique(x)[-2]))))) %>% 
+    arrange(d, eta) %>% 
+    # Now ordering factors normally:
+    mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x))))) %>% 
+    # Plotting:
+    ggplot(aes(T1, T2)) + #, size = T3)) +
+    geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
+    facet_wrap(~ d, nrow = 1, labeller = label_both) +
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
+    theme(legend.position = "top") +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
+    NULL
+plot2
+# ggsave("~/Desktop/plot2.png", plot2, width = 6, height = 3)
+```
+
+
+### Shapes - 3 traits
+
+```{r three-traits-plots, echo = FALSE, fig.height=3}
+plot3 <- map_dfr(1:length(sims3),
+                  ~ sims3[[.x]]$nv %>%
+                      mutate(trait = factor(paste0("T", paste(trait)))) %>%
+                      spread("trait", "value") %>%
+                      mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
+    arrange(T3) %>%
+    mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x))))) %>%
+    mutate(scenario = interaction(eta, d, sep = "_")) %>%
+    ggplot(aes(T1, T2, size = T3)) +
+    geom_point(aes(color = eta, alpha = scenario), shape = 16) +
+    facet_wrap(~ d, nrow = 1, labeller = label_both) +
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       guide = guide_legend(override.aes = list(size = 4))) +
+    scale_alpha_manual(values = c(c(0.5, 0.25, 0.5), rep(c(0.5, 0.05, 0.01), 2)),
+                       guide = FALSE) +
+    theme(legend.position = "top") +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
+    scale_size_continuous("Trait 3", breaks = -1:1) +
+    NULL
+plot3
+# ggsave("~/Desktop/plot3.png", plot3, width = 6, height = 3)
+```
+
+
+By taking "slices" at varying values of trait 3, we can verify that it's a shell
+when $\eta = 0$ and a ring when $\eta > 0$.
+We can also see that when $\eta < 0$, both alternative stable points exist on the
+neutrally stable shell (see blue points on panels labelled
+"Trait 3: -1.17" and "Trait 3: 1.17").
+
+```{r three-traits-plots2, echo = FALSE}
+# Values of trait 3 to filter for:
+t3 <- sims3[[1]]$nv$value %>%
+    signif(digits = 10) %>% 
+    abs() %>% 
+    unique() %>% 
+    `+`(seq(0.5, -1, -0.5)) %>% 
+    map(~ .x * c(-1,1)) %>% 
+    unlist() %>% 
+    sort()
+# Filter for a trait being near any one of a vector of thresholds (`f_vec`),
+# with a precision as input
+filter_trait <- function(trait, f_vec, prec = 0.01) {
+    prec <- prec^2
+    map_lgl(trait, function(x) any((x - f_vec)^2 < prec))
+}
+# Match trait values with one of a vector of thresholds
+match_trait <- function(trait, f_vec, trait_name) {
+    m_vec <- map_dbl(trait, function(x) {
+        diff <- (x - f_vec)^2
+        i <- which(diff == min(diff))
+        return(f_vec[i])
+    })
+    m_vec <- factor(m_vec, levels = sort(f_vec), 
+                  labels = sprintf("%s = %.3g", trait_name, f_vec))
+    return(m_vec)
+}
+
+plot3b <- map_dfr(1:length(sims3),
+        ~ sims3[[.x]]$nv %>%
+            mutate(trait = factor(paste0("T", paste(trait)))) %>%
+            spread("trait", "value") %>%
+            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
+    mutate_at(vars(eta, d), function(x) factor(paste(x),
+                                               levels = sort(unique(x))[c(2, 1, 3)])) %>% 
+    filter(filter_trait(T3, t3)) %>% 
+    mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
+    arrange(eta) %>% 
+    mutate_at(vars(eta, d), function(x) factor(x, levels = levels(x)[c(2, 1, 3)])) %>% 
+    ggplot(aes(T1, T2, size = T3, color = eta)) +
+    geom_point(alpha = 0.5, shape = 16, size = 3) +
+    facet_wrap( ~ stage, nrow = 2) +
+    scale_color_manual(expression(bold(eta)),
+                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
+    theme(legend.position = "top", strip.text = element_text(size = 8)) +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
+    NULL
+plot3b
+# ggsave("~/Desktop/plot3b.png", plot3b, width = 6, height = 4)
+```
+
+
+
+
+
+## Summary
+
+### 2 traits
+
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
+| $+$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+
+### 3 traits
+
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable "shell"      | No          |
+|         | 0      | neutrally stable "shell"      | Yes         |
+|         | $+$    | neutrally stable "shell"      | Yes         |
+| $+$     | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
+
