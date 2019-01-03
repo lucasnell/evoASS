@@ -84,6 +84,14 @@ jacobian_cpp <- function(V, N, f, g, d, C, add_var) {
     .Call(`_sauron_jacobian_cpp`, V, N, f, g, d, C, add_var)
 }
 
+#' Same as above, but exported for use in R
+#'
+#' @noRd
+#'
+unq_spp_cpp <- function(V, precision) {
+    .Call(`_sauron_unq_spp_cpp`, V, precision)
+}
+
 #' Multiple repetitions of quantitative genetics.
 #'
 #'

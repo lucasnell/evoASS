@@ -265,14 +265,15 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-arma::uvec unq_spp_(const std::vector<arma::rowvec>& V,
-                    const std::vector<double>& N,
-                    const double& precision) {
+inline void unq_spp_(arma::uvec& is_unq,
+                     const std::vector<arma::rowvec>& V,
+                     const double& precision) {
 
     double precision_ = precision * precision;
 
     uint32_t n = V.size();
-    arma::uvec is_unq(n, arma::fill::ones);
+    is_unq = arma::ones<arma::uvec>(n);
+
     for (uint32_t i = 1; i < n; i++) {
         for (uint32_t j = 0; j < i; j++) {
             if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
@@ -286,13 +287,23 @@ arma::uvec unq_spp_(const std::vector<arma::rowvec>& V,
         }
     }
 
-    arma::uvec unqs = arma::find(is_unq == 1);
-
-    return unqs;
+    return;
 }
 
+//' Same as above, but exported for use in R
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
+                       const double& precision) {
 
+    arma::uvec is_unq;
 
+    unq_spp_(is_unq, V, precision);
+
+    return is_unq;
+}
 
 
 
