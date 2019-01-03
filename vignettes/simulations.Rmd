@@ -279,9 +279,9 @@ coex_df3 %>%
 ```
 
 
-### Plots
+### Shapes
 
-#### Plots - 2 traits
+#### Shapes - 2 traits
 
 ```{r two-trait-plots}
 plot2 <- map_dfr(1:length(sims2),
@@ -306,10 +306,11 @@ plot2 <- map_dfr(1:length(sims2),
     ylab("Trait 2") +
     NULL
 plot2
+# ggsave("~/Desktop/plot.png", plot2, width = 8, height = 3)
 ```
 
 
-### Plots - 3 traits
+### Shapes - 3 traits
 
 ```{r three-traits-plots}
 plot3 <- map_dfr(1:length(sims3),
@@ -354,22 +355,12 @@ t3 <- sims3[[1]]$nv$value %>%
     map(~ .x * c(-1,1)) %>% 
     unlist() %>% 
     sort()
-
 filter_unq <- function(..., precision = 1e-2, min_pts = 100) {
     V <- do.call(cbind, list(...))
     if (nrow(V) <= min_pts) return(rep(TRUE, nrow(V)))
     V <- split(V, row(V))
     sauron:::unq_spp_cpp(V, precision) == 1
 }
-
-q3 <- map_dfr(1:length(sims3),
-        ~ sims3[[.x]]$nv %>%
-            mutate(trait = factor(paste0("T", paste(trait)))) %>%
-            spread("trait", "value") %>%
-            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
-    # filter(T3 <= 0) %>%
-    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x))))
-
 filter_trait <- function(trait, f_vec, prec = 0.01) {
     prec <- prec^2
     map_lgl(trait, function(x) any((x - f_vec)^2 < prec))
@@ -381,33 +372,16 @@ match_trait <- function(trait, f_vec, trait_name = "T3") {
         return(f_vec[i])
     })
     m_vec <- factor(m_vec, levels = sort(f_vec), 
-                  labels = sprintf("%s: %.3g", trait_name, f_vec))
+                  labels = sprintf("%s = %.3g", trait_name, f_vec))
     return(m_vec)
 }
 
-z <- q3 %>% 
-    filter(filter_trait(T3, t3)) %>% 
-    mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
-    filter(eta != 0, stage %in% sprintf("Trait 3: %.2f", c(1.17, -1.17))) %>% 
-    arrange(stage, eta, d) %>% 
-    # group_by(stage, eta, d) %>%
-    # filter((abs(T3) - t3[7])^2 == min((abs(T3) - t3[7])^2)) %>%
-    # filter(1:n() == 1) %>%
-    filter(filter_unq(T1, T2, T3, precision = 1e-1)) %>%
-    # ungroup() %>%
-    # group_by(eta, stage) %>% 
-    # summarize_at(vars(starts_with("T")), mean) %>% 
-    # ungroup() %>% 
-    identity()
-
-z %>% 
-    filter(eta == -0.01, stage %in% sprintf("Trait 3: %.2f", -1.17)) %>%
-    filter(filter_unq(T1, T2, T3, precision = 1e-1))
-    
-mean((c(0.415,-1.58,1.17) - c(-1.58,0.403,1.18))^2)
-
-
-q3 %>% 
+plot3b <- map_dfr(1:length(sims3),
+        ~ sims3[[.x]]$nv %>%
+            mutate(trait = factor(paste0("T", paste(trait)))) %>%
+            spread("trait", "value") %>%
+            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
+    mutate_at(vars(eta, d), function(x) factor(paste(x), levels = sort(unique(x)))) %>% 
     filter(filter_trait(T3, t3)) %>% 
     mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
     group_by(eta) %>%
@@ -415,7 +389,7 @@ q3 %>%
     ungroup() %>%
     arrange(eta) %>% 
     ggplot(aes(T1, T2, size = T3, color = eta)) +
-    geom_point(alpha = 0.5, shape = 16) +
+    geom_point(alpha = 0.5, shape = 16, size = 3) +
     facet_wrap( ~ stage, nrow = 2) +
     scale_color_manual(expression(bold(eta)),
                        values = c("dodgerblue3", "goldenrod1", "black"),
@@ -423,9 +397,8 @@ q3 %>%
     theme(legend.position = "top", strip.text = element_text(size = 8)) +
     xlab("Trait 1") +
     ylab("Trait 2") +
-    scale_size_continuous("Trait 3", breaks = c(-1.5, -0.5)) +
     NULL
-
+plot3b
 ```
 
 
