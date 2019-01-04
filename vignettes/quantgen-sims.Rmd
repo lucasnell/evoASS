@@ -1,0 +1,96 @@
+---
+title: "Quantitative genetics simulations"
+author: "Lucas A. Nell"
+date: "10/25/2018"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quantitative genetics simulations}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "svglite", 
+  fig.width = 6,
+  fig.height = 4,
+  echo = FALSE,
+  eval = TRUE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+suppressPackageStartupMessages({
+    library(tidyverse)
+    library(sauron)
+})
+```
+
+
+
+## Doing and saving simulations
+
+```{r quant_gen-arg-maker, echo = TRUE}
+# Create list for running a set of simulations:
+quant_gen_args <- function(eta_sign, d_sign, q) {
+    # List for all parameters:
+    args <- list(n_cores = 4, q = q)
+    # the non-additive effects of traits on `r`:
+    args$eta <- 0.01 * sign(eta_sign)
+    # changes how the focal line's traits affect other lines' effects of competition:
+    args$d <- 0.1 * sign(d_sign)
+    if (args$d > 0) args$d <- 1e-4 # <-- high d takes a very long time to run
+    return(args)
+}
+```
+
+
+### Two traits
+
+
+```{r, run_sims_q2, eval = FALSE, echo = TRUE}
+# Takes ~ 2.1 hrs
+set.seed(2028111205)
+seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
+q <- 2
+i <- 1
+for (e in -1:1) {
+    for (d in -1:1) {
+        args <- quant_gen_args(e, d, q)
+        cat(sprintf("\n\neta: %.2f || d: %.2f (%i / 9) \n", args$eta, args$d, i))
+        set.seed(seeds[i])
+        qg <- do.call(quant_gen, args)
+        fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, e, d)
+        saveRDS(qg, fn, compress = FALSE)
+        i <- i + 1
+    }
+}
+```
+
+
+### Three traits
+
+```{r, run_sims_q3, eval = FALSE, echo = TRUE}
+# Takes ~3.5 hrs
+set.seed(1713696743)
+seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
+q <- 3
+i <- 1
+for (e in -1:1) {
+    for (d in -1:1) {
+        args <- quant_gen_args(e, d, q)
+        cat(sprintf("\n\neta: %.2f || d: %.2f (%i / 9) \n", args$eta, args$d, i))
+        set.seed(seeds[i])
+        qg <- do.call(quant_gen, args)
+        fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, e, d)
+        saveRDS(qg, fn, compress = FALSE)
+        i <- i + 1
+    }
+}
+```

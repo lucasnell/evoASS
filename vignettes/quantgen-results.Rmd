@@ -1,10 +1,10 @@
 ---
-title: "Simulation results"
+title: "Quantitative genetics results"
 author: "Lucas A. Nell"
 date: "01/03/2019"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Simulation results}
+  %\VignetteIndexEntry{Quantitative genetics results}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 editor_options: 
@@ -38,12 +38,13 @@ suppressPackageStartupMessages({
 ```{r get-sim-info}
 # Function to get the relevant rds file for a given simulation scenario:
 get_sim <- function(eta_sign, d_sign, q) {
-    return(readRDS(sprintf("results/q%i/%s-eta_%s-d.rds", q, eta_sign, d_sign)))
+    fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, eta_sign, d_sign)
+    return(readRDS(fn))
 }
 # 2 traits:
 sims2 <- map2(rep(1:3, each = 3), rep(1:3, 3), 
               function(e, d, .q) {
-                  chrs <- c("n", "z", "p")
+                  chrs <- -1:1
                   qg_ <- get_sim(chrs[e], chrs[d], .q)
                   qg_$nv <- qg_$nv %>% filter(time == max(time))
                   return(qg_)
@@ -51,7 +52,7 @@ sims2 <- map2(rep(1:3, each = 3), rep(1:3, 3),
 # 3 traits:
 sims3 <- map2(rep(1:3, each = 3), rep(1:3, 3), 
               function(e, d, .q) {
-                  chrs <- c("n", "z", "p")
+                  chrs <- -1:1
                   qg_ <- get_sim(chrs[e], chrs[d], .q)
                   qg_$nv <- qg_$nv %>% filter(time == max(time))
                   return(qg_)
