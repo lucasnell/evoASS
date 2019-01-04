@@ -128,7 +128,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     blu_ <- crayon::make_style("dodgerblue")
 
     cat(crayon::inverse$bold(" -- Output from quant_gen -- \n"))
-    if (x$call$save_every > 0) {
+    if (is.null(x$call$save_every) || x$call$save_every > 0) {
         unq_nspp <- x$nv %>%
             filter(time == max(time), trait == levels(trait)[1]) %>%
             group_by(rep) %>%
@@ -148,7 +148,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     cat(blu_("* Coexistence:", any(unq_nspp > 1), "\n"))
     extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$value)) > 0 ||
         length(unique(x$nv$rep)) < length(levels(x$nv$rep))
-    if (x$call$save_every > 0) {
+    if (is.null(x$call$save_every) || x$call$save_every > 0) {
         extinct_ <- extinct_ || length(unique(filter(x$nv, time == max(time))$rep)) <
             length(levels(x$nv$rep))
     }
