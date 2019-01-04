@@ -43,10 +43,10 @@ experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{min_N}{Minimum N that's considered extant.}
 
-\item{mut_sd}{Standard deviation of the normal/lognormal distribution used to generate
-mutated trait values.}
+\item{mut_sd}{Standard deviation of the normal distribution used to generate
+mutated (i.e., daughter) trait values.}
 
-\item{mut_prob}{Probability of a mutation.}
+\item{mut_prob}{Probability of a mutation (creating a daughter lineage).}
 
 \item{show_progress}{Boolean for whether to show a progress bar.}
 

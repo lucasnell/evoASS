@@ -23,9 +23,9 @@
 #'     experienced by clone `i`, leading to nonconflicting coevolution.
 #' @param max_t Maximum time simulated.
 #' @param min_N Minimum N that's considered extant.
-#' @param mut_sd Standard deviation of the normal/lognormal distribution used to generate
-#'     mutated trait values.
-#' @param mut_prob Probability of a mutation.
+#' @param mut_sd Standard deviation of the normal distribution used to generate
+#'     mutated (i.e., daughter) trait values.
+#' @param mut_prob Probability of a mutation (creating a daughter lineage).
 #' @param show_progress Boolean for whether to show a progress bar.
 #' @param max_clones Maximum number of clones predicted. This is used only to reserve
 #'     memory for some of the inner C++ objects, so when deciding on a value for this,
