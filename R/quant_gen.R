@@ -22,7 +22,7 @@
 #' @importFrom dplyr arrange
 #' @importFrom dplyr vars
 #'
-quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos,
+quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd,
                       start_t, max_t, min_N, save_every,
                       show_progress = TRUE, n_cores = 1) {
 
@@ -53,7 +53,6 @@ quant_gen <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_po
                         d = d,
                         add_var = add_var,
                         mut_sd = mut_sd,
-                        keep_pos = keep_pos,
                         start_t = start_t,
                         max_t = max_t,
                         min_N = min_N,

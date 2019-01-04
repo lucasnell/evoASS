@@ -27,7 +27,6 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
                    const double& max_t,
                    const double& min_N,
                    const double& mut_sd,
-                   const bool& keep_pos,
                    const double& mut_prob,
                    const bool& show_progress,
                    const uint32_t& max_clones,
@@ -40,7 +39,6 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
     // RNG
     pcg64 eng = seeded_pcg();
     std::normal_distribution<double> norm_distr(0, mut_sd);
-    std::lognormal_distribution<double> lnorm_distr(0, mut_sd);
 
     // # traits:
     uint32_t q = V0[0].n_elem;
@@ -156,11 +154,7 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
 
                 all_V.push_back(all_V[I[i]]);
                 arma::rowvec& new_V(all_V.back());
-                if (keep_pos) {
-                    for (double& d : new_V) d *= lnorm_distr(eng);
-                } else {
-                    for (double& d : new_V) d += norm_distr(eng);
-                }
+                for (double& d : new_V) d += norm_distr(eng);
 
             }
 

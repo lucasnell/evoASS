@@ -324,16 +324,14 @@ void one_quant_gen__(OneRepInfo& info,
                      const double& d,
                      const arma::vec& add_var,
                      const double& mut_sd,
-                     const bool& keep_pos,
                      const uint32_t& start_t,
                      const uint32_t& max_t,
                      const double& min_N,
                      const uint32_t& save_every,
-                     const bool& rm_extinct,
                      pcg64& eng) {
 
 
-    info = OneRepInfo(N0, V0, max_t, save_every, keep_pos, mut_sd);
+    info = OneRepInfo(N0, V0, max_t, save_every, mut_sd);
 
     arma::mat C(V0[0].n_elem, V0[0].n_elem);
     C.fill(eta);
@@ -345,7 +343,7 @@ void one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N, rm_extinct);
+        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N);
         t++;
 
     }
@@ -357,7 +355,7 @@ void one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < max_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N, rm_extinct);
+        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N);
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t);
@@ -390,7 +388,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const double& d,
                   const arma::vec& add_var,
                   const double& mut_sd,
-                  const bool& keep_pos,
                   const uint32_t& start_t,
                   const uint32_t& max_t,
                   const double& min_N,
@@ -401,7 +398,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
     if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
     if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
 
-    const bool rm_extinct(true);  // don't see a reason for it to ever be false
     std::vector<OneRepInfo> rep_infos(n_reps);
 
     const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
@@ -431,8 +427,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     for (uint32_t i = 0; i < n_reps; i++) {
         if (!Progress::check_abort()) {
             one_quant_gen__(rep_infos[i], V0, N0, f, g, eta, r0, d, add_var,
-                            mut_sd, keep_pos, start_t, max_t, min_N, save_every,
-                            rm_extinct, eng);
+                            mut_sd, start_t, max_t, min_N, save_every, eng);
             prog_bar.increment();
         } else if (active_thread == 0) interrupted = true;
     }

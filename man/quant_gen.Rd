@@ -4,8 +4,8 @@
 \alias{quant_gen}
 \title{Quantitative genetics.}
 \usage{
-quant_gen(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, keep_pos,
-  start_t, max_t, min_N, save_every, show_progress = TRUE, n_cores = 1)
+quant_gen(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, start_t,
+  max_t, min_N, save_every, show_progress = TRUE, n_cores = 1)
 }
 \arguments{
 \item{n_reps}{Number of reps to perform.}
@@ -39,8 +39,6 @@ experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{mut_sd}{Standard deviation of the normal/lognormal distribution used to generate
 mutated trait values.}
-
-\item{keep_pos}{Boolean for whether to constrain trait values >= 0.}
 
 \item{start_t}{Number of starting iterations.}
 
