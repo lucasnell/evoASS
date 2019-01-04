@@ -4,11 +4,23 @@
 \alias{quant_gen}
 \title{Quantitative genetics.}
 \usage{
-quant_gen(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, start_t,
-  max_t, min_N, save_every, show_progress = TRUE, n_cores = 1)
+quant_gen(eta, d, q, n = 100, V0 = rep(list(matrix(0, 1, q)), n),
+  N0 = rep(1, n), f = 0.1, g = 0.5, r0 = 0.5, add_var = rep(0.5,
+  n), perturb_sd = 1, n_reps = 100, start_t = 0, max_t = 1000000L,
+  min_N = 1e-04, save_every = 1000, show_progress = TRUE,
+  n_cores = 1)
 }
 \arguments{
-\item{n_reps}{Number of reps to perform.}
+\item{eta}{A single number representing the non-additive effects of traits on the
+growth rate.}
+
+\item{d}{A single number that adjusts how the focal line is affected by
+other lines' trait values.
+If \code{d < 0}, then increases in \code{V_j} (trait that reduces competition
+experienced by clone \code{j}) increases competition experienced by clone \code{i},
+thereby giving conflicting coevolution.
+Conversely, if \code{d > 0}, then increases in \code{V_j} decrease competition
+experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{V0}{Trait value(s) for each starting clone.
 For only one starting line, must be a numeric vector or a single
@@ -22,25 +34,15 @@ matrix row or column.}
 \item{g}{A single number representing the benefit of the trait on the density
 dependence.}
 
-\item{eta}{A single number representing the non-additive effects of traits on the
-growth rate.}
-
 \item{r0}{A single number representing the base growth rate.}
-
-\item{d}{A single number that adjusts how the focal line is affected by
-other lines' trait values.
-If \code{d < 0}, then increases in \code{V_j} (trait that reduces competition
-experienced by clone \code{j}) increases competition experienced by clone \code{i},
-thereby giving conflicting coevolution.
-Conversely, if \code{d > 0}, then increases in \code{V_j} decrease competition
-experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{add_var}{Vector of additive genetic variances for all starting species.}
 
-\item{mut_sd}{Standard deviation of the normal/lognormal distribution used to generate
-mutated trait values.}
+\item{perturb_sd}{Standard deviation of the perturbation.}
 
-\item{start_t}{Number of starting iterations.}
+\item{n_reps}{Number of reps to perform.}
+
+\item{start_t}{Number of starting iterations (before the perturbation).}
 
 \item{max_t}{Maximum time simulated.}
 

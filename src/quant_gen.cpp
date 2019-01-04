@@ -323,7 +323,7 @@ void one_quant_gen__(OneRepInfo& info,
                      const double& r0,
                      const double& d,
                      const arma::vec& add_var,
-                     const double& mut_sd,
+                     const double& perturb_sd,
                      const uint32_t& start_t,
                      const uint32_t& max_t,
                      const double& min_N,
@@ -331,7 +331,7 @@ void one_quant_gen__(OneRepInfo& info,
                      pcg64& eng) {
 
 
-    info = OneRepInfo(N0, V0, max_t, save_every, mut_sd);
+    info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd);
 
     arma::mat C(V0[0].n_elem, V0[0].n_elem);
     C.fill(eta);
@@ -349,7 +349,7 @@ void one_quant_gen__(OneRepInfo& info,
     }
 
     // perturb trait values
-    if (mut_sd > 0) info.perturb(eng);
+    if (perturb_sd > 0) info.perturb(eng);
 
     t = 0;
     while (!all_gone && t < max_t) {
@@ -387,7 +387,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const double& r0,
                   const double& d,
                   const arma::vec& add_var,
-                  const double& mut_sd,
+                  const double& perturb_sd,
                   const uint32_t& start_t,
                   const uint32_t& max_t,
                   const double& min_N,
@@ -427,7 +427,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     for (uint32_t i = 0; i < n_reps; i++) {
         if (!Progress::check_abort()) {
             one_quant_gen__(rep_infos[i], V0, N0, f, g, eta, r0, d, add_var,
-                            mut_sd, start_t, max_t, min_N, save_every, eng);
+                            perturb_sd, start_t, max_t, min_N, save_every, eng);
             prog_bar.increment();
         } else if (active_thread == 0) interrupted = true;
     }

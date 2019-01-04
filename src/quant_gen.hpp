@@ -39,13 +39,13 @@ public:
                const std::vector<arma::rowvec>& V_,
                const uint32_t& max_t,
                const uint32_t& save_every,
-               const double& mut_sd)
+               const double& perturb_sd)
         : N(N_), V(V_), spp(N_.size()), fitness(-1), selection(-1),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(V_.size(), V_[0].n_elem),
           n(N_.size()), q(V_[0].n_elem),
-          norm_distr(0.0, mut_sd) {
+          norm_distr(0.0, perturb_sd) {
 
         for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i;
 

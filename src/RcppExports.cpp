@@ -111,8 +111,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // quant_gen_cpp
-List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& mut_sd, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
-RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP mut_sdSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
+List quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::rowvec>& V0, const std::vector<double>& N0, const double& f, const double& g, const double& eta, const double& r0, const double& d, const arma::vec& add_var, const double& perturb_sd, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_cores);
+RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP gSEXP, SEXP etaSEXP, SEXP r0SEXP, SEXP dSEXP, SEXP add_varSEXP, SEXP perturb_sdSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_coresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -125,14 +125,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    Rcpp::traits::input_parameter< const double& >::type mut_sd(mut_sdSEXP);
+    Rcpp::traits::input_parameter< const double& >::type perturb_sd(perturb_sdSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type start_t(start_tSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type max_t(max_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type n_cores(n_coresSEXP);
-    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, start_t, max_t, min_N, save_every, show_progress, n_cores));
+    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, N0, f, g, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores));
     return rcpp_result_gen;
 END_RCPP
 }

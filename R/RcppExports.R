@@ -97,8 +97,8 @@ unq_spp_cpp <- function(V, precision) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, mut_sd, start_t, max_t, min_N, save_every, show_progress, n_cores)
+quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores) {
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.
