@@ -82,7 +82,10 @@ among all reps.
 ```{r jacobian_mats}
 # Jacobian for one simulation rep:
 one_jacobian <- function(N, V, call_) {
-    other_args <- as.list(call_)[c("eta", "f", "g", "d", "add_var")]
+    other_args <- c(as.list(call_)[c("eta", "d")],
+                    with(formals(quant_gen), {
+                        list(f = f, g = g, add_var = eval(add_var))
+                        }))
     args_ <- c(list(N = N, V = V),
                other_args[c("f", "g", "d", "add_var")])
     args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
@@ -113,42 +116,38 @@ eigens <- function(qg_obj) map_dbl(jacobians(qg_obj),
 ```
 
 
+```{r make-kable-fxn, echo = FALSE}
+make_kable <- function(COL, FUN, ...) {
+    VARS <- "ZZZ"
+    names(VARS) <- COL
+    
+    tibble(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
+        mutate(ZZZ = map_chr(1:n(), FUN, ...)) %>% 
+        mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
+        mutate_at(vars(eta, d), 
+                  function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
+        rename(`$\\eta$` = eta, `$d$` = d) %>% 
+        rename(!!!VARS) %>% 
+        knitr::kable(align = c("l", "l", "r"))
+}
+```
+
+
 #### Stability - 2 traits:
 
 ```{r q2-stability, echo = FALSE}
-# (Takes ~10 sec)
-stab_df2 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
-    mutate(lambda = map_chr(1:n(), 
-                             function(i) {
-                                 eigs_ <- sims2[[i]] %>% eigens()
-                                 return(sprintf("(%.4g, %.4g)", min(eigs_), max(eigs_)))
-                             }))
-stab_df2 %>% 
-    arrange(eta, d) %>% 
-    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
-    mutate_at(vars(eta, d), 
-              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
-    rename(`$\\eta$` = eta, `$d$` = d, `$\\lambda$` = lambda) %>% 
-    knitr::kable(align = c("l", "l", "r"))
+get_eig <- function(i, sims_) {
+    eigs_ <- sims_[[i]] %>% eigens()
+    return(sprintf("(%.4g, %.4g)", min(eigs_), max(eigs_)))
+}
+make_kable("$\\lambda$", get_eig, sims_ = sims2)
 ```
 
 #### Stability - 3 traits:
 
 ```{r q3-stability, echo = FALSE}
 # (Takes ~10 sec)
-stab_df3 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
-    mutate(lambda = map_chr(1:n(), 
-                             function(i) {
-                                 eigs_ <- sims3[[i]] %>% eigens()
-                                 return(sprintf("(%.4g, %.4g)", min(eigs_), max(eigs_)))
-                             }))
-stab_df3 %>% 
-    arrange(eta, d) %>% 
-    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
-    mutate_at(vars(eta, d), 
-              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
-    rename(`$\\eta$` = eta, `$d$` = d, `$\\lambda$` = lambda) %>% 
-    knitr::kable(align = c("l", "l", "r"))
+make_kable("$\\lambda$", get_eig, sims_ = sims3)
 ```
 
 
@@ -162,45 +161,22 @@ Below, the column "n_spp" contains the range of final species totals among all r
 #### Coexistence - 2 traits
 
 ```{r q2-coexistence, echo = FALSE}
-coex_df2 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
-    mutate(n_spp = map_chr(1:n(),
-                             function(i) {
-                                 n_spp_ <- sims2[[i]]$nv %>% 
-                                     filter(time == max(time)) %>%
-                                     group_by(rep) %>%
-                                     summarize(N = length(unique(spp))) %>%
-                                     .[["N"]]
-                                 return(sprintf("(%.4g, %.4g)", min(n_spp_), max(n_spp_)))
-                             }))
-coex_df2 %>% 
-    arrange(eta, d) %>% 
-    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
-    mutate_at(vars(eta, d), 
-              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
-    rename(`$\\eta$` = eta, `$d$` = d) %>% 
-    knitr::kable(align = c("l", "l", "r"))
+get_nspp <- function(i, sims_) {
+    n_spp_ <- sims_[[i]]$nv %>% 
+        filter(time == max(time)) %>%
+        group_by(rep) %>%
+        summarize(N = length(unique(spp))) %>%
+        .[["N"]]
+    return(sprintf("(%.4g, %.4g)", min(n_spp_), max(n_spp_)))
+}
+
+make_kable("n_spp", get_nspp, sims_ = sims2)
 ```
 
 #### Coexistence - 3 traits
 
 ```{r q3-coexistence, echo = FALSE}
-coex_df3 <- data_frame(eta = rep(1:3, each = 3), d = rep(1:3, 3)) %>% 
-    mutate(n_spp = map_chr(1:n(),
-                             function(i) {
-                                 n_spp_ <- sims3[[i]]$nv %>% 
-                                     filter(time == max(time)) %>%
-                                     group_by(rep) %>%
-                                     summarize(N = length(unique(spp))) %>%
-                                     .[["N"]]
-                                 return(sprintf("(%.4g, %.4g)", min(n_spp_), max(n_spp_)))
-                             }))
-coex_df3 %>% 
-    arrange(eta, d) %>% 
-    mutate(eta = ifelse(duplicated(eta), 4, eta)) %>% 
-    mutate_at(vars(eta, d), 
-              function(x) factor(map_chr(x, ~ c("$-$", "$0$", "$+$", "")[.x]))) %>% 
-    rename(`$\\eta$` = eta, `$d$` = d) %>% 
-    knitr::kable(align = c("l", "l", "r"))
+make_kable("n_spp", get_nspp, sims_ = sims3)
 ```
 
 
@@ -220,7 +196,7 @@ plot2 <- map_dfr(1:length(sims2),
     # Now ordering factors normally:
     mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x))))) %>% 
     # Plotting:
-    ggplot(aes(T1, T2)) + #, size = T3)) +
+    ggplot(aes(T1, T2)) +
     geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
     scale_color_manual(expression(bold(eta)),
@@ -299,10 +275,10 @@ match_trait <- function(trait, f_vec, trait_name) {
 }
 
 plot3b <- map_dfr(1:length(sims3),
-        ~ sims3[[.x]]$nv %>%
-            mutate(trait = factor(paste0("T", paste(trait)))) %>%
-            spread("trait", "value") %>%
-            mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
+                  ~ sims3[[.x]]$nv %>%
+                      mutate(trait = factor(paste0("T", paste(trait)))) %>%
+                      spread("trait", "value") %>%
+                      mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
     filter(filter_trait(T3, t3)) %>% 
     mutate(stage = match_trait(T3, t3, "Trait 3")) %>% 
     # Making factor levels weird, then ordering by eta, so that eta == 0 values

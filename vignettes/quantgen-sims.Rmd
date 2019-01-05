@@ -30,6 +30,7 @@ suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
 })
+RERUN <- FALSE
 ```
 
 
@@ -54,7 +55,7 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 ### Two traits
 
 
-```{r, run_sims_q2, eval = FALSE, echo = TRUE}
+```{r, run_sims_q2, eval = RERUN, echo = TRUE}
 # Takes ~ 2.1 hrs
 set.seed(2028111205)
 seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
@@ -76,7 +77,7 @@ for (e in -1:1) {
 
 ### Three traits
 
-```{r, run_sims_q3, eval = FALSE, echo = TRUE}
+```{r, run_sims_q3, eval = RERUN, echo = TRUE}
 # Takes ~3.5 hrs
 set.seed(1713696743)
 seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
