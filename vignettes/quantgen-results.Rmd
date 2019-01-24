@@ -430,47 +430,23 @@ for (e in -1:1) {
     }
 }
 
-e <- 0
-d <- 0
-qg <- get_sim(e, d, q)
-# For d <= 0, doesn't change after time == 10001
-# For d > 0, traits don't change after 8e6+1
-#     but abundances change until 19.9e6+1
+sim_df <- map2_dfr(r
 
-# qg$nv %>%
-#     filter(rep == 1) %>% 
-#     distinct(rep, time, spp, N) %>%
-#     ggplot(aes(time, N)) +
-#     geom_line(aes(group = spp)) +
-#     # facet_wrap(~ rep, nrow = 7) +
-#     NULL
-# 
-# q1$nv %>% 
-#     # filter(rep == 1) %>%
-#     filter(time < 10e3) %>% 
-#     ggplot(aes(time, value)) +
-#     geom_line(aes(group = spp, color = trait)) +
-#     facet_wrap(~ rep, nrow = 10) +
-#     NULL
-
-
-
-sim_df2 <- map2_dfr(rep(1:3, each = 3), rep(1:3, 3), 
-                    function(e, d, .q) {
-                        chrs <- -1:1
-                        qg_ <- get_sim(chrs[e], chrs[d], .q)
-                        return(mutate(qg_$nv, eta_d = sprintf("%i_%i", chrs[e], chrs[d])))
-                    }, .q = 2) %>%
+ep(1:3, each = 3), rep(1:3, 3), 
+                   function(e, d, .q) {
+                       chrs <- -1:1
+                       qg_ <- get_sim(chrs[e], chrs[d], .q)
+                       return(mutate(qg_$nv, eta_d = sprintf("%i_%i", chrs[e], chrs[d])))
+                   }, .q = 2) %>%
     select(eta_d, everything()) %>%
     mutate(eta_d = factor(eta_d))
 
-sim_df2 %>%
+sim_df %>%
     filter(rep == 1, trait == 1, eta_d == "-1_1") %>%
-    ggplo-1a0s(time, N)) +
+    ggplot(aes(time, N)) +
     geom_line(aes(group = spp)) +
     # facet_wrap(~ eta_d, nrow = 3) +
     NULL
-
 
 
 
