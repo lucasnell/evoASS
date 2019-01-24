@@ -30,7 +30,7 @@ quant_gen <- function(eta, d, q,
                       f = 0.1, g = 0.5, r0 = 0.5,
                       add_var = rep(0.5, n), perturb_sd = 1,
                       n_reps = 100, start_t = 0, max_t = 1e6L,
-                      min_N = 1e-4, save_every = 1000,
+                      min_N = 1e-4, save_every = 1e4L,
                       show_progress = TRUE, n_cores = 1) {
 
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
