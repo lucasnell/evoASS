@@ -310,38 +310,35 @@ plot3b
 
 ## Summary
 
-* 💕 = coexistence
-* 👎 = no coexistence
-
 
 ### Summary - 2 traits:
 
-| $\eta$  |  $d$   | Pattern                       |    |
-|:-------:|:------:|:------------------------------|---:|
-| $-$     | $-$    | two alternative stable states | 👎 |
-|         | 0      | two alternative stable states | 💕 |
-|         | $+$    | two alternative stable states | 💕 |
-| 0       | $-$    | neutrally stable ring         | 👎 |
-|         | 0      | neutrally stable ring         | 💕 |
-|         | $+$    | neutrally stable ring         | 💕 |
-| $+$     | $-$    | two alternative stable states | 👎 |
-|         | 0      | two alternative stable states | 💕 |
-|         | $+$    | two alternative stable states | 💕 |
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
+| $+$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
 
 
 ### Summary - 3 traits:
 
-| $\eta$  |  $d$   | Pattern                       |    |
-|:-------:|:------:|:------------------------------|---:|
-| $-$     | $-$    | two alternative stable states | 👎 |
-|         | 0      | two alternative stable states | 💕 |
-|         | $+$    | two alternative stable states | 💕 |
-| 0       | $-$    | neutrally stable "shell"      | 👎 |
-|         | 0      | neutrally stable "shell"      | 💕 |
-|         | $+$    | neutrally stable "shell"      | 💕 |
-| $+$     | $-$    | neutrally stable ring         | 👎 |
-|         | 0      | neutrally stable ring         | 💕 |
-|         | $+$    | neutrally stable ring         | 💕 |
+| $\eta$  |  $d$   | Pattern                       | Coexistence |
+|:-------:|:------:|:------------------------------|------------:|
+| $-$     | $-$    | two alternative stable states | No          |
+|         | 0      | two alternative stable states | Yes         |
+|         | $+$    | two alternative stable states | Yes         |
+| 0       | $-$    | neutrally stable "shell"      | No          |
+|         | 0      | neutrally stable "shell"      | Yes         |
+|         | $+$    | neutrally stable "shell"      | Yes         |
+| $+$     | $-$    | neutrally stable ring         | No          |
+|         | 0      | neutrally stable ring         | Yes         |
+|         | $+$    | neutrally stable ring         | Yes         |
 
 
 
