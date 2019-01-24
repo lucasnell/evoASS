@@ -413,11 +413,12 @@ for (e in -1:1) {
         qg <- get_sim(e, d, q)
         # 19.9e6 + 1, then 20e6
         if (d > 0) {
-            z <- unlist(check_diff(qg, 19.9e6))
-            if (any(z != 100)) {
+            y <- unlist(check_diff(qg, 19.9e6))
+            z <- unlist(check_diff(qg, 8e6))
+            if (any(y != 100) || z[["V_s"]] != 100) {
                 cat(sprintf("\n-------------\neta = %.2g, d = %.2g\n", e, d))
+                print(y)
                 print(z)
-                print(unlist(check_diff(qg, 8e6)))
             }
         } else {
             z <- unlist(check_diff(qg, 10e3))
