@@ -1,12 +1,11 @@
 ---
 title: "Quantitative genetics simulations"
 author: "Lucas A. Nell"
-date: "10/25/2018"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Quantitative genetics simulations}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+date: "`r Sys.setenv(TZ='America/Chicago'); format(Sys.Date(), '%d %b %Y')`"
+output:
+  github_document:
+    toc: true
+    toc_depth: 2
 editor_options: 
   chunk_output_type: console
 ---
@@ -18,14 +17,18 @@ knitr::opts_chunk$set(
   dev = "svglite", 
   fig.width = 6,
   fig.height = 4,
-  echo = FALSE,
+  echo = TRUE,
   eval = TRUE
 )
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 options(tibble.print_min = 4L, tibble.print_max = 8L)
 ```
+
 ```{r source_Rprofile, echo = FALSE}
 if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+```
+
+```{r load_libs}
 suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
@@ -88,7 +91,7 @@ for (e in -1:1) {
 
 Below shows that when all lineages' traits are at zero, this is an unstable state:
 They don't move from it without perturbation, but its primary eigenvalue is quite high
-($\gg 1$).
+(>> 1).
 
 
 ```{r unstable_zeros2}
@@ -118,7 +121,8 @@ for (e in -1:1) {
         jc_mat <- do.call(sauron:::jacobian_cpp, 
                            args[names(args)[names(args) != "r0"]])
         unqs[[i]] <- unique(changes)
-        eigens[i] <- Re(eigen(jc_mat, only.values = TRUE, symmetric = FALSE)$values[1])
+        eigens[i] <- Re(eigen(jc_mat, only.values = TRUE, 
+                              symmetric = FALSE)$values[1])
         i <- i+1
     }
 }
@@ -155,7 +159,8 @@ for (e in -1:1) {
         jc_mat <- do.call(sauron:::jacobian_cpp, 
                            args[names(args)[names(args) != "r0"]])
         unqs[[i]] <- unique(changes)
-        eigens[i] <- Re(eigen(jc_mat, only.values = TRUE, symmetric = FALSE)$values[1])
+        eigens[i] <- Re(eigen(jc_mat, only.values = TRUE, 
+                              symmetric = FALSE)$values[1])
         i <- i+1
     }
 }

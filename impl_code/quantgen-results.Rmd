@@ -1,12 +1,11 @@
 ---
 title: "Quantitative genetics results"
 author: "Lucas A. Nell"
-date: "01/03/2019"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Quantitative genetics results}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+date: "`r Sys.setenv(TZ='America/Chicago'); format(Sys.Date(), '%d %b %Y')`"
+output:
+  github_document:
+    toc: true
+    toc_depth: 2
 editor_options: 
   chunk_output_type: console
 ---
@@ -15,7 +14,7 @@ editor_options:
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  dev = "png", 
+  dev = "svglite",
   fig.width = 6,
   fig.height = 4,
   echo = TRUE,
@@ -24,8 +23,12 @@ knitr::opts_chunk$set(
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 options(tibble.print_min = 4L, tibble.print_max = 8L)
 ```
+
 ```{r source_Rprofile, echo = FALSE}
 if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+```
+
+```{r load_libs}
 suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
