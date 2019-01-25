@@ -29,6 +29,7 @@ if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
 suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
+    library(cowplot)
 })
 ```
 
@@ -349,8 +350,8 @@ plot3b
 
 ## Looking at transient dynamics
 
-When $d \le 0$, everything stays the same after time point 10,000.
-When $d > 0$ , this happens at $8 \times 10^6$ for traits and $19.9 \times 10^6$
+When $d \le 0$, everything stays the same after time point 10,001.
+When $d > 0$ , this happens at $8 \times 10^6 + 1$ for traits and $19.9 \times 10^6 + 1$
 for abundances.
 For all scenarios, the final set of lineages is reached very early:
 $t =$ 10,001 for $d \le 0$ and 
@@ -475,14 +476,317 @@ sim_df3 %>%
 #     NULL
 ```
 
-    mutate(eta_d = factor(eta_d))
+
+
+By looking at finer time scales, I found that,
+for all scenarios, the final set of lineages is reached even earlier:
+$t =$ 3,201.
+
+
+```{r tran_dyn_finer_res, echo = FALSE, eval = FALSE}
+# ----------
+# Now looking at better resolution as to when final species sets are made:
+# ----------
+seeds <- tibble(q = rep(2:3, each = 9),
+                eta = rep(rep(-1:1, each = 3), 2),
+                d = rep(rep(-1:1, 3), 2),
+                value = numeric(18))
+set.seed(2028111205)
+seeds$value[seeds$q==2] <- sample.int(.Machine$integer.max, 9)
+set.seed(1713696743)
+seeds$value[seeds$q==3] <- sample.int(.Machine$integer.max, 9)
+
+# Takes ~20 min
+sim_df <- pmap_dfr(list(rep(2:3, each = 9),
+                        rep(rep(-1:1, each = 3), 2),
+                        rep(rep(-1:1, 3), 2)),
+                    function(.q, .e, .d) {
+                        seed <- seeds %>%
+                            filter(q == .q, eta == .e, d == .d) %>%
+                            .[["value"]]
+                        args_ <- quant_gen_args(.e, .d, .q)
+                        if (.d > 0) {
+                            args_$max_t <- 1e5L
+                            args_$save_every <- 1e3L
+                        } else {
+                            args_$max_t <- 1e4L
+                            args_$save_every <- 1e2L
+                        }
+                        args_$show_progress <- FALSE
+                        set.seed(seed)
+                        qg_ <- do.call(quant_gen, args_)
+                        nv <- mutate(qg_$nv, eta = args_$eta, d = args_$d, q = .q,
+                                      trait = paste(trait))
+                        return(nv)
+                    }) %>%
+    select(eta, d, everything()) %>%
+    mutate_at(vars(eta, d, q, trait), factor)
+
+
 sim_df %>%
-    filter(rep == 1, trait == 1, eta_d == "-1_1") %>%
-    ggplot(aes(time, N)) +
-    geom_line(aes(group = spp)) +
-    # facet_wrap(~ eta_d, nrow = 3) +
-    NULL
+    group_by(q, eta, d, rep, time) %>% 
+    summarize(n_spp = n() / as.integer(paste(q[[1]]))) %>% 
+    group_by(q, eta, d, rep) %>% 
+    mutate(final_spp = n_spp[time == max(time)]) %>% 
+    summarize(n_spp_equil = which(n_spp == final_spp)[1],
+              t_n_spp_equil = time[n_spp_equil]) %>% 
+    group_by(q, eta, d) %>% 
+    summarize(min = min(n_spp_equil), max = max(n_spp_equil), 
+              max_t = max(t_n_spp_equil)) %>% 
+    ungroup() %>% 
+    filter(max_t == max(max_t))
 ```
 
 
+
+
+```{r tran_dyn_short, echo = FALSE, eval = FALSE}
+seeds <- tibble(q = rep(2:3, each = 9),
+                eta = rep(rep(-1:1, each = 3), 2),
+                d = rep(rep(-1:1, 3), 2),
+                value = numeric(18))
+set.seed(2028111205)
+seeds$value[seeds$q==2] <- sample.int(.Machine$integer.max, 9)
+set.seed(1713696743)
+seeds$value[seeds$q==3] <- sample.int(.Machine$integer.max, 9)
+
+# Takes ~8 min
+sim_df <- pmap_dfr(list(rep(2:3, each = 9),
+                        rep(rep(-1:1, each = 3), 2),
+                        rep(rep(-1:1, 3), 2)),
+                    function(.q, .e, .d) {
+                        seed <- seeds %>%
+                            filter(q == .q, eta == .e, d == .d) %>%
+                            .[["value"]]
+                        args_ <- quant_gen_args(.e, .d, .q)
+                        args_$max_t <- 5000L
+                        args_$save_every <- 10L
+                        args_$show_progress <- FALSE
+                        set.seed(seed)
+                        qg_ <- do.call(quant_gen, args_)
+                        nv <- mutate(qg_$nv, eta = args_$eta, d = args_$d, q = .q,
+                                      trait = paste(trait))
+                        cat(sprintf("eta = %.2g | d = %.2g\n", .e, .d))
+                        return(nv)
+                    }) %>%
+    select(eta, d, everything()) %>%
+    mutate_at(vars(eta, d, q, trait), factor)
+
+# sim_df %>%
+#     filter(q == 2, rep == 1, time < 1000) %>%
+#     ggplot(aes(time, N)) +
+#     geom_line(aes(group = spp), alpha = 0.5) +
+#     facet_wrap(~ eta + d, nrow = 3, scales = "free", labeller = label_both) +
+#     NULL
+
+max_times <- sim_df %>%
+    group_by(q, eta, d, rep, time) %>% 
+    summarize(n_spp = n() / as.integer(paste(q[[1]]))) %>% 
+    group_by(q, eta, d, rep) %>% 
+    mutate(final_spp = n_spp[time == max(time)]) %>% 
+    summarize(n_spp_equil = which(n_spp == final_spp)[1],
+              t_n_spp_equil = time[n_spp_equil]) %>% 
+    group_by(q, eta, d) %>% 
+    summarize(min = min(n_spp_equil), max = max(n_spp_equil), 
+              max_t = max(t_n_spp_equil)) %>% 
+    ungroup() %>% 
+    identity()
+
+write_csv(max_times, "results/quant_gen/max_times.csv")
+```
+
+
+
+
+
+```{r tran_dyn_shortest}
+max_times <- read_csv("results/quant_gen/max_times.csv", col_types = "iddiii")
+
+seeds <- tibble(q = rep(2:3, each = 9),
+                eta = rep(rep(-1:1, each = 3), 2),
+                d = rep(rep(-1:1, 3), 2),
+                value = integer(18))
+set.seed(2028111205)
+seeds$value[seeds$q==2] <- sample.int(.Machine$integer.max, 9)
+set.seed(1713696743)
+seeds$value[seeds$q==3] <- sample.int(.Machine$integer.max, 9)
+
+# # Takes ~4 min
+# sim_df <- pmap_dfr(list(rep(2:3, each = 9),
+#                         rep(rep(-1:1, each = 3), 2),
+#                         rep(rep(-1:1, 3), 2)),
+#                     function(.q, .e, .d) {
+#                         seed <- seeds %>%
+#                             filter(q == .q, eta == .e, d == .d) %>%
+#                             .[["value"]]
+#                         max_t <- max_times %>% 
+#                             filter(q == .q, 
+#                                    sign(eta) == sign(.e),
+#                                    sign(d) == sign(.d)) %>%
+#                             .[["max_t"]]
+#                         args_ <- quant_gen_args(.e, .d, .q)
+#                         args_$max_t <- max_t - 1L
+#                         args_$save_every <- 5L
+#                         args_$show_progress <- FALSE
+#                         if (max_t < 100) args_$save_every <- 1L
+#                         set.seed(seed)
+#                         qg_ <- do.call(quant_gen, args_)
+#                         nv <- mutate(qg_$nv, eta = args_$eta, d = args_$d, q = .q,
+#                                       trait = paste(trait))
+#                         cat(sprintf("eta = %.2g | d = %.2g\n", .e, .d))
+#                         return(nv)
+#                     }) %>%
+#     select(eta, d, everything()) %>%
+#     mutate_at(vars(eta, d, q, trait), factor) %>%
+#     select(q, everything()) %>% 
+#     mutate_at(vars(q, rep), ~ as.integer(paste(.))) %>% 
+#     mutate_at(vars(eta, d), ~ as.numeric(paste(.)))
+# saveRDS(sim_df, "results/quant_gen/short_sims.rds")
+
+sim_df <- readRDS("results/quant_gen/short_sims.rds")
+```
+
+
+```{r short_sim}
+
+max_times <- sim_df %>%
+    group_by(q, eta, d, rep, time) %>% 
+    summarize(n_spp = n() / q[[1]]) %>% 
+    group_by(q, eta, d, rep) %>% 
+    mutate(final_spp = n_spp[time == max(time)]) %>% 
+    summarize(max_t = time[which(n_spp == final_spp)[1]]) %>% 
+    ungroup()
+
+changing_spp_sims <- sim_df %>% 
+    group_by(q, eta, d, rep) %>% 
+    mutate(still_changing = time <= 
+               max_times$max_t[max_times$q == q[1] & max_times$eta == eta[1] &
+                                   max_times$d == d[1] & max_times$rep == rep[1]] |
+               time <= 5) %>% 
+    ungroup() %>% 
+    filter(still_changing) %>% 
+    select(-still_changing)
+
+
+changing_spp_sims %>% 
+    filter(q == 2, rep == 1, eta == 0, d > 0) %>% 
+    group_by(time) %>% 
+    summarize(n_spp = n() %/% 2) %>% 
+    ungroup()
+
+# sim_df %>%
+changing_spp_sims %>% 
+    filter(q == 2, rep == 1) %>%
+    ggplot(aes(time, N)) +
+    geom_vline(data = max_times %>% filter(q == 2, rep == 1),
+               aes(xintercept = max_t), linetype = 2) +
+    geom_line(aes(group = spp), alpha = 0.5) +
+    facet_wrap(~ eta + d, nrow = 3, scales = "free", labeller = label_both) +
+    NULL
+
+
+# sim_df %>% 
+#     filter(q == 2, rep == 1) %>%
+#     group_by(q, eta, d, rep, time) %>% 
+#     mutate(n_spp = n() %/% q) %>% 
+#     ungroup()
+
+
+
+
+# set.seed(798424537)
+# plot_reps <- list(q2 = sort(sample.int(100, 6)),
+#                   q3 = sort(sample.int(100, 6)))
+# I chose two from each:
+plot_reps <- list(q2 = c(33, 76), q3 = c(9, 71))
+plot_df <- sim_df %>% filter(rep %in% c(plot_reps, recursive = TRUE))
+
+one_plot <- function(.eta, .d, .q, do_legend = FALSE) {
+    plot_reps_ <- plot_reps[[paste0("q", .q)]]
+    df_ <- plot_df %>% 
+        filter(q == .q, sign(eta) == sign(.eta), sign(d) == sign(.d), 
+               rep %in% plot_reps_)
+    if (max(df_$time) < 50) {
+        x_breaks <- c(0, 10, 20)
+    } else if (max(df_$time) < 2000) {
+        x_breaks <- c(0, 500, 1e3)
+    } else {
+        x_breaks <- c(0, 1000, 2000)
+    }
+    y_max <- ifelse(.q == 2, 3.616895, 4.999777)
+    max_times_ <- max_times %>%
+        filter(q == .q, sign(eta) == sign(.eta), sign(d) == sign(.d), 
+               rep %in% plot_reps_)
+    real_eta <- max_times_$eta[1]
+    real_d <- max_times_$d[1]
+    p <- df_ %>%
+        ggplot(aes(time, value)) +
+        geom_vline(data = max_times_, aes(xintercept = max_t), linetype = 2) +
+        geom_line(aes(group = interaction(spp, trait), color = trait), size = 0.25) +
+        scale_color_viridis_d("Trait:", alpha = 0.35, end = 0.9,
+                              guide = guide_legend(override.aes = list(alpha = 1, 
+                                                                       size = 1))) +
+        facet_wrap(~ rep, nrow = 2) +
+        theme(strip.background = element_blank(),
+              strip.text = element_blank(),
+              axis.text = element_text(size = 8),
+              axis.title = element_blank()) +
+        scale_y_continuous(breaks = c(-2, 0, 2), limits = c(-1,1) * y_max) +
+        scale_x_continuous(breaks = x_breaks)
+    if (do_legend) {
+        p <- p + theme(legend.position = "top", legend.justification = "center")
+    } else {
+        p <- p + theme(legend.position = "none")
+    }
+    return(p)
+}
+
+
+lab_common <- ggplot() +
+    theme_nothing() +
+    scale_x_continuous(limits = 0:1) +
+    scale_y_continuous(limits = 0:1)
+top_labs <- lab_common +
+    geom_text(aes(x = seq(1, 5, 2)/6, y = 0.5,
+                  label = sprintf("italic(d) == %.2g", c(-0.1, 0, 1e-4))),
+              hjust = 0.5, vjust = 0.5, parse = TRUE, size = 5)
+right_labs <- lab_common +
+    geom_text(aes(y = seq(1, 5, 2)/6, x = 0.5,
+                  label = sprintf("eta == %.2f", c(0.1, 0, -0.1))),
+              hjust = 0.5, vjust = 0.5, angle = 270, parse = TRUE, size = 5)
+bot_labs <- lab_common +
+    geom_text(aes(x = 0.5, y = 0.5, label = "Time"),
+              hjust = 0.5, vjust = 0.5, size = 6)
+left_labs <- lab_common +
+    geom_text(aes(x = 0.5, y = 0.5, label = "Trait value"),
+              hjust = 0.5, vjust = 0.5, angle = 90, size = 6)
+
+
+main_plots2 <- plot_grid(plotlist = map2(rep(-1:1, each=3), rep(-1:1, 3), one_plot,
+                                          .q = 2),
+                          align = "hv", nrow = 3, labels = "AUTO",
+                         hjust = 0)
+legend2 <- get_legend(one_plot(-1, -1, 2, TRUE))
+main_plots3 <- plot_grid(plotlist = map2(rep(-1:1, each=3), rep(-1:1, 3), one_plot, 
+                                          .q = 3),
+                            align = "hv", nrow = 3, labels = "AUTO")
+legend3 <- get_legend(one_plot(-1, -1, 3, TRUE))
+
+
+trans_plots2 <- plot_grid(NULL, legend2, NULL,
+                          NULL, top_labs, NULL,
+                          left_labs, main_plots2, right_labs,
+                          NULL, bot_labs, NULL,
+                          ncol = 3, rel_widths = c(0.05, 1, 0.05), 
+                          rel_heights = c(0.05, 0.05, 1, 0.05))
+trans_plots3 <- plot_grid(NULL, legend3, NULL,
+                          NULL, top_labs, NULL,
+                          left_labs, main_plots3, right_labs,
+                          NULL, bot_labs, NULL,
+                          ncol = 3, rel_widths = c(0.05, 1, 0.05), 
+                          rel_heights = c(0.05, 0.05, 1, 0.05))
+
+ggsave("figures/transient_dynamics_q2.pdf", trans_plots2, width = 6.5, height = 9)
+ggsave("figures/transient_dynamics_q3.pdf", trans_plots3, width = 6.5, height = 9)
+```
 

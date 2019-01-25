@@ -8,8 +8,7 @@
 #' @export
 #'
 quant_gen_args <- function(eta_sign, d_sign, q) {
-    stopifnot(inherits(eta_sign, "numeric"), inherits(d_sign, "numeric"),
-              inherits(q, "numeric"))
+    stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
     stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
     # List for all parameters:
     args <- list(n_cores = 4, q = q)
