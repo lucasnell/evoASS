@@ -41,15 +41,16 @@ suppressPackageStartupMessages({
 ### Two traits
 
 ```{r, run_sims_q2, eval = FALSE, echo = TRUE}
-set.seed(2028111205)
-seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
 q <- 2
 i <- 1
 for (e in -1:1) {
     for (d in -1:1) {
         args <- quant_gen_args(e, d, q)
         cat(sprintf("\n\neta: %.2g || d: %.2g (%i / 9) \n", args$eta, args$d, i))
-        set.seed(seeds[i])
+         # Using already-generated seed:
+        seed <- filter(qg_seeds, n_traits == q, eta_par == e, d_par == d) %>% 
+            .[["seed"]]
+        set.seed(seed)
         qg <- do.call(quant_gen, args)
         fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, e, d)
         saveRDS(qg, fn, compress = FALSE)
@@ -62,16 +63,16 @@ for (e in -1:1) {
 ### Three traits
 
 ```{r, run_sims_q3, eval = FALSE, echo = TRUE}
-# Takes ~3.5 hrs
-set.seed(1713696743)
-seeds <- sample.int(.Machine$integer.max, 9)  # <- so individual runs can be re-evaluated
 q <- 3
 i <- 1
 for (e in -1:1) {
     for (d in -1:1) {
         args <- quant_gen_args(e, d, q)
         cat(sprintf("\n\neta: %.2g || d: %.2g (%i / 9) \n", args$eta, args$d, i))
-        set.seed(seeds[i])
+        # Using already-generated seed:
+        seed <- filter(qg_seeds, n_traits == q, eta_par == e, d_par == d) %>% 
+            .[["seed"]]
+        set.seed(seed)
         qg <- do.call(quant_gen, args)
         fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, e, d)
         saveRDS(qg, fn, compress = FALSE)
