@@ -1,5 +1,5 @@
 ---
-title: "Quantitative genetics - unstable states"
+title: "Quantitative genetics results - unstable states"
 author: "Lucas A. Nell"
 date: "`r Sys.setenv(TZ='America/Chicago'); format(Sys.Date(), '%d %b %Y')`"
 output:
