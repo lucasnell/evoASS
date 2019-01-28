@@ -37,8 +37,8 @@ suppressPackageStartupMessages({
 
 
 This document shows that when all lineages' traits are at zero, this is an unstable state:
-The traits don't change without perturbation, but its primary eigenvalue is quite high
-(>> 1).
+The traits don't change without perturbation, but the primary eigenvalue
+(of the Jacobian matrix of first derivatives) is well above 1.
 The latter is what indicates instability.
 
 

@@ -14,7 +14,7 @@ editor_options:
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  dev = "svglite",
+  dev = "png",
   fig.width = 6,
   fig.height = 4,
   echo = TRUE,
@@ -34,6 +34,16 @@ suppressPackageStartupMessages({
     library(sauron)
 })
 ```
+
+This document outlines the main results from the simulations.
+All these results are in regards to the surviving lineages after equilibrium is
+reached.
+Equilibrium is defined as no appreciable (`1e-4`) change in either traits or abundances.
+The main results discussed herein are
+stability of the equilibrium state,
+coexistence of multiple lineages, and
+patterns in the states among all 100 reps.
+
 
 
 ## Load saved simulation output
@@ -65,9 +75,8 @@ sims3 <- map2(rep(1:3, each = 3), rep(1:3, 3),
 
 
 
-## Results
 
-### Stability
+## Stability
 
 For stability I'm computing the primary eigenvalue of the Jacobian matrix of
 first derivatives.
@@ -80,7 +89,7 @@ In the tables below, the column $\lambda$ contains the range of $\lambda$ values
 among all reps.
 
 
-##### Stability functions:
+#### Stability functions:
 
 ```{r jacobian_mats}
 # Jacobian for one simulation rep:
@@ -136,7 +145,7 @@ make_kable <- function(COL, FUN, ...) {
 ```
 
 
-#### Stability - 2 traits:
+### Stability - 2 traits:
 
 ```{r q2-stability, echo = FALSE}
 get_eig <- function(i, sims_) {
@@ -146,7 +155,7 @@ get_eig <- function(i, sims_) {
 make_kable("$\\lambda$", get_eig, sims_ = sims2)
 ```
 
-#### Stability - 3 traits:
+### Stability - 3 traits:
 
 ```{r q3-stability, echo = FALSE}
 # (Takes ~10 sec)
@@ -154,14 +163,14 @@ make_kable("$\\lambda$", get_eig, sims_ = sims3)
 ```
 
 
-### Coexistence
+## Coexistence
 
 For each scenario of $\eta$ and $d$ (each being negative, zero, or positive),
 I calculated the number of total species present at the final time point
 for each of the 100 reps.
 Below, the column "n_spp" contains the range of final species totals among all reps.
 
-#### Coexistence - 2 traits
+### Coexistence - 2 traits
 
 ```{r q2-coexistence, echo = FALSE}
 get_nspp <- function(i, sims_) {
@@ -176,16 +185,16 @@ get_nspp <- function(i, sims_) {
 make_kable("n_spp", get_nspp, sims_ = sims2)
 ```
 
-#### Coexistence - 3 traits
+### Coexistence - 3 traits
 
 ```{r q3-coexistence, echo = FALSE}
 make_kable("n_spp", get_nspp, sims_ = sims3)
 ```
 
 
-### Shapes
+## Shapes
 
-#### Shapes - 2 traits
+### Shapes - 2 traits
 
 ```{r two-trait-plots, echo = FALSE, fig.height=3}
 plot2 <- map_dfr(1:length(sims2),

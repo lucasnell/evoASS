@@ -14,7 +14,7 @@ editor_options:
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  dev = "svglite",
+  dev = "png",
   fig.width = 6,
   fig.height = 4,
   echo = TRUE,
