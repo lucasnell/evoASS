@@ -1,0 +1,116 @@
+---
+title: "Quantitative genetics results - changing `eta`"
+author: "Lucas A. Nell"
+date: "`r Sys.setenv(TZ='America/Chicago'); format(Sys.Date(), '%d %b %Y')`"
+output:
+  github_document:
+    toc: true
+    toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "png",
+  fig.width = 6,
+  fig.height = 4,
+  echo = TRUE,
+  eval = TRUE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+```
+
+```{r load-libs}
+suppressPackageStartupMessages({
+    library(tidyverse)
+    library(sauron)
+})
+```
+
+
+
+This document explores how changes in the `eta` parameter
+(the tradeoff for diverging multiple traits)
+affect patterns of evolutionary outcomes.
+I'm particularly interested in the switch from points to a circle for two traits,
+and from points to a ring to a shell in three traits.
+
+## Transient dynamics
+
+In this section I'm looking for trait changes through time as `eta` approaches zero
+from either direction.
+
+```{r}
+from_zero <- c(1e-4, 5e-4, 1e-3)
+# Takes ~4 min
+t0 <- Sys.time()
+set.seed(689479082)
+sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3,
+                                       .e = c(-1 * rev(from_zero), 0, from_zero),
+                                       .d = 0)),
+                    function(.q, .e, .d) {
+                        qg_ <- quant_gen(q = .q, n_cores = 4, eta = .e, d = .d,
+                                         n_reps = 8, max_t = 1e5L, save_every = 1e2L,
+                                         show_progress = FALSE)
+                        nv <- qg_$nv %>%
+                            mutate(eta = .e, d = .d, q = .q, trait = paste(trait))
+                        return(nv)
+                    }) %>%
+    select(eta, d, everything()) %>%
+    mutate_at(vars(eta, d, trait), factor) %>% 
+    mutate(id = interaction(q, eta, d, rep, spp, trait))
+Sys.time() - t0; rm(t0)
+
+# # write_csv(sim_df, "results/eta-short-sims.csv")
+# sim_df <- read_csv("results/eta-short-sims.csv", col_types = "ddfifdfdi")
+
+
+test_df <- sim_df %>% 
+    filter(q == 2)
+
+
+spp_counts <- test_df %>% 
+    filter(trait == 1) %>% 
+    group_by(q, eta, d, rep, time) %>% 
+    summarize(n_spp = n()) %>% 
+    ungroup()
+
+
+test_df %>% 
+    # filter(time <= 25e3) %>%
+    ggplot(aes(time, value)) +
+    geom_line(aes(group = id, color = trait), size = 0.25) +
+    geom_line(data = spp_counts, aes(y = (n_spp / 100) * 4 - 2)) +
+    scale_color_viridis_d("Trait:", alpha = 0.1, end = 0.9, guide = FALSE) +
+    # facet_wrap(~ eta, nrow = 2) +
+    facet_grid(rep ~ eta) +
+    scale_x_continuous(breaks = c(0, 50e3, 100e3), labels = c("0", "50e3", "100e3")) +
+    # theme(strip.background = element_blank(),
+    #       strip.text = element_blank(),
+    #       axis.text = element_text(size = 8),
+    #       axis.title = element_blank()) +
+    NULL
+
+
+test_df %>% 
+    filter(trait == 1) %>%
+    # filter(time <= 10) %>% 
+    # ggplot(aes(time, log(N))) +
+    ggplot(aes(time, N)) +
+    geom_line(aes(group = id), size = 0.25, alpha = 0.1) +
+    # facet_wrap(~ eta, nrow = 2) +
+    facet_grid(rep ~ eta) +
+    scale_x_continuous(breaks = c(0, 50e3, 100e3), labels = c("0", "50e3", "100e3")) +
+    NULL
+
+
+```
+
