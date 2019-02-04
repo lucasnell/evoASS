@@ -1,0 +1,121 @@
+---
+title: "Adaptive dynamics simulations"
+author: "Lucas A. Nell"
+date: "01/03/2019"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Adaptive dynamics simulations}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dev = "svglite",
+  fig.width = 6,
+  fig.height = 4,
+  echo = TRUE,
+  eval = TRUE
+)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+options(tibble.print_min = 4L, tibble.print_max = 8L)
+```
+
+```{r source_Rprofile, echo = FALSE}
+if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
+```
+
+```{r load-libs}
+suppressPackageStartupMessages({
+    library(tidyverse)
+    library(sauron)
+})
+```
+
+
+## Doing and saving simulations
+
+
+```{r adapt-dyn-sims, eval = FALSE}
+# Takes ~1.5 min
+ad_sims <- pmap_dfr(as.list(expand.grid(.q = 2:3, .e = -1:1, .d = -1:1)),
+                    function(.q, .e, .d) {
+                        seed <- ad_seeds %>%
+                            filter(n_traits == .q, eta_par == .e, d_par == .d) %>%
+                            .[["seed"]]
+                        args_ <- adapt_dyn_args(.e, .d, .q, n_reps = 20)
+                        set.seed(seed)
+                        ad_ <- do.call(adapt_dyn, args_)
+                        data_ <- mutate(ad_$data, eta = args_$eta, d = args_$d, q = .q)
+                        # Number of times each rep-clone combo shows up:
+                        n_times <- data_ %>%
+                            filter(trait == 1) %>% 
+                            group_by(rep, clone) %>% 
+                            summarize(n_t = n()) %>% 
+                            ungroup() %>% 
+                            mutate(ml = ifelse(n_t > 1, 1L, 0L)) %>% 
+                            select(-n_t) %>% 
+                            identity()
+                        # Adding this info to `data_`
+                        data_ <- data_ %>% 
+                            group_by(rep, clone) %>% 
+                            mutate(n_t = n_times$ml[n_times$rep == rep[[1]] & 
+                                                        n_times$clone == clone[[1]]]) %>% 
+                            ungroup()
+                        return(data_)
+                    }) %>%
+    select(q, eta, d, everything()) %>% 
+    mutate_at(vars(trait, n_t), factor) %>% 
+    mutate(id = interaction(q, eta, d, rep, clone, trait))
+```
+
+```{r adapt-dyn-sims-write, eval = FALSE, echo = FALSE}
+saveRDS(ad_sims, "results/adapt_dyn/main_sims.rds")
+```
+
+```{r adapt-dyn-read, echo = FALSE}
+ad_sims <- readRDS("results/adapt_dyn/main_sims.rds")
+```
+
+```{r adapt-dyn-plots}
+ggplot(NULL, aes(time, V)) +
+    geom_line(data = filter(ad_sims, q == 2, eta > 0, d > 0, n_t == 1),
+              aes(group = id, color = trait), size = 0.5) +
+    geom_point(data = filter(ad_sims, q == 2, eta > 0, d > 0, n_t == 0),
+               aes(color = trait), size = 0.1, shape = 20) +
+    scale_color_viridis_d("Trait:", alpha = 0.5, end = 0.8,
+                          guide = guide_legend(override.aes = list(alpha = 1, 
+                                                                   size = 1))) +
+    facet_wrap(~ rep, nrow = 4) +
+    theme(strip.text = element_blank()) +
+    scale_y_continuous("Trait value", breaks = c(-2, 0, 2)) +
+    NULL
+
+
+
+d_ <- ad_sims %>% 
+    filter(q == 2, eta > 0, d > 0, time == max(time)) %>% 
+    select(rep, clone, N, trait, V) %>% 
+    mutate(rep = factor(rep)) %>%
+    rename(Trait = trait) %>% 
+    identity()
+
+d_ %>% 
+    mutate(rep = forcats::fct_reorder2(rep, Trait, V, mean)) %>% 
+    ggplot(aes(rep, V)) +
+    geom_point(aes(color = rep), position = position_jitter(height = 0, width = 0.25)) +
+    scale_color_viridis_d(end = 0.9, guide = FALSE) +
+    facet_wrap(~ Trait, nrow = 2, labeller = label_both) +
+    # theme(strip.text = element_blank()) +
+    scale_y_continuous("Trait value") +
+    scale_x_discrete("Rep") +
+    theme(panel.grid.major.x = element_line(color = "gray90", size = 0.5)) +
+    NULL
+
+
+```
+
