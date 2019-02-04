@@ -1,4 +1,29 @@
 
+#' Create list of arguments for running a set of simulations using `adapt_dyn`.
+#'
+#' @param eta_sign Sign of the `eta` parameter.
+#' @param d_sign Sign of the `d` parameter.
+#' @param q Number of traits.
+#' @param ... Other arguments to add for `adapt_dyn` function, namely `n_reps`.
+#'
+#' @export
+#'
+adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
+    stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
+    stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
+    # List for all parameters:
+    args <- list(n_cores = 4, q = q)
+    # the non-additive effects of traits on `r`:
+    args$eta <- 0.01 * sign(eta_sign)
+    # changes how the focal line's traits affect other lines' effects of competition:
+    args$d <- 0.1 * sign(d_sign)
+    # High d takes a very long time to run using quant_gen, so I reduced its value
+    # when positive. I want to use the same value here.
+    if (args$d > 0) args$d <- 1e-4
+    others <- list(...)
+    args[names(others)] <- others
+    return(args)
+}
 
 #' Adaptive dynamics.
 #'
