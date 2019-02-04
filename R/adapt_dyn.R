@@ -60,28 +60,45 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
 #' @export
 #'
 #' @importFrom magrittr %>%
-#' @importFrom dplyr data_frame
-#' @importFrom dplyr mutate
+#' @importFrom dplyr as_tibble
 #' @importFrom tidyr gather
-#' @importFrom purrr map
-#' @importFrom purrr map_dbl
+#' @importFrom dplyr mutate
+#' @importFrom dplyr mutate_at
 #'
 #'
 adapt_dyn <- function(
-    V0,
-    N0,
+    eta,
+    d,
+    q,
+    n_reps,
+    n = 1,
+    V0 = rep(list(matrix(0, 1, q)), n),
+    N0 = rep(1, n),
     f = 0.1,
-    g = 0.1,
-    eta = 0.2,
+    g = 0.5,
     r0 = 0.5,
-    d = -0.01,
-    max_t = 1e4,
+    max_t = 1e4L,
     min_N = 1e-4,
+    save_every = 10L,
     mut_sd = 0.1,
     mut_prob = 0.01,
-    show_progress = FALSE,
     max_clones = 1e4,
-    save_every = 100) {
+    show_progress = FALSE,
+    n_cores = 1) {
+
+    stopifnot(inherits(V0, "list"))
+    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
+    stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, g, r0, max_t, min_N, save_every,
+                          mut_sd, mut_prob, max_clones, n_cores), is.numeric))
+    stopifnot(inherits(show_progress, "logical"))
+    stopifnot(sapply(list(eta, d, q, n_reps, n, f, g, r0, max_t, min_N, save_every,
+                          mut_sd, mut_prob, max_clones, show_progress, n_cores),
+                     length) == 1)
+    stopifnot(c(N0, min_N, mut_sd) > 0)
+    stopifnot(mut_prob >= 0 && mut_prob <= 1)
+    stopifnot(c(q, n_reps, n, max_t, save_every, n_cores) >= 1)
+
+    if (max_clones < 100) max_clones <- 100
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
@@ -89,37 +106,16 @@ adapt_dyn <- function(
         call_[1] <- as.call(quote(adapt_dyn()))
     }
 
-    if (inherits(V0, "numeric")) {
-        V0 <- list(rbind(V0))
-    } else if (inherits(V0, "matrix")) {
-        V0 <- lapply(split(V0, 1:nrow(V0)), rbind)
-    } else stop("V0 must be numeric or matrix")
+    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, g, eta, r0, d, max_t, min_N,
+                                mut_sd, mut_prob, show_progress, max_clones,
+                                save_every, n_cores)
 
-    sim_output <- adapt_dyn_cpp(V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd,
-                                mut_prob, show_progress, max_clones, save_every)
+    colnames(sim_output) <- c("rep", "time", "clone", "N", sprintf("V%i", 1:q))
 
-    time_pts <- sim_output[["T"]]
-    if (length(sim_output$N) != length(time_pts)) {
-        warning("should be the same length: ", length(sim_output$N), " ",
-                length(time_pts))
-        return(sim_output)
-    }
-
-    NVt <-
-        data_frame(time = 1:length(sim_output$N) %>%
-                       map(~ rep(sim_output[["T"]][.x],
-                                 length(sim_output$N[[.x]]))) %>%
-                       c(recursive = TRUE),
-                   clone = c(sim_output$I, recursive = TRUE),
-                   N = c(sim_output$N, recursive = TRUE)) %>%
-        mutate(V = map(clone, ~ sim_output$V[[.x+1]])) %>%
-        unnest() %>%
-        group_by(time, clone) %>%
-        mutate(trait = paste0("V", 1:n()) %>% factor()) %>%
-        ungroup() %>%
-        arrange(time, clone, trait) %>%
-        dplyr::select(time, clone, trait, everything()) %>%
-        identity()
+    NVt <- as_tibble(sim_output) %>%
+        gather("trait", "V", dplyr::starts_with("V")) %>%
+        mutate(trait = gsub("V", "", trait)) %>%
+        mutate_at(dplyr::vars(rep, time, clone, trait), as.integer)
 
     ad_obj <- list(data = NVt, call = call_)
 
@@ -195,7 +191,8 @@ perturb.adapt_dyn <- function(obj, new_prop,
         filter(time == max(time)) %>%
         spread(trait, V) %>%
         select(-time, -clone, -N) %>%
-        as.matrix()
+        split(.$rep) %>%
+        map(~ as.matrix(.x))
 
     if (is.null(new_trait_sigmas)) {
         new_trait_sigmas <- map_dbl(which_traits, ~ sd(old_clones[,.x]))

@@ -5,15 +5,26 @@
 \alias{perturb.adapt_dyn}
 \title{Adaptive dynamics.}
 \usage{
-adapt_dyn(V0, N0, f = 0.1, g = 0.1, eta = 0.2, r0 = 0.5,
-  d = -0.01, max_t = 10000, min_N = 1e-04, mut_sd = 0.1,
-  mut_prob = 0.01, show_progress = FALSE, max_clones = 10000,
-  save_every = 100)
+adapt_dyn(eta, d, q, n_reps, n = 1, V0 = rep(list(matrix(0, 1, q)), n),
+  N0 = rep(1, n), f = 0.1, g = 0.5, r0 = 0.5, max_t = 10000L,
+  min_N = 1e-04, save_every = 10L, mut_sd = 0.1, mut_prob = 0.01,
+  max_clones = 10000, show_progress = FALSE, n_cores = 1)
 
 \method{perturb}{adapt_dyn}(obj, new_prop, new_trait_means, new_N_mean,
   new_N_sd, which_traits = NULL, new_trait_sigmas = NULL, ...)
 }
 \arguments{
+\item{eta}{A single number representing the non-additive effects of traits on the
+growth rate.}
+
+\item{d}{A single number that adjusts how the focal line is affected by
+other lines' trait values.
+If \code{d < 0}, then increases in \code{V_j} (trait that reduces competition
+experienced by clone \code{j}) increases competition experienced by clone \code{i},
+thereby giving conflicting coevolution.
+Conversely, if \code{d > 0}, then increases in \code{V_j} decrease competition
+experienced by clone \code{i}, leading to nonconflicting coevolution.}
+
 \item{V0}{Trait value(s) for each starting clone.
 For only one starting line, must be a numeric vector or a single
 matrix row or column.}
@@ -26,35 +37,24 @@ matrix row or column.}
 \item{g}{A single number representing the benefit of the trait on the density
 dependence.}
 
-\item{eta}{A single number representing the non-additive effects of traits on the
-growth rate.}
-
 \item{r0}{A single number representing the base growth rate.}
-
-\item{d}{A single number that adjusts how the focal line is affected by
-other lines' trait values.
-If \code{d < 0}, then increases in \code{V_j} (trait that reduces competition
-experienced by clone \code{j}) increases competition experienced by clone \code{i},
-thereby giving conflicting coevolution.
-Conversely, if \code{d > 0}, then increases in \code{V_j} decrease competition
-experienced by clone \code{i}, leading to nonconflicting coevolution.}
 
 \item{max_t}{Maximum time simulated.}
 
 \item{min_N}{Minimum N that's considered extant.}
+
+\item{save_every}{Number of time steps between when saving information for output.}
 
 \item{mut_sd}{Standard deviation of the normal distribution used to generate
 mutated (i.e., daughter) trait values.}
 
 \item{mut_prob}{Probability of a mutation (creating a daughter lineage).}
 
-\item{show_progress}{Boolean for whether to show a progress bar.}
-
 \item{max_clones}{Maximum number of clones predicted. This is used only to reserve
 memory for some of the inner C++ objects, so when deciding on a value for this,
 you should choose a high value.}
 
-\item{save_every}{Number of time steps between when saving information for output.}
+\item{show_progress}{Boolean for whether to show a progress bar.}
 
 \item{obj}{An \code{adapt_dyn} object.}
 
