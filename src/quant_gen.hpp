@@ -198,7 +198,8 @@ private:
 // /*
 //  Data for each combination of trial, time, and species.
 //
-//  Vectors for trait values are used to reconstruct vector of combinations of trait values.
+//  Vectors for trait values are used to reconstruct vector of combinations of trait
+//  values.
 //  These vectors should all be the same length.
 //  */
 // class OneComboData {

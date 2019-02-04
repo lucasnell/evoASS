@@ -5,40 +5,41 @@
 #include <progress_bar.hpp>
 
 #include "sim.hpp"
+#include "adapt_dyn.hpp"
 
 
 using namespace Rcpp;
 
 
 
-//' Adaptive dynamics.
+
+//' Multiple repetitions of adaptive dynamics.
 //'
 //'
 //' @noRd
 //'
 //[[Rcpp::export]]
-List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
-                   const std::vector<double>& N0,
-                   const double& f,
-                   const double& g,
-                   const double& eta,
-                   const double& r0,
-                   const double& d,
-                   const double& max_t,
-                   const double& min_N,
-                   const double& mut_sd,
-                   const double& mut_prob,
-                   const bool& show_progress,
-                   const uint32_t& max_clones,
-                   const uint32_t& save_every) {
+arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
+                        const std::vector<arma::rowvec>& V0,
+                        const std::vector<double>& N0,
+                        const double& f,
+                        const double& g,
+                        const double& eta,
+                        const double& r0,
+                        const double& d,
+                        const double& max_t,
+                        const double& min_N,
+                        const double& mut_sd,
+                        const double& mut_prob,
+                        const bool& show_progress,
+                        const uint32_t& max_clones,
+                        const uint32_t& save_every,
+                        const uint32_t& n_cores) {
 
     if (V0.size() == 0) stop("empty V0 vector");
+    if (V0[0].n_elem == 0) stop("empty V0[0] vector");
     if (N0.size() == 0) stop("empty N0 vector");
     if (V0.size() != N0.size()) stop("V0 and N0 must be the same size");
-
-    // RNG
-    pcg64 eng = seeded_pcg();
-    std::normal_distribution<double> norm_distr(0, mut_sd);
 
     // # traits:
     uint32_t q = V0[0].n_elem;
@@ -51,132 +52,84 @@ List adapt_dyn_cpp(const std::vector<arma::rowvec>& V0,
     C.fill(eta);
     C.diag().fill(1);
 
+    std::vector<OneRepInfoAD> rep_infos(n_reps);
 
-    /*
-     -----------------
-     Objects that change size over time
-     -----------------
-     */
+    const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
+    Progress prog_bar(n_reps, show_progress);
+    bool interrupted = false;
 
-    // Current abundances:
-    std::vector<double> N = N0;
-    N.reserve(max_clones);
+    #ifdef _OPENMP
+    #pragma omp parallel default(shared) num_threads(n_cores) if (n_cores > 1)
+    {
+    #endif
 
-    // Density dependences
-    std::vector<double> A(N0.size());
-    A.reserve(max_clones);
+    std::vector<uint64_t> active_seeds;
 
-    // Indices to trait values for all lines (this will get updated, though):
-    std::vector<uint32_t> I;
-    uint32_t clone_I = 0;
-    I.reserve(max_clones);
-    while (clone_I < N0.size()) {
-        I.push_back(clone_I);
-        clone_I++;
-    }
+    // Write the active seed per core or just write one of the seeds.
+    #ifdef _OPENMP
+    uint32_t active_thread = omp_get_thread_num();
+    #else
+    uint32_t active_thread = 0;
+    #endif
+    active_seeds = seeds[active_thread];
 
+    pcg64 eng = seeded_pcg(active_seeds);
 
-    /*
-     -----------------
-     Objects that store all information (and do not change size over time)
-     -----------------
-     */
-    // Trait values for all clones:
-    std::vector<arma::rowvec> all_V = V0;
-    all_V.reserve(V0.size() + max_clones);
+    #ifdef _OPENMP
+    #pragma omp for schedule(static)
+    #endif
+    for (uint32_t i = 0; i < n_reps; i++) {
 
-    // All abundances from t = 1 to max_t
-    std::vector<std::vector<double>> all_N;
-    all_N.reserve((max_t / save_every) + 2);
-    all_N.push_back(N);
+        if (!Progress::check_abort()) {
 
-    // All indices from t = 1 to max_t
-    std::vector<std::vector<uint32_t>> all_I;
-    all_I.reserve((max_t / save_every) + 2);
-    all_I.push_back(I);
+            rep_infos[i] = OneRepInfoAD(V0, N0, max_clones, max_t, save_every, mut_sd);
 
-    // All time points sampled
-    std::vector<uint32_t> all_t;
-    all_t.reserve((max_t / save_every) + 2);
-    all_t.push_back(0);
+            for (uint32_t t = 0; t < max_t; t++) {
 
-
-    Progress p(max_t, show_progress);
-
-
-    for (uint32_t t = 0; t < max_t; t++) {
-
-        Rcpp::checkUserInterrupt();
-
-        // Fill in density dependences:
-        A_VNI__<std::vector<double>>(A, all_V, N, I, g, d);
-
-        // Extinct clones (if any):
-        std::vector<uint32_t> extinct;
-        // Fill in abundances:
-        for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_(all_V[I[i]], f, C, r0);
-            N[i] *= std::exp(r - A[i]);
-            // See if it goes extinct:
-            if (N[i] < min_N) {
-                extinct.push_back(i);
-            }
-        }
-        // If everything is gone, output results and stop simulations:
-        if (extinct.size() == N.size()) {
-            all_N.push_back(N);
-            all_I.push_back(I);
-            all_t.push_back(t);
-            break;
-        }
-        // Remove extinct clones (starting at the back):
-        for (uint32_t i = 0, j; i < extinct.size(); i++) {
-            j = extinct.size() - i - 1;
-            N.erase(N.begin() + extinct[j]);
-            A.erase(A.begin() + extinct[j]);
-            I.erase(I.begin() + extinct[j]);
-        }
-
-        // Seeing if I should add new clones:
-        uint32_t n_clones = N.size(); // doing this bc N.size() might increase
-        for (uint32_t i = 0; i < n_clones; i++) {
-
-            double u = runif_01(eng);
-
-            if (u < mut_prob) {
-
-                N[i] -= (1.01 * min_N);
-
-                N.push_back(1.01 * min_N);
-                A.push_back(0);
-                I.push_back(clone_I);
-                clone_I++;
-
-                all_V.push_back(all_V[I[i]]);
-                arma::rowvec& new_V(all_V.back());
-                for (double& d : new_V) d += norm_distr(eng);
+                rep_infos[i].iterate(t, f, g, C, r0, d, max_t, min_N, mut_sd, mut_prob,
+                                     save_every, eng);
 
             }
 
-        }
+            prog_bar.increment();
 
-        if ((t+1) % save_every == 0 || (t+1) == max_t) {
-            all_N.push_back(N);
-            all_I.push_back(I);
-            all_t.push_back(t);
-        }
+        } else if (active_thread == 0) interrupted = true;
+    }
+    #ifdef _OPENMP
+    }
+    #endif
 
-        p.increment();
-
+    if (interrupted) {
+        throw(Rcpp::exception("\nUser interrupted process.", false));
     }
 
-    List out = List::create(
-        _["N"] = all_N,
-        _["V"] = all_V,
-        _["I"] = all_I,
-        _["T"] = all_t
-    );
+    /*
+     Go through one time to calculate the # surviving species for all reps and
+     for all time point(s) saved.
+     Then go back through and fill in values.
+    */
+    uint32_t n_rows = rep_infos[0].n_rows();
+    std::vector<uint32_t> cum_rows(n_reps, 0);
+    cum_rows[0] = n_rows;
+    for (uint32_t i = 1; i < n_reps; i++) {
+        uint32_t nr = rep_infos[i].n_rows();
+        n_rows += nr;
+        cum_rows[i] = nr + cum_rows[i-1];
+    }
+    // Make output matrix:
+    arma::mat output(n_rows, 4 + q);
+    // Fill output matrix:
+    #ifdef _OPENMP
+    #pragma omp parallel for default(shared) num_threads(n_cores) schedule(static)
+    #endif
+    for (uint32_t i = 0; i < n_reps; i++) {
+        uint32_t start = 0;
+        if (i > 0) start = cum_rows[i-1];
+        rep_infos[i].fill_matrix(output, i, start);
+    }
 
-    return out;
 
+
+
+    return output;
 }
