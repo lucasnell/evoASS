@@ -36,6 +36,48 @@ suppressPackageStartupMessages({
 ```
 
 
+```{r stability-fxns, echo = FALSE}
+# Jacobian for one simulation rep:
+one_jacobian <- function(N, V, eta, d) {
+    other_args <- c(list(eta = eta, d = d),
+                    with(formals(quant_gen), {
+                        list(f = f, g = g, add_var = eval(add_var))
+                        }))
+    args_ <- c(list(N = N, V = V),
+               other_args[c("f", "g", "d", "add_var")])
+    args_$add_var <- args_$add_var[1:length(N)]  # it's assumed they're all the same
+    args_$C <- matrix(other_args$eta, length(V[[1]]), length(V[[1]]))
+    diag(args_$C) <- 1
+    jacobian_mat <- do.call(sauron:::jacobian_cpp, args_)
+    return(jacobian_mat)
+}
+# Same but for a single `quant_gen` run of multiple reps:
+jacobians <- function(sim_df_) {
+    eta <- sim_df_$eta[[1]] %>% paste() %>% as.numeric()
+    d <- sim_df_$d[[1]] %>% paste() %>% as.numeric()
+    jc_mats <- sim_df_ %>%
+        filter(time == max(time)) %>%
+        group_by(rep, spp) %>%
+        group_by(rep, spp) %>%
+        summarize(N = N[[1]],
+                  V = list(value)) %>%
+        group_by(rep) %>%
+        summarize(N = list(N),
+                  V = list(V)) %>%
+        ungroup() %>%
+        mutate(jacobs = map2(N, V, ~ one_jacobian(.x, .y, eta, d))) %>%
+        .[["jacobs"]]
+    return(jc_mats)
+}
+# Vector of primary eigenvalues for a `quant_gen` run of multiple reps:
+eigens <- function(sim_df_) {
+    map_dbl(jacobians(sim_df_),
+            ~ Re(eigen(.x, only.values = TRUE, 
+                       symmetric = FALSE)$values[1]))
+}
+```
+
+
 
 This document explores how changes in the `eta` parameter
 (the tradeoff for diverging multiple traits)
@@ -49,32 +91,50 @@ In this section I'm looking for trait changes through time as `eta` approaches z
 from either direction.
 
 ```{r}
-from_zero <- c(1e-4, 5e-4, 1e-3)
-# Takes ~4 min
+from_zero <- c(1e-6, 1e-4)
+n_ <- 20
+# Takes ~2 min
 t0 <- Sys.time()
 set.seed(689479082)
 sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3,
                                        .e = c(-1 * rev(from_zero), 0, from_zero),
-                                       .d = 0)),
+                                       .d = -0.1)),
                     function(.q, .e, .d) {
-                        qg_ <- quant_gen(q = .q, n_cores = 4, eta = .e, d = .d,
-                                         n_reps = 8, max_t = 1e5L, save_every = 1e2L,
+                        qg_ <- quant_gen(eta = .e, d = .d, q = .q, n_cores = 4,
+                                         n = n_, n_reps = 20,
+                                         max_t = 2e6L, save_every = 1e3L,
                                          show_progress = FALSE)
+                        cat(sprintf("%i %.2g \n", .q, .e))
                         nv <- qg_$nv %>%
                             mutate(eta = .e, d = .d, q = .q, trait = paste(trait))
                         return(nv)
                     }) %>%
     select(eta, d, everything()) %>%
-    mutate_at(vars(eta, d, trait), factor) %>% 
+    mutate_at(vars(eta, d, trait), factor) %>%
     mutate(id = interaction(q, eta, d, rep, spp, trait))
 Sys.time() - t0; rm(t0)
 
-# # write_csv(sim_df, "results/eta-short-sims.csv")
-# sim_df <- read_csv("results/eta-short-sims.csv", col_types = "ddfifdfdi")
+# saveRDS(sim_df, "results/quant_gen/eta-change-sims.rds")
+
+# sim_df <- readRDS("results/quant_gen/eta-change-sims.rds")
+
+eigs <- sim_df %>%
+    {expand.grid(q = unique(.$q), eta = levels(.$eta))} %>% 
+    {map2_dfr(.$q, .$eta, 
+             ~ tibble(q = .x, eta = .y , eigs = eigens(filter(sim_df, q == .x, eta == .y))))}
+
+filter(sim_df, q == 2, eta == 1e-4) %>% 
+    eigens()
+
+
+
+
 
 
 test_df <- sim_df %>% 
-    filter(q == 2)
+    filter(q == 2) %>% 
+    # mutate(id = interaction(q, eta, d, rep, spp)) %>%
+    identity()
 
 
 spp_counts <- test_df %>% 
@@ -85,14 +145,14 @@ spp_counts <- test_df %>%
 
 
 test_df %>% 
-    # filter(time <= 25e3) %>%
+    # filter(time <= 1e3) %>%
     ggplot(aes(time, value)) +
     geom_line(aes(group = id, color = trait), size = 0.25) +
-    geom_line(data = spp_counts, aes(y = (n_spp / 100) * 4 - 2)) +
-    scale_color_viridis_d("Trait:", alpha = 0.1, end = 0.9, guide = FALSE) +
+    # geom_line(data = spp_counts, aes(y = (n_spp / n_) * 4 - 2)) +
+    scale_color_viridis_d("Trait:", alpha = 0.75, end = 0.9, guide = FALSE) +
     # facet_wrap(~ eta, nrow = 2) +
-    facet_grid(rep ~ eta) +
-    scale_x_continuous(breaks = c(0, 50e3, 100e3), labels = c("0", "50e3", "100e3")) +
+    facet_grid( ~ eta) +
+    # scale_x_continuous(breaks = c(0, 0.5e6, 1e6L), labels = c("0", "500e3", "1e6")) +
     # theme(strip.background = element_blank(),
     #       strip.text = element_blank(),
     #       axis.text = element_text(size = 8),
@@ -101,15 +161,213 @@ test_df %>%
 
 
 test_df %>% 
-    filter(trait == 1) %>%
-    # filter(time <= 10) %>% 
-    # ggplot(aes(time, log(N))) +
-    ggplot(aes(time, N)) +
-    geom_line(aes(group = id), size = 0.25, alpha = 0.1) +
-    # facet_wrap(~ eta, nrow = 2) +
-    facet_grid(rep ~ eta) +
-    scale_x_continuous(breaks = c(0, 50e3, 100e3), labels = c("0", "50e3", "100e3")) +
+    select(-id, -d) %>% 
+    filter(time == max(time)) %>%
+    mutate(trait = paste0("V", trait)) %>% 
+    spread(trait, value) %>% 
+    mutate(eig = map2_dbl(eta, rep, ~ eigs$eigs[eigs$q == 2 & eigs$eta == .x][.y]),
+           eig_lgl = ifelse(eig < 1, 0, ifelse(eig == 1, 1, 2)) %>% 
+               factor(levels = 0:2, labels = c("stable", "neutral", "unstable"))) %>% 
+    ggplot(aes(V1, V2)) +
+    # geom_point(aes(color = eig_lgl)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 3) +
+    geom_abline(slope = -1, intercept = 0, linetype = 3) +
+    geom_point(aes(color = eig)) +
+    facet_grid( ~ eta) +
+    # scale_color_manual(values = c("black", "dodgerblue", "firebrick")) +
+    scale_color_gradient2(low = "dodgerblue", high = "firebrick", mid = "gray60", midpoint = 1) +
     NULL
+
+
+
+
+test_df %>% 
+    filter(trait == 1) %>% 
+    # filter(time <= 10) %>%
+    ggplot(aes(time, log(N))) +
+    # ggplot(aes(time, N)) +
+    geom_line(aes(group = id), size = 0.25, alpha = 0.4) +
+    # facet_wrap(~ eta, nrow = 2) +
+    facet_grid(~ eta) +
+    # scale_x_continuous(breaks = c(0, 50e3, 100e3), labels = c("0", "50e3", "100e3")) +
+    NULL
+
+
+test_df %>% 
+    # filter(rep == 1) %>% 
+    mutate(trait = paste0("V", trait)) %>% 
+    spread(trait, value) %>% 
+    arrange(time) %>% 
+    ggplot(aes(V1, V2)) +
+    # geom_point(shape = 1) +
+    geom_path(aes(group = id), alpha = 0.5) +
+    facet_grid( ~ eta) +
+    # scale_color_manual(values = c("black", "dodgerblue", "firebrick")) +
+    scale_color_gradient2(low = "dodgerblue", high = "firebrick", mid = "gray60", midpoint = 1) +
+    NULL
+
+
+
+
+test_df %>% 
+    group_by(eta, rep, time, spp, id) %>% 
+    summarize(dist = sqrt(value[[1]]^2 + value[[2]]^2)) %>% 
+    ungroup() %>% 
+    arrange(time) %>% 
+    ggplot(aes(time, dist)) +
+    geom_path(aes(group = id), alpha = 0.5) +
+    facet_grid( ~ eta) +
+    NULL
+
+
+C_ <- function(eta, q = 2) {
+    cc <- matrix(eta, q, q)
+    diag(cc) <- 1
+    return(cc)
+}
+
+nspp <- 1
+sauron:::sel_str_cpp(V = rep(list(cbind(1.4143019568, 1.4143019568)), nspp),
+                      N = rep(10.9239992239, nspp),
+                      f = 0.1,
+                      g = 0.5,
+                      C = C_(1e-4),
+                      r0 = 0.5,
+                      d = -0.1)
+
+
+newqg <- map_dfr(c(1, -2),
+                 function(.x) {
+                     df_ <- quant_gen(eta = 1e-4, d = -0.1, q = 2,
+                                      n = nspp,
+                                      n_reps = 1,
+                                      V0 = rep(list(cbind(rep(.x, 2))), nspp),
+                                      N0 = rep(10.92, nspp),
+                                      max_t = 1e5L, save_every = 1L, perturb_sd = 0,
+                                      show_progress = FALSE)[["nv"]]
+                     mutate(df_, start = .x)
+    })
+
+newqg2 <- map_dfr(c(1, -2),
+                 function(.x) {
+                     df_ <- quant_gen(eta = 1e-4, d = -0.1, q = 2,
+                                      n = nspp,
+                                      n_reps = 1,
+                                      V0 = rep(list(cbind(c(0, 1e-2) + .x)), nspp),
+                                      N0 = rep(10.92, nspp),
+                                      max_t = 1e6L, save_every = 1e3L, perturb_sd = 0,
+                                      show_progress = FALSE)[["nv"]]
+                     mutate(df_, start = .x)
+    })
+
+
+newqg %>%
+    filter(time == max(time)) %>% 
+    group_by(start, trait) %>% 
+    summarize(min = min(value),
+              max = max(value))
+newqg2 %>%
+    filter(time == max(time)) %>% 
+    group_by(start, trait) %>% 
+    summarize(min = min(value),
+              max = max(value))
+
+
+
+newqg %>%
+    # filter(time < 25) %>% 
+    ggplot(aes(time, value)) +
+    geom_line(aes(color = trait, group = interaction(start, trait))) +
+    NULL
+
+newqg2 %>%
+    # filter(time < 25) %>% 
+    ggplot(aes(time, value)) +
+    geom_line(aes(color = trait, group = interaction(start, trait)), linetype = 2) +
+    facet_wrap(~ factor(start) + trait) +
+    NULL
+
+
+newqg %>% 
+    filter(time==max(time)) %>% 
+    .[["N"]]
+
+newqg %>% 
+    mutate(trait = paste0("V", trait)) %>% 
+    spread(trait, value) %>% 
+    arrange(time) %>% 
+    ggplot(aes(V1, V2)) +
+    # geom_point(shape = 1) +
+    geom_point(data = test_df %>% 
+                   filter(time==max(time), eta==1e-4) %>% 
+                   mutate(trait = paste0("V", trait)) %>% 
+                   spread(trait, value) %>% 
+                   arrange(time),
+               alpha = 0.5, color = "firebrick") +
+    geom_line(aes(group = factor(start))) +
+    geom_point(data = newqg %>% 
+                   filter(time==max(time)) %>% 
+                   mutate(trait = paste0("V", trait)) %>% 
+                   spread(trait, value) %>% 
+                   arrange(time)) +
+    scale_x_continuous(limits = c(-2, 2)) +
+    scale_y_continuous(limits = c(-2, 2)) +
+    scale_color_gradient2(low = "dodgerblue", high = "firebrick", mid = "gray60", midpoint = 1) +
+    NULL
+
+zz <- newqg2 %>% 
+    mutate(trait = paste0("V", trait)) %>% 
+    spread(trait, value) %>% 
+    arrange(time)
+
+zz %>% 
+    arrange(time) %>% 
+    ggplot(aes(V1, V2)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 3, color = "gray80") +
+    # geom_point(shape = 1) +
+    # geom_point(data = test_df %>% 
+    #                filter(time==max(time), eta==1e-4) %>% 
+    #                mutate(trait = paste0("V", trait)) %>% 
+    #                spread(trait, value) %>% 
+    #                arrange(time),
+    #            alpha = 0.5, color = "firebrick") +
+    geom_path(aes(group = factor(start))) +
+    geom_point(data = zz %>% filter(time==max(time)), color = "red") +
+    geom_point(data = zz %>% filter(time==min(time)), color = "red", shape = 4) +
+    scale_color_gradient2(low = "dodgerblue", high = "firebrick", mid = "gray60", midpoint = 1) +
+    NULL
+    
+sqrt(1.414125^2 + 1.414125^2)
+
+
+sqrt(2)
+
+
+
+
+with(list(f=0.1, g=0.5, eta=1e-4, Ni = 10.91526), {
+    Vi <- rbind(c(-sqrt(2), sqrt(2)))
+    exp(0.5 - f * Vi %*% C_(eta, 2) %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
+}) %>% sprintf(fmt="%.10f")
+
+with(list(f=0.1, g=0.5, eta=1e-4, Ni = 10.91526), {
+    Vi <- rbind(c(-1.414125, 1.414125))
+    exp(0.5 - f * Vi %*% C_(eta, 2) %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
+}) %>% sprintf(fmt="%.10f")
+
+
+
+F_ <- function(Vi, f, g, eta, Ni = 10.91526) {
+    Vi <- rbind(c(-sqrt(2), Vi))
+    exp(0.5 - f * Vi %*% C_(eta, 2) %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
+}
+
+
+{
+    max_ <- 10
+    curve(map_dbl(x, ~ F_(.x, 0.1, 0.5, 1e-4)), -max_, max_, n = 10001)
+    abline(v = c(-1,1) * 1.414125, lty=3)
+}
 
 
 ```
