@@ -93,30 +93,30 @@ from either direction.
 ```{r}
 from_zero <- c(1e-6, 1e-4)
 n_ <- 20
-# Takes ~2 min
-t0 <- Sys.time()
-set.seed(689479082)
-sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3,
-                                       .e = c(-1 * rev(from_zero), 0, from_zero),
-                                       .d = -0.1)),
-                    function(.q, .e, .d) {
-                        qg_ <- quant_gen(eta = .e, d = .d, q = .q, n_cores = 4,
-                                         n = n_, n_reps = 20,
-                                         max_t = 2e6L, save_every = 1e3L,
-                                         show_progress = FALSE)
-                        cat(sprintf("%i %.2g \n", .q, .e))
-                        nv <- qg_$nv %>%
-                            mutate(eta = .e, d = .d, q = .q, trait = paste(trait))
-                        return(nv)
-                    }) %>%
-    select(eta, d, everything()) %>%
-    mutate_at(vars(eta, d, trait), factor) %>%
-    mutate(id = interaction(q, eta, d, rep, spp, trait))
-Sys.time() - t0; rm(t0)
-
+# # Takes ~2 min
+# t0 <- Sys.time()
+# set.seed(689479082)
+# sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3,
+#                                        .e = c(-1 * rev(from_zero), 0, from_zero),
+#                                        .d = -0.1)),
+#                     function(.q, .e, .d) {
+#                         qg_ <- quant_gen(eta = .e, d = .d, q = .q, n_cores = 4,
+#                                          n = n_, n_reps = 20,
+#                                          max_t = 2e6L, save_every = 1e3L,
+#                                          show_progress = FALSE)
+#                         cat(sprintf("%i %.2g \n", .q, .e))
+#                         nv <- qg_$nv %>%
+#                             mutate(eta = .e, d = .d, q = .q, trait = paste(trait))
+#                         return(nv)
+#                     }) %>%
+#     select(eta, d, everything()) %>%
+#     mutate_at(vars(eta, d, trait), factor) %>%
+#     mutate(id = interaction(q, eta, d, rep, spp, trait))
+# Sys.time() - t0; rm(t0)
+# 
 # saveRDS(sim_df, "results/quant_gen/eta-change-sims.rds")
 
-# sim_df <- readRDS("results/quant_gen/eta-change-sims.rds")
+sim_df <- readRDS("results/quant_gen/eta-change-sims.rds")
 
 eigs <- sim_df %>%
     {expand.grid(q = unique(.$q), eta = levels(.$eta))} %>% 
@@ -126,9 +126,16 @@ eigs <- sim_df %>%
 filter(sim_df, q == 2, eta == 1e-4) %>% 
     eigens()
 
+# For 1 species and one trait, equilibrium N
+Neq <- function(f, g, r0) (f / g) * exp((r0 - f) / f)
+Neq(0.1, 0.5, 0.5)
 
-
-
+sim_df %>% 
+    filter(q == 2, trait == 1) %>% 
+    filter(time == max(time)) %>% 
+    group_by(eta, rep) %>% 
+    .[["N"]] %>% 
+    range()
 
 
 test_df <- sim_df %>% 
@@ -368,6 +375,57 @@ F_ <- function(Vi, f, g, eta, Ni = 10.91526) {
     curve(map_dbl(x, ~ F_(.x, 0.1, 0.5, 1e-4)), -max_, max_, n = 10001)
     abline(v = c(-1,1) * 1.414125, lty=3)
 }
+
+
+# ISSUE WITH BELOW: Ni is dependent on whether V1 = V2 or V1 = -V2
+fitness <- function(V1, V2, eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- f * (1 - eta)
+    Ni <- { rho / g } * exp({ r0 - rho } / rho)
+    Vi <- cbind(V1, V2)
+    C <- matrix(eta, 2, 2)
+    diag(C) <- 1
+    exp(r0 - f * Vi %*% C %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
+}
+
+# Points where fitness is maxed:
+pt1 <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- f * (1 + eta)
+    xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+    tibble(V1 = xy, V2 = xy)
+}
+pt2 <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- f * (1 - eta)
+    xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+    tibble(V1 = xy, V2 = rev(xy))
+}
+max_mag <- 6
+eta_ <- -0.6
+as_tibble(expand.grid(V1 = seq(-max_mag, max_mag, 0.1), 
+                      V2 = seq(-max_mag, max_mag, 0.1))) %>% 
+    mutate(fit = map2_dbl(V1, V2, ~ fitness(.x, .y, eta = eta_))) %>% 
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = fit), interpolate = FALSE) +
+    geom_point(data = bind_rows(pt1(eta_), pt2(eta_)), color = "white")
+
+
+
+
+y <- quant_gen(eta = 0.01, d = -0.1, q = 2, n = 1, n_reps = 1,
+               max_t = 2e6L, save_every = 1e3L, perturb_sd = 0,
+               V0 = list(rbind(0, 1)),
+               show_progress = TRUE)
+z <- quant_gen(eta = 0.01, d = -0.1, q = 2, n = 1, n_reps = 1,
+               g = 0.9,
+               max_t = 2e6L, save_every = 1e3L, perturb_sd = 0,
+               V0 = list(rbind(0, 1)),
+               show_progress = TRUE)
+
+
+y$nv %>%
+    filter(time == max(time))
+z$nv %>%
+    filter(time == max(time))
+
 
 
 ```

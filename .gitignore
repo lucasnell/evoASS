@@ -5,4 +5,4 @@
 .Rprofile
 inst/doc
 *.pdf
-results
+_output

@@ -70,6 +70,26 @@ sims3 <- map2(rep(1:3, each = 3), rep(1:3, 3),
                   qg_$nv <- qg_$nv %>% filter(time == max(time))
                   return(qg_)
               }, .q = 3)
+
+source(".Rprofile")
+f <- 0.1
+r0 <- 0.5
+g <- 0.5
+N1 <- function(eta) {
+    rho <- f * (1 + eta)
+    (rho / g) * exp((r0 - rho) / rho)
+}
+N2 <- function(eta) {
+    rho <- f * (1 + eta)
+    (rho / g) * exp((r0 - rho) / (f * (1 - eta)))
+}
+cat(sprintf("%.10f\n%.10f\n", N1(0), N2(0)))
+
+{
+    curve(N1(x), -0.5, 0.5, ylab = "Equilibrium N", xlab = "eta")
+    curve(N2(x), add = TRUE, col = "red")
+    abline(v = 0, lty = 3)
+}
 ```
 
 
@@ -351,8 +371,6 @@ plot3b
 | $+$     | $-$    | neutrally stable ring         | No          |
 |         | 0      | neutrally stable ring         | Yes         |
 |         | $+$    | neutrally stable ring         | Yes         |
-
-
 
 
 
