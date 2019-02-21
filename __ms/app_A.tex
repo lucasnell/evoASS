@@ -1,0 +1,113 @@
+\section*{Appendix A: Analytical solutions to quantitative genetics equations}
+
+% \renewcommand{\thefigure}{A\arabic{figure}}
+% \renewcommand{\theequation}{A\arabic{equation}}
+% \renewcommand{\thetable}{A\arabic{table}}
+% \setcounter{equation}{0}
+% \setcounter{figure}{0}
+% \setcounter{table}{0}
+
+
+As in the main text, $^{\text{T}}$ indicates transposition,
+multiplication between matrices is always matrix multiplication, and
+bold face indicates a matrix.
+
+
+Trait values at time $t+1$ are
+
+\begin{equation} \label{eq:trait-change-full}
+    \mathbf{V}_{i,t+1} = \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
+    \left[
+        \alpha_0 ~ \mathbf{\Upsilon}_t ~
+            \text{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\text{T}} ~ \mathbf{V}_{i,t}
+        - f ~ \mathbf{V}_{i,t} \mathbf{C}
+    \right]
+    \text{.}
+\end{equation}
+
+The partial derivative of traits at time $t+1$ with respect to traits at time $t$ is
+
+\begin{equation} \label{eq:deriv-traits-i}
+    \frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{i,t} } = \mathbf{I} + 2 ~ \sigma_i^2 ~
+        \left[
+            \alpha_0 ~ \mathbf{\Upsilon}_t ~ \text{e}^{ - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\text{T}} }
+            \left(
+                -2 ~ \mathbf{V}_{i,t}^{\text{T}} \mathbf{V}_{i,t} + \mathbf{I}
+            \right) -
+            f \mathbf{C}
+        \right]
+    \text{,}
+\end{equation}
+
+where $\mathbf{I}$ is a $q \times q$ identity matrix.
+The matrices $\frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{i,t} }$ for $i \in \{1, \ldots, n\}$ represent the on-diagonal $q \times q$ blocks in the Jacobian matrix.
+The off-diagonal blocks are $\frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{k,t} }$ where $k \ne i$:
+
+\begin{equation} \label{eq:deriv-traits-k}
+    \frac{ \partial\mathbf{V}_{i,t+1} }{ \partial\mathbf{V}_{k,t}} =
+        -4 ~ d ~ \alpha_0 ~ \sigma^2 ~ N_{k,t}
+        \left[
+            \mathbf{V}_{k,t}^{\text{T}}
+            \text{e}^{
+                - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\text{T}}
+                - d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^{\text{T}}
+            }
+            \mathbf{V}_{i,t}
+        \right]
+    \text{.}
+\end{equation}
+
+
+
+
+\subsection*{Two-trait solutions}
+
+For these solutions, we will no longer use matrix multiplication.
+Also note that since all traits have the same costs, benefits, and
+non-additive effects, solutions for trait 1 and 2 are the same.
+Only solutions for trait 1 are presented.
+
+When $V1 = V2$,
+
+\begin{equation}  \label{eq:two-traits-finals1}
+\begin{align}
+    \Upsilon &= \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 } ~
+        \text{e}^{\frac{  r_0 - f ( 1 + \eta ) }{ f ( 1 + \eta ) } }
+        \\
+    V_1 &= \pm \sqrt{
+        \frac{ r_0 - f (1 + \eta) }{ 2 f (1 + \eta) }
+    }
+    \text{.}
+\end{align}
+\end{equation}
+
+
+When $V1 = - V2$,
+
+\begin{equation}  \label{eq:two-traits-finals2}
+\begin{align}
+    \Upsilon &= \frac{ f ~ ( 1 - \eta ) }{ \alpha_0 } ~
+        \text{e}^{\frac{  r_0 - f ( 1 - \eta ) }{ f ( 1 - \eta ) } }
+        \\
+    V_1 &= \pm \sqrt{
+        \frac{ r_0 - f (1 - \eta) }{ 2 f (1 - \eta) }
+    }
+    \text{.}
+\end{align}
+\end{equation}
+
+When $\eta = 0$,
+
+\begin{equation}  \label{eq:two-traits-finals2}
+\begin{align}
+    \Upsilon &= \frac{ f }{ \alpha_0 } ~ \text{e}^{\frac{  r_0 - f }{ f } } \\
+    \sqrt{V_1^2 + V_2^2} &= \sqrt{ \frac{ r_0 - f }{ f } } \\
+    V_1 &= \sqrt{ \frac{ r_0 - f }{ f } - V_2^2 }
+    \text{.}
+\end{align}
+\end{equation}
+
+
+
+
+

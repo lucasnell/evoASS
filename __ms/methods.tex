@@ -1,0 +1,156 @@
+
+\section*{Methods}
+
+
+\subsection*{Model overview}
+
+We used a simple model of competition to evaluate how competition affects outcomes of
+community assembly and trait evolution.
+Each of $n$ species has $q$ traits that affect competition.
+All traits and species are symmetrical.
+As traits diverge (i.e., evolve away from zero), they benefit the species via reduced
+effects of intraspecific competition;
+they also incur a cost by decreasing the species' population growth rate.
+In both the costs and benefits, trait effects are concave functions that,
+combined, ensure that two fitness peaks exist for each trait.
+The resulting disruptive selection is a common feature of
+negative frequency-dependent interactions such as competition
+\citep{Rosenzweig:1978bj,Doebeli:2000iq,Abrams:1993cr}.
+Traits can also have non-additive trade-offs that either increase or decrease the cost
+associated with diverging multiple traits compared to diverging just one.
+Trait divergence in one species also affects competition experienced by others.
+This can be either conflicting or non-conflicting:
+When conflicting, diverging traits in one species increase the effects of competition
+for all other species.
+When non-conflicting, all competitors' competition is reduced when traits diverge in
+one species.
+
+We analyzed the model for 2--4 traits.
+Below, we use matrix notation that applies to any number of traits.
+Matrices (indicated by bold face) are multiplied using matrix---not
+element-wise---multiplication, and
+${}^{\text{T}}$ represents matrix transposition.
+
+We used a discrete-time, modified Lotka--Volterra competition model similar to
+that by \citet{Northfield:2013if}.
+In it, species $i$ has a $1 \times q$ matrix of traits ($\mathbf{V}_i$), and
+its per-capita growth---equivalent to fitness---is
+
+\begin{equation} \label{eq:fitness}
+    F_{i} = \exp \left\{ r(\mathbf{V}_i) -
+        \alpha(\mathbf{V}, \mathbf{N}, i)
+    \right\}\text{,}
+\end{equation}
+
+
+where $\mathbf{N}$ is a vector of population densities for
+all species.
+The parameter $r(V_i)$ describes how trait divergence decreases the growth rate:
+
+\begin{equation} \label{eq:growth-rate}
+    r(\mathbf{V}_i) = r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\text{T}} \text{.}
+\end{equation}
+
+Parameter $r_0$ is the baseline growth rate,
+$f$ is the cost of diverging traits on the growth rate.
+The $q \times q$ matrix $\mathbf{C}$ contains ones in diagonal elements, and the
+non-additive trade-off of having multiple diverging traits ($\eta$) in off-diagonal
+elements.
+When $\eta > 0$, diverging multiple traits incurs an extra cost.
+
+
+The term $\alpha(\mathbf{V}, \mathbf{N}, i)$ in
+equation \ref{eq:fitness} represents how traits affect
+intraspecific and interspecific competition.
+The overall effect of competition is given by
+
+\begin{equation} \label{eq:competition}
+\begin{align}
+    \alpha(\mathbf{V}, \mathbf{N}, i) &=
+        \alpha_0 ~ \exp \left\{- \mathbf{V}_i
+        \mathbf{V}_i^{\text{T}} \right\}
+        \left[ N_i ~ +
+        \sum_{j \ne i}^{n}{
+            N_j ~
+            \exp \left\{- d ~ \mathbf{V}_j \mathbf{V}_j^{\text{T}} \right\} }
+        \right]
+    \text{.}
+\end{align}
+\end{equation}
+
+where
+$\alpha_0$ is the base density dependence and
+$N_i$ is the abundance of species $i$.
+Parameter $d$ determines how the evolution of traits in one species affects
+competition experienced by others:
+When $d < 0$, divergence of $\mathbf{V}_i$ increases the effects of competition in
+all other species.
+Alternatively, when $d > 0$, $\mathbf{V}_i$ divergence decreases the effects of
+competition on all other species.
+Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting
+evolution \citep{Northfield:2013if}.
+
+
+% \subsection*{Adaptive dynamics}
+%
+% We started simulations with a single competitive clone with trait values set to zero.
+% We tracked clone population densities through time using equation \ref{eq:fitness} and
+% considered a clone extinct if its density fell below $10^{-4}$.
+% Clones produced daughter clones with a probability of 0.01 per clone per time step.
+% We generated daughter-clone trait values from normal distributions with means of the
+% mother trait values and standard deviations of $\sigma_{d}$.
+
+
+\subsection*{Quantitative genetics}
+
+We used quantitative genetics to explore the geometry of the fitness landscapes for
+competing species.
+We assume that all traits in $\mathbf{V}_i$ represent species means and that their
+among-individual distributions are symmetrical with additive genetic variance
+of $\sigma^2_i$.
+Assuming also that $\sigma^2_i$ is relatively small
+\citep{Iwasa:1991eo,Abrams:2001va,Abrams:1993cr}, traits at time $t+1$ are
+
+\begin{equation} \label{eq:trait-change}
+    \mathbf{V}_{i,t+1} = \mathbf{V}_{i,t} + \left( \frac{1}{F_i}
+        \frac{\partial F_i}{\partial \mathbf{V}_{i}} \right) \sigma^2_i
+    \text{.}
+\end{equation}
+
+We started these simulations with 100 species.
+Each had starting trait values generated from a standard normal distribution.
+We tracked densities through time using equation \ref{eq:fitness} and
+considered a clone extinct if its density fell below $10^{-4}$.
+Equation \ref{eq:trait-change} dictated how traits changed.
+
+To determine the stability of ending points (trait values and abundances of surviving
+competitor(s)), we computed the $nq \times nq$ Jacobian matrices of first derivatives
+for the traits of each species:
+
+\begin{equation} \label{eq:jacobian}
+    \begin{pmatrix}
+        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots & \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{1,t}} \\
+        \vdots & \ddots & \vdots \\
+        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} & \cdots & \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{n,t}}
+    \end{pmatrix}
+    \text{.}
+\end{equation}
+
+We then computed the primary eigenvalue of this matrix ($\lambda$).
+We considered a state stable when $\lambda < 1$,
+neutrally stable when $\lambda = 1$,
+and unstable when $\lambda > 1$.
+
+Full analytical solutions are found in appendix A.
+
+
+\subsection*{Code}
+
+We simulated models using a combination of R \cite{RCoreTeam:2014wf} and
+C++ via the Rcpp and RcppArmadillo packages
+\cite{Eddelbuettel:2014ad,Eddelbuettel:2013if,Sanderson:2016cs}.
+We double-checked our derivations by simulating 100 datasets
+(4 species with 3 traits each) and computing derivatives using the Theano Python
+library's automatic differentiation \citep{TheanoDevelopmentTeam:2016uc}.
+All code can be found on GitHub (\url{https://github.com/lucasnell/sauron}).
+
