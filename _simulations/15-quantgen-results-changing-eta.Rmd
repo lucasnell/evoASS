@@ -378,34 +378,43 @@ F_ <- function(Vi, f, g, eta, Ni = 10.91526) {
 
 
 # ISSUE WITH BELOW: Ni is dependent on whether V1 = V2 or V1 = -V2
-fitness <- function(V1, V2, eta, f = 0.1, g = 0.5, r0 = 0.5) {
-    rho <- f * (1 - eta)
-    Ni <- { rho / g } * exp({ r0 - rho } / rho)
-    Vi <- cbind(V1, V2)
+fitness <- function(V1, V2, eta, Ni, f = 0.1, g = 0.5, r0 = 0.5) {
     C <- matrix(eta, 2, 2)
+    Vi <- cbind(V1, V2)
     diag(C) <- 1
     exp(r0 - f * Vi %*% C %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
 }
 
-# Points where fitness is maxed:
-pt1 <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
-    rho <- f * (1 + eta)
+# N at equilibrium
+N_eq <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- ifelse(eta < 0, f * (1 + eta), f * (1 - eta))
+    (rho / g) * exp((r0 / rho) - 1)
+}
+# Stable points:
+stable_points <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- ifelse(eta < 0, f * (1 + eta), f * (1 - eta))
     xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
     tibble(V1 = xy, V2 = xy)
 }
-pt2 <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
-    rho <- f * (1 - eta)
+# Unstable points:
+unstable_points <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+    rho <- ifelse(eta < 0, f * (1 - eta), f * (1 + eta))
     xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
     tibble(V1 = xy, V2 = rev(xy))
 }
 max_mag <- 6
 eta_ <- -0.6
-as_tibble(expand.grid(V1 = seq(-max_mag, max_mag, 0.1), 
-                      V2 = seq(-max_mag, max_mag, 0.1))) %>% 
-    mutate(fit = map2_dbl(V1, V2, ~ fitness(.x, .y, eta = eta_))) %>% 
+crossing(V1 = seq(-max_mag, max_mag, 0.1), 
+         V2 = seq(-max_mag, max_mag, 0.1),
+         Ni = seq(0, N_eq(eta_), length.out = 4)) %>% 
+    mutate(fit = pmap_dbl(list(V1, V2, Ni), ~ fitness(..1, ..2, eta = eta_, Ni = ..3))) %>% 
+    mutate(Ni = factor(Ni, labels = c(0, sprintf("%i/3 Neq", 1:2), "Neq"))) %>% 
     ggplot(aes(V1, V2)) +
     geom_raster(aes(fill = fit), interpolate = FALSE) +
-    geom_point(data = bind_rows(pt1(eta_), pt2(eta_)), color = "white")
+    geom_point(data = stable_points(eta_), color = "black") +
+    geom_point(data = unstable_points(eta_), color = "black", shape = 1) +
+    facet_wrap(~ Ni, nrow = 2) +
+    scale_fill_gradient2(high = "firebrick", low = "dodgerblue3", mid = "white", midpoint = 1)
 
 
 
