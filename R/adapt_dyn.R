@@ -34,8 +34,7 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
 #' @param N0 Abundance(s) for each starting clone. Must be a numeric vector or a single
 #'     matrix row or column.
 #' @param f A single number representing the cost of the trait on the growth rate.
-#' @param a0 A single number representing the benefit of the trait on the density
-#'     dependence.
+#' @param a0 A single number representing the base density dependence.
 #' @param eta A single number representing the non-additive effects of traits on the
 #'     growth rate.
 #' @param r0 A single number representing the base growth rate.

@@ -31,8 +31,7 @@ matrix row or column.}
 
 \item{f}{A single number representing the cost of the trait on the growth rate.}
 
-\item{a0}{A single number representing the benefit of the trait on the density
-dependence.}
+\item{a0}{A single number representing the base density dependence.}
 
 \item{r0}{A single number representing the base growth rate.}
 
