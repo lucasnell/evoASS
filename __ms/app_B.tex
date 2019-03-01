@@ -1,0 +1,330 @@
+\section*{Appendix B: Two-trait equilibrium solutions}
+
+\renewcommand{\thefigure}{B\arabic{figure}}
+\renewcommand{\theequation}{B\arabic{equation}}
+\renewcommand{\thetable}{B\arabic{table}}
+\setcounter{equation}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
+
+For these solutions, we will no longer use matrix notation.
+Also, since all traits have the same costs, benefits, and
+non-additive effects, solutions for trait 1 and 2 are the same.
+Only solutions for trait 1 are presented.
+Lastly, we use a hat to distinguish equilibrium values
+($\hat{Z}$ for parameter $Z$).
+
+
+
+\subsection*{Trait values}
+
+The two traits for species $i$ change as follows:
+
+\begin{equation*}
+\begin{split}
+    V_{i1,t+1} &= V_{i1,t} + 2 ~ \sigma^2
+    \left[
+        \alpha_0 ~ \Omega_{i,t} ~
+            \textrm{e}^{-V_{i1,t}^2 - V_{i2,t}^2} ~ V_{i1,t}
+        - f ~ ( V_{i1,t} + \eta ~ V_{i2,t} )
+    \right] \\
+    V_{i2,t+1} &= V_{i2,t} + 2 ~ \sigma^2
+    \left[
+        \alpha_0 ~ \Omega_{i,t} ~
+            \textrm{e}^{-V_{i2,t}^2 - V_{i1,t}^2} ~ V_{i2,t}
+        - f ~ ( V_{i2,t} + \eta ~ V_{i1,t} )
+    \right] \\
+    \Omega_{i,t} &\equiv N_{i,t} +
+        \sum_{j \ne i}^{n}{ N_{j,t} ~ \textrm{e}^{
+                -d (V_{j2,t}^2 + V_{j1,t}^2) } }
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+
+We'll now drop indices for species and time because we are
+focusing on just one species and time point.
+
+
+At equilibrium (assuming that $\sigma > 0$),
+
+\begin{equation}
+\begin{split}
+    0 &= \alpha_0 ~ \hat{\Omega} ~
+            \textrm{e}^{-\hat{V}_{1}^2 - \hat{V}_{2}^2} ~ \hat{V}_{1}
+        - f ~ ( \hat{V}_{1} + \eta ~ \hat{V}_{2} ) \\
+    0 &=
+        \alpha_0 ~ \hat{\Omega} ~
+            \textrm{e}^{-\hat{V}_{2}^2 - V_{1}^2} ~ \hat{V}_{2}
+        - f ~ ( \hat{V}_{2} + \eta ~ \hat{V}_{1} )
+    \textrm{.}
+\end{split}
+\label{eq:two-traits-V-eq1}
+\end{equation}
+
+
+Thus, we have
+
+\begin{equation*}
+\begin{split}
+    \alpha_0 ~ \hat{\Omega} ~ \textrm{e}^{-\hat{V}_{1}^2 - \hat{V}_{2}^2} &=
+        \frac{ f ~ ( \hat{V}_{1} + \eta ~ \hat{V}_{2} ) }{ \hat{V}_{1} } \\
+    \alpha_0 ~ \hat{\Omega} ~ \textrm{e}^{-\hat{V}_{1}^2 - \hat{V}_{2}^2} &=
+        \frac{ f ~ ( \hat{V}_{2} + \eta ~ \hat{V}_{1} ) }{ \hat{V}_{2} }
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+
+Combining these leads to
+
+\begin{equation*}
+\begin{split}
+    f ~ ( \hat{V}_{1} + \eta ~ \hat{V}_{2} ) ~ \hat{V}_{2} &=
+        f ~ ( \hat{V}_{2} + \eta ~ \hat{V}_{1} ) ~ \hat{V}_{1} \\
+    f \hat{V}_{1} \hat{V}_{2} + \eta \hat{V}_{2}^2 &=
+        f \hat{V}_{1} \hat{V}_{2} + \eta \hat{V}_{1}^2 \\
+    \eta \hat{V}_{2}^2 &= \eta \hat{V}_{1}^2 \\
+    \hat{V}_{1} &= \pm \hat{V}_{2}
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+Thus, we have three scenarios of how $\hat{V}_{1}$ relates to $\hat{V}_{2}$:
+$\hat{V}_{1} = \hat{V}_{2}$, $\hat{V}_{1} = - \hat{V}_{2}$, and
+neither (when $\eta = 0$).
+Plugging in the first of these scenarios
+($\hat{V}_{1} = \hat{V}_{2}$) into equation \ref{eq:two-traits-V-eq1}
+gives us
+
+\begin{equation*}
+\begin{split}
+    0 &= \alpha_0 ~ \hat{\Omega} ~ \textrm{e}^{-2 ~ \hat{V}_{1}^2 } ~ \hat{V}_{1}
+        - f ~ ( \hat{V}_{1} + \eta ~ \hat{V}_{1} ) \\
+    &= \hat{V}_{1} \left[ \alpha_0 ~ \hat{\Omega} ~ \textrm{e}^{-2 ~ \hat{V}_{1}^2 }
+        - f ~ ( 1 + \eta ) \right]
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+One solution is $\hat{V}_{1} = 0$, but if $\hat{V}_{1} \ne 0$
+
+
+\begin{equation}
+\begin{split}
+    \alpha_0 ~ \hat{\Omega} ~ \textrm{e}^{-2 ~ \hat{V}_{1}^2 } &=
+        f ~ ( 1 + \eta ) \\
+    -2 ~ \hat{V}_{1}^2 &=
+        \log \left( \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 ~ \hat{\Omega} } \right) \\
+    \hat{V}_{1} &= \pm \sqrt{\frac{1}{2}
+        \log \left( \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 + \eta ) } \right) }
+    \textrm{.}
+\end{split}
+\label{eq:two-traits-V-eq5}
+\end{equation}
+
+
+When $\hat{V}_{1} = - \hat{V}_{2}$ and $\hat{V}_{1} \ne 0$,
+
+$$
+    \hat{V}_{1} = \pm \sqrt{\frac{1}{2}
+        \log \left( \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 - \eta ) } \right) }
+    \textrm{.}
+$$
+
+
+When $\eta = 0$ and at least one of the two traits $\ne 0$,
+traits are constrained by their distance
+from the origin: $\sqrt{\hat{V}_{1}^2 + \hat{V}_{2}^2}$.
+When $\hat{V}_{1} \ne 0$, this distance is
+
+\begin{equation*}
+\begin{split}
+    0 &= \alpha_0 ~ \hat{\Omega} ~
+            \textrm{e}^{-\hat{V}_{1}^2 - \hat{V}_{2}^2} ~ \hat{V}_{1}
+        - f ~ \hat{V}_{1} \\
+    0 &= \alpha_0 ~ \hat{\Omega} ~
+        \textrm{e}^{- ( \hat{V}_{1}^2 + \hat{V}_{2}^2) }
+        - f \\
+    \log \left( \frac{\alpha_0 ~ \hat{\Omega}}{ f } \right) &=
+        \hat{V}_{1}^2 + \hat{V}_{2}^2 \\
+     \sqrt{ \hat{V}_{1}^2 + \hat{V}_{2}^2 } &=
+        \sqrt{ \log \left( \frac{\alpha_0 ~ \hat{\Omega}}{ f } \right)}
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+So the relationship between traits when $\eta = 0$ is
+
+$$
+    \hat{V}_{1} =
+    \pm \sqrt{
+        \log \left( \frac{\alpha_0 ~ \hat{\Omega}}{ f } \right) -
+        \hat{V}_{2}^2
+    }
+    \textrm{,}
+$$
+
+when $\hat{V}_{2}^2 \ge \log (\alpha_0 \hat{\Omega} / f)$.
+
+
+\subsection*{Scaled community size}
+
+Fitness for the species is written as
+
+$$
+    F = \exp \left\{
+        r_0 - f ( \hat{V}_{1}^2 + 2 \eta \hat{V}_{1} \hat{V}_{2} + \hat{V}_{2}^2 ) -
+        \alpha_0 \textrm{e}^{ - \hat{V}_{1}^2 - \hat{V}_{2}^2 } \hat{\Omega}
+    \right\}
+    \textrm{.}
+$$
+
+
+At equilibrium,
+
+$$
+    0 = r_0 - f ( \hat{V}_{1}^2 + 2 \eta \hat{V}_{1} \hat{V}_{2} + \hat{V}_{2}^2 ) -
+        \alpha_0 \textrm{e}^{ - \hat{V}_{1}^2 - \hat{V}_{2}^2 } \hat{\Omega}
+    \textrm{.}
+$$
+
+
+When $\hat{V}_1 = \hat{V}_2$, we can insert our answer from
+\ref{eq:two-traits-V-eq5} to get
+
+\begin{equation*}
+\begin{split}
+    0 &= r_0 - 2 ~ f ~ \hat{V}_{1}^2 ( 1 + \eta ) -
+        \alpha_0 \textrm{e}^{ -2 ~ \hat{V}_{1}^2 } \hat{\Omega} \\
+    r_0 &= 2 f ( 1 + \eta ) \left[
+        \frac{1}{2}
+        \log \left( \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 + \eta ) } \right)
+    \right] +
+        \alpha_0 \textrm{e}^{ -2 ~
+            \left[
+                \frac{1}{2} \log \left(
+                    \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 + \eta ) }
+                \right)
+            \right]
+        } \hat{\Omega} \\
+    r_0 &= f ( 1 + \eta ) \log \left(
+        \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 + \eta ) }
+    \right) + f ( 1 + \eta ) \\
+    \frac{  r_0 - f ( 1 + \eta ) }{ f ( 1 + \eta ) } &=
+        \log \left(
+        \frac{ \alpha_0 ~ \hat{\Omega} }{ f ~ ( 1 + \eta ) }
+        \right) \\
+    \hat{\Omega} &= \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 } ~
+        \textrm{e}^{\frac{  r_0 }{ f ( 1 + \eta ) } - 1 }
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+Thus, when $\hat{V}_1 = \hat{V}_2$,
+$$
+\hat{\Omega} = \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 } ~
+        \textrm{e}^{\frac{ r_0 }{ f ( 1 + \eta ) } - 1 }
+    \textrm{.}
+$$
+
+
+When $\hat{V}_1 = -\hat{V}_2$, we get
+
+$$
+    \hat{\Omega} = \frac{ f ~ ( 1 - \eta ) }{ \alpha_0 } ~
+        \textrm{e}^{\frac{  r_0 }{ f ( 1 - \eta ) } - 1 }
+    \textrm{.}
+$$
+
+
+When $\eta = 0$,
+
+$$
+    \hat{\Omega} = \frac{ f }{ \alpha_0 } ~ \textrm{e}^{\frac{ r_0 }{ f } - 1 }
+    \textrm{.}
+$$
+
+
+
+\subsection*{Differences in abundance among species}
+
+Because the values of $\hat{\Omega}$ above depend only on state variables,
+we can conclude that it should not differ among species.
+We have also shown that $\sqrt{\hat{V}_1^2 + \hat{V}_2^2}$ should never
+differ among species.
+Thus, if we define $\hat{X} = \hat{V}_1^2 + \hat{V}_2^2$,
+then for any two ($i$ and $j$) of the $n$ species,
+
+\begin{equation*}
+\begin{split}
+    \hat{\Omega} &= \hat{N}_i + \textrm{e}^{-d \hat{X}} \hat{N}_j +
+        \textrm{e}^{-d \hat{X}} \sum_{k \ne i,j}^{n}{ \hat{N}_k } \\
+    \hat{\Omega} &= \hat{N}_j + \textrm{e}^{-d \hat{X}} \hat{N}_i +
+        \textrm{e}^{-d \hat{X}} \sum_{k \ne i,j}^{n}{ \hat{N}_k }
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+
+Now we compare them:
+
+\begin{equation*}
+\begin{split}
+    \hat{N}_i + \textrm{e}^{-d \hat{X}} \hat{N}_j &=
+        \hat{N}_j + \textrm{e}^{-d \hat{X}} \hat{N}_i \\
+    \hat{N}_i \left( 1 - \textrm{e}^{-d \hat{X}} \right) &=
+        \hat{N}_j \left( 1 - \textrm{e}^{-d \hat{X}} \right) \\
+    \hat{N}_i &= \hat{N}_j
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+So equilibrium abundances do not differ among species.
+
+
+
+
+
+\subsection*{Combined solutions}
+
+When $\hat{V}_1 = \hat{V}_2$,
+
+\begin{equation}  \label{eq:two-traits-finals1}
+\begin{split}
+    \hat{\Omega} &= \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 } ~
+        \textrm{e}^{\frac{  r_0 }{ f ( 1 + \eta ) } - 1 }
+        \\
+    \hat{V}_1 &= \pm \sqrt{
+        \frac{1}{2} \left( \frac{ r_0 }{ f (1 + \eta) } - 1 \right)
+    }
+    \textrm{.}
+\end{split}
+\end{equation}
+
+
+When $\hat{V}_1 = - \hat{V}_2$,
+
+\begin{equation}  \label{eq:two-traits-finals2}
+\begin{split}
+    \hat{\Omega} &= \frac{ f ~ ( 1 - \eta ) }{ \alpha_0 } ~
+        \textrm{e}^{\frac{  r_0 }{ f ( 1 - \eta ) } - 1 }
+        \\
+    \hat{V}_1 &= \pm \sqrt{
+        \frac{1}{2} \left( \frac{ r_0 }{ f (1 - \eta) } - 1 \right)
+    }
+    \textrm{.}
+\end{split}
+\end{equation}
+
+When $\eta = 0$,
+
+\begin{equation}  \label{eq:two-traits-finals3}
+\begin{split}
+    \hat{\Omega} &= \frac{ f }{ \alpha_0 } ~ \textrm{e}^{\frac{ r_0 }{ f } - 1 } \\
+    \sqrt{\hat{V}_1^2 + \hat{V}_2^2} &= \sqrt{ \frac{ r_0 - f }{ f } } \\
+    \hat{V}_1 &= \sqrt{ \frac{ r_0 - f }{ f } - \hat{V}_2^2 }
+    \textrm{.}
+\end{split}
+\end{equation}

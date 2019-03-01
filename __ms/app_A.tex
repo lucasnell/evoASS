@@ -1,113 +1,127 @@
-\section*{Appendix A: Analytical solutions to quantitative genetics equations}
+\section*{Appendix A: Derivatives in quantitative genetics equations}
 
-% \renewcommand{\thefigure}{A\arabic{figure}}
-% \renewcommand{\theequation}{A\arabic{equation}}
-% \renewcommand{\thetable}{A\arabic{table}}
-% \setcounter{equation}{0}
-% \setcounter{figure}{0}
-% \setcounter{table}{0}
+\renewcommand{\thefigure}{A\arabic{figure}}
+\renewcommand{\theequation}{A\arabic{equation}}
+\renewcommand{\thetable}{A\arabic{table}}
+\setcounter{equation}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
 
 
-As in the main text, $^{\text{T}}$ indicates transposition,
+As in the main text, $^{\textrm{T}}$ indicates transposition,
 multiplication between matrices is always matrix multiplication, and
 bold face indicates a matrix.
 
+\subsection*{Trait change}
 
-Trait values at time $t+1$ are
+From the main text, we know that
+
+\begin{equation*}
+\begin{split}
+    F_{i} &= \exp \left\{ 
+        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -    
+        \alpha_0 ~\textrm{e}^{- \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} } \mathbf{\Omega}_{i}
+        \right\} \\
+    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + \left( \frac{1}{F_i}
+        \frac{\partial F_i}{\partial \mathbf{V}_{i}} \right) \sigma^2_i
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+
+The partial derivative of fitness in relation to traits for species $i$ is
+
+$$
+\frac{ \partial F_i }{ \partial \mathbf{V}_i } =
+        \exp \left\{
+            r_0 - \alpha_0 ~ \mathbf{\Omega}_i ~
+                \textrm{e}^{- \mathbf{V}_i \mathbf{V}_{i}^{\textrm{T}}}
+            - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}}
+        \right\}
+        \left[
+            2 ~ \alpha_0 ~ \mathbf{\Omega} ~
+                \textrm{e}^{- \mathbf{V}_i \mathbf{V}_{i}^{\textrm{T}}}
+                \mathbf{V}_i
+            - f ~ \mathbf{V}_i (\mathbf{C} + \mathbf{C}^{\textrm{T}})
+        \right]
+    \textrm{.}
+$$
+
+Combining above with equation \ref{eq:trait-change} and with the fact that
+$\mathbf{C}$ is symmetrical, we find that trait values at time $t+1$ are
 
 \begin{equation} \label{eq:trait-change-full}
     \mathbf{V}_{i,t+1} = \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
     \left[
-        \alpha_0 ~ \mathbf{\Upsilon}_t ~
-            \text{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\text{T}} ~ \mathbf{V}_{i,t}
+        \alpha_0 ~ \mathbf{\Omega}_{i,t} ~
+            \textrm{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\textrm{T}} ~ \mathbf{V}_{i,t}
         - f ~ \mathbf{V}_{i,t} \mathbf{C}
     \right]
-    \text{.}
+    \textrm{.}
 \end{equation}
 
-The partial derivative of traits at time $t+1$ with respect to traits at time $t$ is
 
-\begin{equation} \label{eq:deriv-traits-i}
+\subsection*{Jacobian matrix}
+
+The $nq \times nq$ Jacobian matrix consists of $n^2$ inner $q \times q$ blocks.
+The on-diagonal blocks are the partial derivatives of species $i$ traits at time $t+1$ with respect
+to species $i$ traits at time $t$:
+
+$$
     \frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{i,t} } = \mathbf{I} + 2 ~ \sigma_i^2 ~
         \left[
-            \alpha_0 ~ \mathbf{\Upsilon}_t ~ \text{e}^{ - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\text{T}} }
+            \alpha_0 ~ \mathbf{\Omega}_{i,t} ~ \textrm{e}^{ - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}} }
             \left(
-                -2 ~ \mathbf{V}_{i,t}^{\text{T}} \mathbf{V}_{i,t} + \mathbf{I}
+                -2 ~ \mathbf{V}_{i,t}^{\textrm{T}} \mathbf{V}_{i,t} + \mathbf{I}
             \right) -
             f \mathbf{C}
         \right]
-    \text{,}
-\end{equation}
+    \textrm{,}
+$$
 
-where $\mathbf{I}$ is a $q \times q$ identity matrix.
-The matrices $\frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{i,t} }$ for $i \in \{1, \ldots, n\}$ represent the on-diagonal $q \times q$ blocks in the Jacobian matrix.
-The off-diagonal blocks are $\frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{k,t} }$ where $k \ne i$:
+\noindent where $\mathbf{I}$ is a $q \times q$ identity matrix.
 
-\begin{equation} \label{eq:deriv-traits-k}
+
+The off-diagonal blocks of the Jacobian are the partial derivatives of species $i$
+traits at time $t+1$ with respect to species $k$ traits at time $t$, where $k \ne i$.
+To calculate this, it's useful to rearrange equation \ref{eq:trait-change-full} and 
+extract the portion that includes $\mathbf{V}_{k,t}$:
+
+\begin{equation*}
+\begin{split}
+    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
+    \left[
+        \left(
+            N_{k,t} ~ \textrm{e}^{-d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^\textrm{T}} +
+            \mathbf{\Phi}_{i,t}
+        \right)
+        \left(
+            \alpha_0 ~ \textrm{e}^{-\mathbf{V}_{i,t}
+            \mathbf{V}_{i,t}^\textrm{T}} ~ \mathbf{V}_{i,t}
+        \right)
+        - f \mathbf{V}_{i,t} \mathbf{C}
+    \right] \\
+    \mathbf{\Phi}_{i,t} &= N_{i,t} + \sum_{j \ne i, j \ne k}^{n}{
+        N_{j,t} ~ \textrm{e}^{-d \mathbf{V}_{j,t}
+        \mathbf{V}_{j,t}^{\textrm{T}}} }
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+From this we calculated the partial derivative of $\mathbf{V}_{i,t+1}$ in relation to $\mathbf{V}_{k,t}$
+
+$$
     \frac{ \partial\mathbf{V}_{i,t+1} }{ \partial\mathbf{V}_{k,t}} =
         -4 ~ d ~ \alpha_0 ~ \sigma^2 ~ N_{k,t}
         \left[
-            \mathbf{V}_{k,t}^{\text{T}}
-            \text{e}^{
-                - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\text{T}}
-                - d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^{\text{T}}
+            \mathbf{V}_{k,t}^{\textrm{T}}
+            \textrm{e}^{
+                - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
+                - d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^{\textrm{T}}
             }
             \mathbf{V}_{i,t}
         \right]
-    \text{.}
-\end{equation}
-
-
-
-
-\subsection*{Two-trait solutions}
-
-For these solutions, we will no longer use matrix multiplication.
-Also note that since all traits have the same costs, benefits, and
-non-additive effects, solutions for trait 1 and 2 are the same.
-Only solutions for trait 1 are presented.
-
-When $V1 = V2$,
-
-\begin{equation}  \label{eq:two-traits-finals1}
-\begin{align}
-    \Upsilon &= \frac{ f ~ ( 1 + \eta ) }{ \alpha_0 } ~
-        \text{e}^{\frac{  r_0 - f ( 1 + \eta ) }{ f ( 1 + \eta ) } }
-        \\
-    V_1 &= \pm \sqrt{
-        \frac{ r_0 - f (1 + \eta) }{ 2 f (1 + \eta) }
-    }
-    \text{.}
-\end{align}
-\end{equation}
-
-
-When $V1 = - V2$,
-
-\begin{equation}  \label{eq:two-traits-finals2}
-\begin{align}
-    \Upsilon &= \frac{ f ~ ( 1 - \eta ) }{ \alpha_0 } ~
-        \text{e}^{\frac{  r_0 - f ( 1 - \eta ) }{ f ( 1 - \eta ) } }
-        \\
-    V_1 &= \pm \sqrt{
-        \frac{ r_0 - f (1 - \eta) }{ 2 f (1 - \eta) }
-    }
-    \text{.}
-\end{align}
-\end{equation}
-
-When $\eta = 0$,
-
-\begin{equation}  \label{eq:two-traits-finals2}
-\begin{align}
-    \Upsilon &= \frac{ f }{ \alpha_0 } ~ \text{e}^{\frac{  r_0 - f }{ f } } \\
-    \sqrt{V_1^2 + V_2^2} &= \sqrt{ \frac{ r_0 - f }{ f } } \\
-    V_1 &= \sqrt{ \frac{ r_0 - f }{ f } - V_2^2 }
-    \text{.}
-\end{align}
-\end{equation}
-
-
-
+    \textrm{.}
+$$
 
 
