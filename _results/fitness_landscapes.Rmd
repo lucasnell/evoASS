@@ -32,19 +32,19 @@ suppressPackageStartupMessages({
 ## Required functions
 
 ```{r req_fxns}
-fitness <- function(V1, V2, eta, Ni, f = 0.1, g = 0.5, r0 = 0.5) {
+fitness <- function(V1, V2, eta, Ni, f = 0.1, a0 = 0.5, r0 = 0.5) {
     C <- matrix(eta, 2, 2)
     Vi <- cbind(V1, V2)
     diag(C) <- 1
-    exp(r0 - f * Vi %*% C %*% t(Vi) - g * exp(- Vi %*% t(Vi)) * Ni)
+    exp(r0 - f * Vi %*% C %*% t(Vi) - a0 * exp(- Vi %*% t(Vi)) * Ni)
 }
 # Omega at stable points
-O_eq <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+O_eq <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
     rho <- ifelse(eta < 0, f * (1 + eta), f * (1 - eta))
-    (rho / g) * exp((r0 / rho) - 1)
+    (rho / a0) * exp((r0 / rho) - 1)
 }
 # Stable points:
-stable_points <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
     if (eta < 0) {
         rho <- f * (1 + eta)
         xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
@@ -63,7 +63,7 @@ stable_points <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
     return(geom)
 }
 # Unstable points:
-unstable_points <- function(eta, f = 0.1, g = 0.5, r0 = 0.5) {
+unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
     if (eta < 0) {
         rho <- f * (1 - eta)
         xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
