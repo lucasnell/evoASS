@@ -78,7 +78,7 @@ public:
 
     void iterate(const uint32_t& t,
                  const double& f,
-                 const double& g,
+                 const double& a0,
                  const arma::mat& C,
                  const double& r0,
                  const double& d,
@@ -90,7 +90,7 @@ public:
                  pcg64& eng) {
 
         // Fill in density dependences:
-        A_VNI__<std::vector<double>>(A, all_V, N, I, g, d);
+        A_VNI__<std::vector<double>>(A, all_V, N, I, a0, d);
 
         // Extinct clones (if any):
         std::vector<uint32_t> extinct;

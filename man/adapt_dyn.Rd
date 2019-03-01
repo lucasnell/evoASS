@@ -6,7 +6,7 @@
 \title{Adaptive dynamics.}
 \usage{
 adapt_dyn(eta, d, q, n_reps, n = 1, V0 = rep(list(matrix(0, 1, q)), n),
-  N0 = rep(1, n), f = 0.1, g = 0.5, r0 = 0.5, max_t = 10000L,
+  N0 = rep(1, n), f = 0.1, a0 = 0.5, r0 = 0.5, max_t = 10000L,
   min_N = 1e-04, save_every = 10L, mut_sd = 0.1, mut_prob = 0.01,
   max_clones = 10000, show_progress = FALSE, n_cores = 1)
 
@@ -34,7 +34,7 @@ matrix row or column.}
 
 \item{f}{A single number representing the cost of the trait on the growth rate.}
 
-\item{g}{A single number representing the benefit of the trait on the density
+\item{a0}{A single number representing the benefit of the trait on the density
 dependence.}
 
 \item{r0}{A single number representing the base growth rate.}

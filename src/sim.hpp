@@ -74,7 +74,7 @@ template <typename T>
 inline void A_VN_(T& A,
                   const std::vector<arma::rowvec>& V,
                   const std::vector<double>& N,
-                  const double& g,
+                  const double& a0,
                   const double& d) {
 
     // Values of sum of squared trait values for each clone
@@ -86,11 +86,11 @@ inline void A_VN_(T& A,
 
     for (uint32_t i = 0; i < V.size(); i++) {
         // Effects of intra- and inter-specific competition
-        double intra = g * std::exp(-1 * W[i]) * N[i];
+        double intra = a0 * std::exp(-1 * W[i]) * N[i];
         double inter = 0;
         for (uint32_t j = 0; j < V.size(); j++) {
             if (j == i) continue;
-            inter += (g * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
+            inter += (a0 * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
         }
         A[i] = intra + inter;
     }
@@ -113,7 +113,7 @@ inline void A_VNI__(T& A,
                     const std::vector<arma::rowvec>& V,
                     const std::vector<double>& N,
                     const std::vector<uint32_t>& I,
-                    const double& g,
+                    const double& a0,
                     const double& d) {
 
     // Values of sum of squared trait values for each clone
@@ -126,11 +126,11 @@ inline void A_VNI__(T& A,
     for (uint32_t i = 0; i < I.size(); i++) {
 
         // Effects of intra- and inter-specific competition
-        double intra = g * std::exp(-1 * W[i]) * N[i];
+        double intra = a0 * std::exp(-1 * W[i]) * N[i];
         double inter = 0;
         for (uint32_t j = 0; j < I.size(); j++) {
             if (j == i) continue;
-            inter += (g * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
+            inter += (a0 * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
         }
         A[i] = intra + inter;
     }
@@ -151,13 +151,13 @@ inline void F_t__(T& F,
                   const std::vector<arma::rowvec>& V,
                   const std::vector<double>& N,
                   const double& f,
-                  const double& g,
+                  const double& a0,
                   const arma::mat& C,
                   const double& r0,
                   const double& d) {
 
     std::vector<double> A(V.size());
-    A_VN_<std::vector<double>>(A, V, N, g, d);
+    A_VN_<std::vector<double>>(A, V, N, a0, d);
 
     for (uint32_t i = 0; i < V.size(); i++) {
         double r = r_V_(V[i], f, C, r0);

@@ -23,7 +23,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
                         const std::vector<arma::rowvec>& V0,
                         const std::vector<double>& N0,
                         const double& f,
-                        const double& g,
+                        const double& a0,
                         const double& eta,
                         const double& r0,
                         const double& d,
@@ -86,7 +86,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
 
             for (uint32_t t = 0; t < max_t; t++) {
 
-                rep_infos[i].iterate(t, f, g, C, r0, d, max_t, min_N, mut_sd, mut_prob,
+                rep_infos[i].iterate(t, f, a0, C, r0, d, max_t, min_N, mut_sd, mut_prob,
                                      save_every, eng);
 
             }

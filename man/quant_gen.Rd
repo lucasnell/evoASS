@@ -5,7 +5,7 @@
 \title{Quantitative genetics.}
 \usage{
 quant_gen(eta, d, q, n = 100, V0 = rep(list(matrix(0, 1, q)), n),
-  N0 = rep(1, n), f = 0.1, g = 0.5, r0 = 0.5, add_var = rep(0.5,
+  N0 = rep(1, n), f = 0.1, a0 = 0.5, r0 = 0.5, add_var = rep(0.5,
   n), perturb_sd = 1, n_reps = 100, start_t = 0, max_t = 1000000L,
   min_N = 1e-04, save_every = 10000L, show_progress = TRUE,
   n_cores = 1)
@@ -31,7 +31,7 @@ matrix row or column.}
 
 \item{f}{A single number representing the cost of the trait on the growth rate.}
 
-\item{g}{A single number representing the benefit of the trait on the density
+\item{a0}{A single number representing the benefit of the trait on the density
 dependence.}
 
 \item{r0}{A single number representing the base growth rate.}

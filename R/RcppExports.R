@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adapt_dyn_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores) {
-    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, g, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores)
+adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores) {
+    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, a0, eta, r0, d, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.
@@ -54,24 +54,24 @@ NULL
 #'
 #' @noRd
 #'
-sel_str_cpp <- function(V, N, f, g, C, r0, d) {
-    .Call(`_sauron_sel_str_cpp`, V, N, f, g, C, r0, d)
+sel_str_cpp <- function(V, N, f, a0, C, r0, d) {
+    .Call(`_sauron_sel_str_cpp`, V, N, f, a0, C, r0, d)
 }
 
 #' R-exported version of above, to be used in R for testing.
 #'
 #' @noRd
 #'
-dVi_dVi_cpp <- function(i, V, Z, CCC, f, g, add_var) {
-    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, g, add_var)
+dVi_dVi_cpp <- function(i, V, Z, CCC, f, a0, add_var) {
+    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, a0, add_var)
 }
 
 #' R-exported version of above, to be used in R for testing.
 #'
 #' @noRd
 #'
-dVi_dVk_cpp <- function(i, k, N, V, d, g, add_var) {
-    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, g, add_var)
+dVi_dVk_cpp <- function(i, k, N, V, d, a0, add_var) {
+    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, a0, add_var)
 }
 
 #' Calculate the Jacobian of first derivatives.
@@ -80,8 +80,8 @@ dVi_dVk_cpp <- function(i, k, N, V, d, g, add_var) {
 #'
 #' @noRd
 #'
-jacobian_cpp <- function(V, N, f, g, d, C, add_var) {
-    .Call(`_sauron_jacobian_cpp`, V, N, f, g, d, C, add_var)
+jacobian_cpp <- function(V, N, f, a0, d, C, add_var) {
+    .Call(`_sauron_jacobian_cpp`, V, N, f, a0, d, C, add_var)
 }
 
 #' Same as above, but exported for use in R
@@ -97,8 +97,8 @@ unq_spp_cpp <- function(V, precision) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, N0, f, g, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, g, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores)
+quant_gen_cpp <- function(n_reps, V0, N0, f, a0, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores) {
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, a0, eta, r0, d, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores)
 }
 
 #' Normal distribution truncated above zero.
@@ -117,7 +117,7 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 #'     for a particular clone.
 #' @param N Row vector of population abundances at time t.
 #' @param f Effect of traits on growth rate.
-#' @param g Effect of traits on density dependence.
+#' @param a0 Base density dependence.
 #' @param C Matrix containing non-additive effects of traits on growth rate.
 #' @param r0 Starting growth rate.
 #' @param d Changes how the focal line is affected by other lines' trait values.
@@ -130,7 +130,7 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 #'
 #' @export
 #'
-F_t_cpp <- function(V, N, f, g, C, r0, d) {
-    .Call(`_sauron_F_t_cpp`, V, N, f, g, C, r0, d)
+F_t_cpp <- function(V, N, f, a0, C, r0, d) {
+    .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, d)
 }
 

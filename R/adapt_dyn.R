@@ -34,7 +34,7 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
 #' @param N0 Abundance(s) for each starting clone. Must be a numeric vector or a single
 #'     matrix row or column.
 #' @param f A single number representing the cost of the trait on the growth rate.
-#' @param g A single number representing the benefit of the trait on the density
+#' @param a0 A single number representing the benefit of the trait on the density
 #'     dependence.
 #' @param eta A single number representing the non-additive effects of traits on the
 #'     growth rate.
@@ -75,7 +75,7 @@ adapt_dyn <- function(
     V0 = rep(list(matrix(0, 1, q)), n),
     N0 = rep(1, n),
     f = 0.1,
-    g = 0.5,
+    a0 = 0.5,
     r0 = 0.5,
     max_t = 1e4L,
     min_N = 1e-4,
@@ -88,10 +88,10 @@ adapt_dyn <- function(
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
-    stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, g, r0, max_t, min_N, save_every,
+    stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, a0, r0, max_t, min_N, save_every,
                           mut_sd, mut_prob, max_clones, n_cores), is.numeric))
     stopifnot(inherits(show_progress, "logical"))
-    stopifnot(sapply(list(eta, d, q, n_reps, n, f, g, r0, max_t, min_N, save_every,
+    stopifnot(sapply(list(eta, d, q, n_reps, n, f, a0, r0, max_t, min_N, save_every,
                           mut_sd, mut_prob, max_clones, show_progress, n_cores),
                      length) == 1)
     stopifnot(c(N0, min_N, mut_sd) > 0)
@@ -106,7 +106,7 @@ adapt_dyn <- function(
         call_[1] <- as.call(quote(adapt_dyn()))
     }
 
-    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, g, eta, r0, d, max_t, min_N,
+    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, a0, eta, r0, d, max_t, min_N,
                                 mut_sd, mut_prob, show_progress, max_clones,
                                 save_every, n_cores)
 

@@ -4,7 +4,7 @@
 \alias{F_t_cpp}
 \title{Fitness at time t.}
 \usage{
-F_t_cpp(V, N, f, g, C, r0, d)
+F_t_cpp(V, N, f, a0, C, r0, d)
 }
 \arguments{
 \item{V}{List of row vectors, each containing trait values at time t (1x2 vector)
@@ -14,7 +14,7 @@ for a particular clone.}
 
 \item{f}{Effect of traits on growth rate.}
 
-\item{g}{Effect of traits on density dependence.}
+\item{a0}{Base density dependence.}
 
 \item{C}{Matrix containing non-additive effects of traits on growth rate.}
 

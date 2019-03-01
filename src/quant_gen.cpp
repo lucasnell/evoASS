@@ -40,7 +40,7 @@ inline void sel_str__(arma::mat& ss_mat,
                       const std::vector<arma::rowvec>& V,
                       const std::vector<double>& N,
                       const double& f,
-                      const double& g,
+                      const double& a0,
                       const arma::mat& C,
                       const double& r0,
                       const double& d) {
@@ -68,7 +68,7 @@ inline void sel_str__(arma::mat& ss_mat,
         const arma::rowvec& V_i(V[i]);
         const double& N_i(N[i]);
         ss_mat.row(i) = (-f * V_i * C_) +
-            2 * g * V_i * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + W(i));
+            2 * a0 * V_i * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + W(i));
     }
 
     return;
@@ -84,14 +84,14 @@ inline void sel_str__(arma::mat& ss_mat,
 arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
                       const std::vector<double>& N,
                       const double& f,
-                      const double& g,
+                      const double& a0,
                       const arma::mat& C,
                       const double& r0,
                       const double& d) {
 
     arma::mat ss_mat;
 
-    sel_str__(ss_mat, V, N, f, g, C, r0, d);
+    sel_str__(ss_mat, V, N, f, a0, C, r0, d);
 
     return ss_mat;
 }
@@ -107,7 +107,7 @@ inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
                      const arma::rowvec& Vi, const double& Z,
-                     const arma::mat& CCC, const double& f, const double& g,
+                     const arma::mat& CCC, const double& f, const double& a0,
                      const double& add_var) {
     uint32_t q = Vi.n_elem;
     arma::mat I = arma::eye<arma::mat>(q, q);
@@ -116,7 +116,7 @@ inline void dVi_dVi_(arma::mat& dVhat,
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I +
         add_var * (
                 (
-                        2 * g * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
+                        2 * a0 * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
                             (I - 2 * (Vi.t() * Vi))
                 ) - (f * CCC)
         );
@@ -130,13 +130,13 @@ inline void dVi_dVi_(arma::mat& dVhat,
 //'
 //[[Rcpp::export]]
 arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
-                      const arma::mat& CCC, const double& f, const double& g,
+                      const arma::mat& CCC, const double& f, const double& a0,
                       const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
 
     // Fill dVhat:
-    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, g, add_var);
+    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, a0, add_var);
 
     return dVhat;
 }
@@ -154,12 +154,12 @@ inline void dVi_dVk_(arma::mat& dVhat,
                      const double& Nk,
                      const arma::rowvec& Vi,
                      const arma::rowvec& Vk,
-                     const double& d, const double& g,
+                     const double& d, const double& a0,
                      const double& add_var) {
     uint32_t row_end = row_start + Vi.n_elem - 1;
     uint32_t col_end = col_start + Vi.n_elem - 1;
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) =
-        -4 * add_var * Nk * d * g * (
+        -4 * add_var * Nk * d * a0 * (
                 ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
                 ( arma::exp(-1 * Vi * Vi.t()) * Vi )
         );
@@ -174,12 +174,12 @@ inline void dVi_dVk_(arma::mat& dVhat,
 //[[Rcpp::export]]
 arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
                       const std::vector<double>& N, const arma::mat& V,
-                      const double& d, const double& g,
+                      const double& d, const double& a0,
                       const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
     // Fill dVhat:
-    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, g, add_var);
+    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, a0, add_var);
 
     return dVhat;
 }
@@ -200,7 +200,7 @@ arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
 arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                         const std::vector<double>& N,
                         const double& f,
-                        const double& g,
+                        const double& a0,
                         const double& d,
                         const arma::mat& C,
                         const arma::vec& add_var) {
@@ -240,12 +240,12 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                     if (j != i) Z += Z_vec[j];
                 }
                 // Fill Jacobian:
-                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, CCC, f, g, add_var_i);
+                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, CCC, f, a0, add_var_i);
 
             } else {
 
                 // Fill Jacobian:
-                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], d, g, add_var_i);
+                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], d, a0, add_var_i);
 
             }
 
@@ -318,7 +318,7 @@ void one_quant_gen__(OneRepInfo& info,
                      const std::vector<arma::rowvec>& V0,
                      const std::vector<double>& N0,
                      const double& f,
-                     const double& g,
+                     const double& a0,
                      const double& eta,
                      const double& r0,
                      const double& d,
@@ -343,7 +343,7 @@ void one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
         t++;
 
     }
@@ -355,7 +355,7 @@ void one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < max_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, g, C, r0, d, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t);
@@ -365,7 +365,7 @@ void one_quant_gen__(OneRepInfo& info,
     }
 
     // Calculate final fitnesses and selection pressure to see if we're at equilibrium
-    info.fitness_selection(f, g, C, r0, d);
+    info.fitness_selection(f, a0, C, r0, d);
 
 
     return;
@@ -382,7 +382,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const std::vector<arma::rowvec>& V0,
                   const std::vector<double>& N0,
                   const double& f,
-                  const double& g,
+                  const double& a0,
                   const double& eta,
                   const double& r0,
                   const double& d,
@@ -426,7 +426,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         if (!Progress::check_abort()) {
-            one_quant_gen__(rep_infos[i], V0, N0, f, g, eta, r0, d, add_var,
+            one_quant_gen__(rep_infos[i], V0, N0, f, a0, eta, r0, d, add_var,
                             perturb_sd, start_t, max_t, min_N, save_every, eng);
             prog_bar.increment();
         } else if (active_thread == 0) interrupted = true;

@@ -10,16 +10,18 @@
 #'
 
 
+dir <- "../../_check_derivs/"
+
 # --------------------*
 # Function to get simulated dataset
 # --------------------*
 get_sim_info <- function(sim_i) {
 
-    sims <- readr::read_csv("../../check_math/simulated_data.csv",
+    sims <- readr::read_csv(paste0(dir, "simulated_data.csv"),
                             col_types = readr::cols(
                                 .default = readr::col_double()))
 
-    info <- list2env(as.list(sims[sim_i,c("f", "g", "r0", "d", "eta")]))
+    info <- list2env(as.list(sims[sim_i,c("f", "a0", "r0", "d", "eta")]))
 
     with(info, {
         N = as.numeric(sims[sim_i,colnames(sims)[grepl("^N", colnames(sims))]])
@@ -42,9 +44,9 @@ get_sim_info <- function(sim_i) {
 # --------------------*
 
 calc_dF_dVi <- function(sim_info) {
-    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, g, C, r0, d))
+    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, a0, C, r0, d))
     ss <- with(sim_info, {
-        sauron:::sel_str_cpp(V_, N, f, g, C, r0, d)
+        sauron:::sel_str_cpp(V_, N, f, a0, C, r0, d)
     })
     sauron_results <- diag(as.numeric(F_)) %*% ss
     return(sauron_results)
@@ -60,7 +62,7 @@ calc_dVi_dVi <- function(sim_info) {
                               }))
         })
         with(sim_info, {
-            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, g, add_var)
+            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, a0, add_var)
         })
     })
 }
@@ -69,7 +71,7 @@ calc_dVi_dVk <- function(sim_info) {
     mats <- lapply(1:n, function(i) {
         lapply((1:n)[1:n != i], function(k) {
             with(sim_info, {
-                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, g, add_var)
+                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, a0, add_var)
             })
         })
     })
@@ -82,7 +84,7 @@ check_results <- function(type) {
 
     if (!type %in% c("dF_dVi", "dVi_dVi", "dVi_dVk")) stop("type not recognized")
 
-    py_results_df <- readr::read_csv(sprintf("../../check_math/results/%s.csv", type),
+    py_results_df <- readr::read_csv(sprintf("%sresults/%s.csv", dir, type),
                                      col_names = FALSE,
                                      col_types = readr::cols(
                                          .default = readr::col_double()))
