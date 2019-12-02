@@ -41,7 +41,7 @@ its per-capita growth---equivalent to fitness---is
         \alpha_{ij}(\mathbf{V}_i, \mathbf{V}_j) N_j}  \right\}\textrm{,}
 \end{equation}
 
-\noindent where $N_i$ is the population density of  lineage $i$.
+\noindent where $N_i$ is the population density of  species $i$.
 The parameter $r(\mathbf{V}_i)$ describes how trait divergence decreases the growth rate:
 
 \begin{equation} \label{eq:growth-rate}
@@ -64,10 +64,10 @@ When $\eta > 0$, diverging multiple traits incurs an extra cost.
 %
 %\begin{equation} \label{eq:competition}
 %\begin{split}
-%    \alpha(\mathbf{V}, \mathbf{N}, i) &= 
+%    \alpha(\mathbf{V}, \mathbf{N}, i) &=
 %        \alpha_0 ~ \textrm{e}^{- \mathbf{V}_i
 %            \mathbf{V}_i^{\textrm{T}} }
-%        \left[ N_i ~ + 
+%        \left[ N_i ~ +
 %        \sum_{j \ne i}^{n}{
 %            N_j ~
 %            \textrm{e}^{- d ~ \mathbf{V}_j \mathbf{V}_j^{\textrm{T}} } }
@@ -106,11 +106,11 @@ Competition effects are given by
 \end{equation}
 
 \noindent where $\alpha_0$ is the base density dependence.
-Parameter $d$ determines how evolution of traits in one lineage affect competition 
-experienced by others: When $d < 0$, divergence of $\mathbf{V}_i$ decreases the 
-effect of competition on lineage $i$, but increases it in all others.
-Alternatively, when $d > 0$, $\mathbf{V}_i$ divergence decreases the effect of 
-competition on all lineages including itself.
+Parameter $d$ determines how evolution of traits in one species affects competition
+experienced by others: When $d < 0$, divergence of $\mathbf{V}_i$ decreases the
+effect of competition on species $i$, but increases it in all others.
+Alternatively, when $d > 0$, $\mathbf{V}_i$ divergence decreases the effect of
+competition on all speciess including itself.
 Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting evolution
 \citep{Northfield:2013if}.
 
@@ -119,8 +119,8 @@ If we combine the above equations and simplify them, we get
 
 \begin{equation} \label{eq:fitness-full}
 \begin{split}
-    F_{i} &= \exp \left\{ 
-        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -    
+    F_{i} &= \exp \left\{
+        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -
         \alpha_0 ~\textrm{e}^{- \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} } \mathbf{\Omega}_{i}
         \right\} \\
         \mathbf{\Omega}_i &\equiv N_i +
@@ -130,7 +130,7 @@ If we combine the above equations and simplify them, we get
 \end{equation}
 
 \noindent where $\mathbf{\Omega}_i$ represents the community abundance scaled
-for the effect each species' trait values has on competition 
+for the effect each species' trait values has on competition
 experienced by species $i$.
 Hereafter we will refer to $\mathbf{\Omega}_i$ as the scaled community size.
 
@@ -175,10 +175,10 @@ for the traits of each species:
 
 \begin{equation} \label{eq:jacobian}
     \begin{pmatrix}
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots & 
+        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots &
             \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{1,t}} \\
         \vdots & \ddots & \vdots \\
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} & \cdots & 
+        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} & \cdots &
             \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{n,t}}
     \end{pmatrix}
     \textrm{.}

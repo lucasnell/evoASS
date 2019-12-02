@@ -117,12 +117,14 @@ plots <- map(c(-0.6, 0, 0.6), fitness_landscape)
 
 ```{r neg_eta_plot, echo = FALSE}
 plots[[1]]
+# ggsave("~/Desktop/landscape1.pdf", plots[[1]], width = 6.5, height = 4.5)
 ```
 
 
 ### When eta == 0
 ```{r zero_eta_plot, echo = FALSE}
 plots[[2]]
+# ggsave("~/Desktop/landscape2.pdf", plots[[2]], width = 6.5, height = 4.5)
 ```
 
 
@@ -130,4 +132,5 @@ plots[[2]]
 
 ```{r pos_eta_plot, echo = FALSE}
 plots[[3]]
+# ggsave("~/Desktop/landscape3.pdf", plots[[3]], width = 6.5, height = 4.5)
 ```
