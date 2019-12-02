@@ -5,13 +5,37 @@
 \alias{perturb.adapt_dyn}
 \title{Adaptive dynamics.}
 \usage{
-adapt_dyn(eta, d, q, n_reps, n = 1, V0 = rep(list(matrix(0, 1, q)), n),
-  N0 = rep(1, n), f = 0.1, a0 = 0.5, r0 = 0.5, max_t = 10000L,
-  min_N = 1e-04, save_every = 10L, mut_sd = 0.1, mut_prob = 0.01,
-  max_clones = 10000, show_progress = FALSE, n_cores = 1)
+adapt_dyn(
+  eta,
+  d,
+  q,
+  n_reps,
+  n = 1,
+  V0 = rep(list(matrix(0, 1, q)), n),
+  N0 = rep(1, n),
+  f = 0.1,
+  a0 = 0.5,
+  r0 = 0.5,
+  max_t = 10000L,
+  min_N = 1e-04,
+  save_every = 10L,
+  mut_sd = 0.1,
+  mut_prob = 0.01,
+  max_clones = 10000,
+  show_progress = FALSE,
+  n_cores = 1
+)
 
-\method{perturb}{adapt_dyn}(obj, new_prop, new_trait_means, new_N_mean,
-  new_N_sd, which_traits = NULL, new_trait_sigmas = NULL, ...)
+\method{perturb}{adapt_dyn}(
+  obj,
+  new_prop,
+  new_trait_means,
+  new_N_mean,
+  new_N_sd,
+  which_traits = NULL,
+  new_trait_sigmas = NULL,
+  ...
+)
 }
 \arguments{
 \item{eta}{A single number representing the non-additive effects of traits on the

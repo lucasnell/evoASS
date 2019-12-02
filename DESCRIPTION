@@ -26,6 +26,6 @@ Suggests:
     knitr,
     testthat
 SystemRequirements: C++11
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.0
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)

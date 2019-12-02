@@ -4,11 +4,26 @@
 \alias{quant_gen}
 \title{Quantitative genetics.}
 \usage{
-quant_gen(eta, d, q, n = 100, V0 = rep(list(matrix(0, 1, q)), n),
-  N0 = rep(1, n), f = 0.1, a0 = 0.5, r0 = 0.5, add_var = rep(0.5,
-  n), perturb_sd = 1, n_reps = 100, start_t = 0, max_t = 1000000L,
-  min_N = 1e-04, save_every = 10000L, show_progress = TRUE,
-  n_cores = 1)
+quant_gen(
+  eta,
+  d,
+  q,
+  n = 100,
+  V0 = rep(list(matrix(0, 1, q)), n),
+  N0 = rep(1, n),
+  f = 0.1,
+  a0 = 0.5,
+  r0 = 0.5,
+  add_var = rep(0.5, n),
+  perturb_sd = 1,
+  n_reps = 100,
+  start_t = 0,
+  max_t = 1000000L,
+  min_N = 1e-04,
+  save_every = 10000L,
+  show_progress = TRUE,
+  n_cores = 1
+)
 }
 \arguments{
 \item{eta}{A single number representing the non-additive effects of traits on the

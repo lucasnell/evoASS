@@ -19,7 +19,7 @@ By storing seeds for each simulation, I can retrieve individual runs to look
 at them in greater detail.
 }
 \section{How data were generated}{
-\preformatted{library(dplyr)
+\if{html}{\out{<div class="r">}}\preformatted{library(dplyr)
 ad_seeds <- tibble(n_traits = rep(2:3, each = 9),
                    eta_par = rep(rep(-1:1, each = 3), 2),
                    d_par = rep(rep(-1:1, 3), 2),
@@ -30,7 +30,7 @@ set.seed(254296841)
 ad_seeds$seed[ad_seeds$n_traits==3] <- sample.int(.Machine$integer.max, 9)
 
 usethis::use_data(ad_seeds)
-}
+}\if{html}{\out{</div>}}
 }
 
 \keyword{datasets}
