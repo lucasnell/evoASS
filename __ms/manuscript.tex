@@ -11,14 +11,25 @@
 \titleformat{\subsubsection}[block]{\large\itshape}{\thesubsubsection}{1em}{}
 \titleformat{\paragraph}[runin]{\itshape}{\theparagraph}{1em}{}[. ]\renewcommand{\refname}{Literature Cited}
 
-
+%%%%%%%%%%%%%%%%%%%%%
+% Line numbering
+%%%%%%%%%%%%%%%%%%%%%
+%
 % Please use line numbering with your initial submission and
 % subsequent revisions. After acceptance, please turn line numbering
 % off by adding percent signs to the lines %\usepackage{lineno} and
 % to %\linenumbers{} and %\modulolinenumbers[3] below.
-\usepackage{lineno}
+%
+% To avoid line numbering being thrown off around math environments,
+% the math environments have to be wrapped using
+% \begin{linenomath*} and \end{linenomath*}
+%
+% (Thanks to Vlastimil Krivan for pointing this out to us!)
 
 \title{Alternative states and coexistence in the evolution of a competitive community}
+
+% This version of the LaTeX template was last updated on
+% November 8, 2019.
 
 %%%%%%%%%%%%%%%%%%%%%
 % Authorship
@@ -47,12 +58,12 @@
 % \noindent{} 1. University of Wisconsin, Madison, Wisconsin 53706;
 %
 % \noindent{} $\ast$ Corresponding author; e-mail: lucas@lucasnell.com.
-%
-% \bigskip
-%
-% \textit{Manuscript elements}: Figure~1, figure~2, table~1, online appendices~A and B (including $-- figure~A1 and figure~A2). Figure~2 is to print in color.
-%
-% \bigskip
+
+\bigskip
+
+\textit{Manuscript elements}: %Figure~1, figure~2, table~1, online appendices~A and B (including $-- figure~A1 and figure~A2). Figure~2 is to print in color.
+
+\bigskip
 
 
 \textit{Keywords}: {
@@ -73,10 +84,9 @@ eco-evolutionary dynamics}
 \noindent{\footnotesize Prepared using the suggested \LaTeX{} template for \textit{Am.\ Nat.}}
 
 \linenumbers{}
-\modulolinenumbers[2]
+\modulolinenumbers[3]
 
 \newpage{}
-
 
 % ---------------------------------------------------------------------------------------
 % ---------------------------------------------------------------------------------------
@@ -140,17 +150,11 @@ eco-evolutionary dynamics}
 
 
 
-
-
-
-
-
 % ---------------------------------------------------------------------------------------
 % ---------------------------------------------------------------------------------------
 % Acknowledgments
 % ---------------------------------------------------------------------------------------
 % ---------------------------------------------------------------------------------------
-
 % You may wish to remove the Acknowledgments section while your paper
 % is under review (unless you wish to waive your anonymity under
 % double-blind review) if the Acknowledgments reveal your identity.
@@ -160,7 +164,6 @@ eco-evolutionary dynamics}
 % \section*{Acknowledgments}
 %
 % OEC would like to thank the world. GHC is much indebted to the solar system. AQE was supported by a generous grant from the Milky Way (MW/01010/987654).
-
 
 
 % ---------------------------------------------------------------------------------------
