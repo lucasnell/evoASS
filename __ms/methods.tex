@@ -184,7 +184,7 @@ for the traits of each species:
     \textrm{.}
 \end{equation}
 
-We then computed the primary eigenvalue of this matrix ($\lambda$).
+\noindent We then computed the primary eigenvalue of this matrix ($\lambda$).
 We considered a state stable when $\lambda < 1$,
 neutrally stable when $\lambda = 1$,
 and unstable when $\lambda > 1$.
@@ -194,13 +194,13 @@ Full analytical solutions are found in appendix A.
 
 \subsection*{Code}
 
-We simulated models using a combination of R \citep{RCoreTeam:2018wf} and
+We simulated models using a combination of R \citep{RCoreTeam:2019wf} and
 C++ via the Rcpp and RcppArmadillo packages
 \citep{Eddelbuettel:2014ad,Eddelbuettel:2013if,Sanderson:2016cs}.
 We double-checked our derivations by simulating 100 datasets
 (4 species with 3 traits each) and computing derivatives using the Theano Python
 library's automatic differentiation \citep{TheanoDevelopmentTeam:2016uc}.
-
 All code can be found on GitHub
-(\texttt{https://github.com/lucasnell/sauron}).
+% (\texttt{https://github.com/lucasnell/sauron}).
+(links are available from the journal office).
 
