@@ -232,14 +232,20 @@ plot2 <- map_dfr(1:length(sims2),
     geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
     scale_color_manual(expression(bold(eta)),
-                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       values = c("dodgerblue3", "goldenrod1", "gray70"),
                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
     theme(legend.position = "top") +
     xlab("Trait 1") +
     ylab("Trait 2") +
     NULL
 plot2
-# ggsave("~/Desktop/plot2.png", plot2, width = 6, height = 3)
+
+# ppt_plot2 <- plot2 +
+#     theme_black() +
+#     theme(legend.position = "top", legend.direction = "horizontal", 
+#           legend.key = element_blank(), legend.margin = margin(0,0,0,0))
+# ggsave("~/Desktop/plot2.png", ppt_plot2, width = 6, height = 3, dpi = 300)
+
 ```
 
 
@@ -258,7 +264,7 @@ plot3 <- map_dfr(1:length(sims3),
     geom_point(aes(color = eta, alpha = scenario), shape = 16) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
     scale_color_manual(expression(bold(eta)),
-                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       values = c("dodgerblue3", "goldenrod1", "gray70"),
                        guide = guide_legend(override.aes = list(size = 4))) +
     scale_alpha_manual(values = c(c(0.5, 0.25, 0.5), rep(c(0.5, 0.05, 0.01), 2)),
                        guide = FALSE) +
@@ -268,7 +274,17 @@ plot3 <- map_dfr(1:length(sims3),
     scale_size_continuous("Trait 3", breaks = -1:1) +
     NULL
 plot3
-# ggsave("~/Desktop/plot3.png", plot3, width = 6, height = 3)
+
+# ppt_plot3 <- plot3 +
+#     theme_black() +
+#     theme(legend.position = "top", legend.direction = "horizontal",
+#           legend.key = element_blank(), legend.margin = margin(0,0,0,0)) +
+#     scale_alpha_manual(values = c(c(1, 0.1, 0.1), rep(c(1, 0.01, 0.01), 2)),
+#                        guide = FALSE) +
+#     scale_size_continuous("Trait 3", breaks = -1:1, 
+#                           guide = guide_legend(override.aes = list(color = "white")))
+# ggsave("~/Desktop/plot3.png", ppt_plot3, width = 6, height = 3, dpi = 300)
+
 ```
 
 
@@ -326,14 +342,20 @@ plot3b <- map_dfr(1:length(sims3),
     geom_point(alpha = 0.5, shape = 16, size = 3) +
     facet_wrap( ~ stage, nrow = 2) +
     scale_color_manual(expression(bold(eta)),
-                       values = c("dodgerblue3", "goldenrod1", "black"),
+                       values = c("dodgerblue3", "goldenrod1", "gray70"),
                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
     theme(legend.position = "top", strip.text = element_text(size = 9)) +
     xlab("Trait 1") +
     ylab("Trait 2") +
     NULL
 plot3b
-# ggsave("~/Desktop/plot3b.png", plot3b, width = 6, height = 4)
+
+
+# ppt_plot3b <- plot3b +
+#     theme_black() +
+#     theme(legend.position = "top", legend.direction = "horizontal",
+#           legend.key = element_blank(), legend.margin = margin(0,0,0,0))
+# ggsave("~/Desktop/plot3b.png", ppt_plot3b, width = 6, height = 4, dpi = 300)
 ```
 
 

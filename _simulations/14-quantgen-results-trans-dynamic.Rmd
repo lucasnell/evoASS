@@ -39,9 +39,9 @@ suppressPackageStartupMessages({
 
 
 This document explores changes in traits and abundances through time,
-specifically over the period as the final lineage sets are determined.
+specifically over the period as the final species sets are determined.
 The main question I'm trying to address here is whether the majority of 
-trait changes typically occur before or after lineages go extinct.
+trait changes typically occur before or after species go extinct.
 
 
 ## Needed functions
@@ -49,7 +49,7 @@ trait changes typically occur before or after lineages go extinct.
 ```{r needed-funs}
 # Function to get the relevant rds file for a given simulation scenario:
 get_sim <- function(eta_sign, d_sign, q) {
-    fn <- sprintf("results/quant_gen/q%i/eta=%s__d=%s.rds", q, eta_sign, d_sign)
+    fn <- sprintf("_output/quant_gen/q%i/eta=%s__d=%s.rds", q, eta_sign, d_sign)
     return(readRDS(fn))
 }
 # Are two sets of traits the same?
@@ -123,12 +123,12 @@ sum(checks)
 
 
 
-## When are final lineage sets reached?
+## When are final species sets reached?
 
 
 ### From initial simulations:
 
-For all scenarios, the final sets of lineages are reached very early:
+For all scenarios, the final sets of species are reached very early:
 $t \le$ 10,001 for $d \le 0$ and 
 $t \le$ 100,001 for $d > 0$.
 
@@ -142,7 +142,7 @@ sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3, .e = -1:1, .d = -1:1)),
                                     trait = paste(trait))
                        return(nv)
                    })
-# When each one reaches final set of lineages:
+# When each one reaches final set of species:
 sim_df %>%
     group_by(q, eta, d, rep, time) %>% 
     summarize(n_spp = n() / q[[1]]) %>% 
@@ -161,7 +161,7 @@ sim_df %>%
 
 I have a suspicion that it's even earlier than 100,001 and 10,001, so I'm going
 to try to a max of 5,000 time steps and see if that gets us to the final
-lineage sets.
+species sets.
 
 ```{r tran_dyn_short, eval = FALSE}
 # Takes ~8 min
@@ -200,11 +200,11 @@ max_times
 
 ```{r write-max_times, echo = FALSE, eval = FALSE}
 # This was done for the initial run so that I don't have to run the chunk above:
-write_csv(max_times, "results/quant_gen/max_times.csv")
+write_csv(max_times, "_output/quant_gen/max_times.csv")
 ```
 
 ```{r read-print-max_times, echo = FALSE}
-max_times <- read_csv("results/quant_gen/max_times.csv", col_types = "iddi")
+max_times <- read_csv("_output/quant_gen/max_times.csv", col_types = "iddi")
 print(max_times)
 ```
 
@@ -249,11 +249,11 @@ sim_df <- pmap_dfr(as.list(expand.grid(.q = 2:3, .e = -1:1, .d = -1:1)),
 
 ```{r write-sim_df-finest-scale, echo = FALSE, eval = FALSE}
 # This was done for the initial run so that I don't have to run the chunk above:
-saveRDS(sim_df, "results/quant_gen/short_sims.rds")
+saveRDS(sim_df, "_output/quant_gen/short_sims.rds")
 ```
 
 ```{r read-sim_df-finest-scale, echo = FALSE}
-sim_df <- readRDS("results/quant_gen/short_sims.rds")
+sim_df <- readRDS("_output/quant_gen/short_sims.rds")
 ```
 
 
@@ -398,7 +398,7 @@ trans_plots3 <- plot_grid(NULL, legend3, NULL,
 
 
 ```{r save-figures, eval = FALSE}
-ggsave("figures/transient_dynamics_q2.pdf", trans_plots2, width = 6.5, height = 9)
-ggsave("figures/transient_dynamics_q3.pdf", trans_plots3, width = 6.5, height = 9)
+ggsave("_figures/transient_dynamics_q2.pdf", trans_plots2, width = 6.5, height = 9)
+ggsave("_figures/transient_dynamics_q3.pdf", trans_plots3, width = 6.5, height = 9)
 ```
 
