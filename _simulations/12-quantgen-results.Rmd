@@ -217,7 +217,7 @@ make_kable("n_spp", get_nspp, sims_ = sims3)
 ### Shapes - 2 traits
 
 ```{r two-trait-plots, echo = FALSE, fig.height=3}
-plot2 <- map_dfr(1:length(sims2),
+plot2_df <- map_dfr(1:length(sims2),
                   ~ sims2[[.x]]$nv %>%
                       mutate(trait = factor(paste0("T", paste(trait)))) %>%
                       spread("trait", "value") %>%
@@ -226,7 +226,10 @@ plot2 <- map_dfr(1:length(sims2),
     mutate_at(vars(eta, d), function(x) factor(paste(x), levels = paste(c(0, sort(unique(x)[-2]))))) %>% 
     arrange(d, eta) %>% 
     # Now ordering factors normally:
-    mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x))))) %>% 
+    mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x)))))
+
+
+plot2 <- plot2_df  %>% 
     # Plotting:
     ggplot(aes(T1, T2)) +
     geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
@@ -240,11 +243,21 @@ plot2 <- map_dfr(1:length(sims2),
     NULL
 plot2
 
-# ppt_plot2 <- plot2 +
+# ppt_plot2 <- plot2_df %>%
+#     filter(d == 0) %>% 
+#     # Plotting:
+#     ggplot(aes(T1, T2)) +
+#     geom_point(aes(color = eta), shape = 16, alpha = 0.5, size = 3) +
+#     scale_color_manual(expression(bold(eta)),
+#                        values = c("dodgerblue3", "goldenrod1", "gray70"),
+#                        guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
+#     theme(legend.position = "top") +
+#     xlab("Trait 1") +
+#     ylab("Trait 2") +
 #     theme_black() +
-#     theme(legend.position = "top", legend.direction = "horizontal", 
+#     theme(legend.position = "top", legend.direction = "horizontal",
 #           legend.key = element_blank(), legend.margin = margin(0,0,0,0))
-# ggsave("~/Desktop/plot2.png", ppt_plot2, width = 6, height = 3, dpi = 300)
+# ggsave("~/Desktop/plot2.png", ppt_plot2, width = 2.8, height = 3, dpi = 300)
 
 ```
 
@@ -252,14 +265,16 @@ plot2
 ### Shapes - 3 traits
 
 ```{r three-traits-plots, echo = FALSE, fig.height=3}
-plot3 <- map_dfr(1:length(sims3),
+plot3_df <- map_dfr(1:length(sims3),
                   ~ sims3[[.x]]$nv %>%
                       mutate(trait = factor(paste0("T", paste(trait)))) %>%
                       spread("trait", "value") %>%
                       mutate(eta = sims3[[.x]]$call$eta, d = sims3[[.x]]$call$d)) %>% 
     arrange(T3) %>%
     mutate_at(vars(eta, d), function(x) factor(x, levels = sort(unique(paste(x))))) %>%
-    mutate(scenario = interaction(eta, d, sep = "_")) %>%
+    mutate(scenario = interaction(eta, d, sep = "_"))
+
+plot3 <- plot3_df %>%
     ggplot(aes(T1, T2, size = T3)) +
     geom_point(aes(color = eta, alpha = scenario), shape = 16) +
     facet_wrap(~ d, nrow = 1, labeller = label_both) +
@@ -275,15 +290,24 @@ plot3 <- map_dfr(1:length(sims3),
     NULL
 plot3
 
-# ppt_plot3 <- plot3 +
+# ppt_plot3 <- plot3_df %>%
+#     filter(d == 0) %>% 
+#     ggplot(aes(T1, T2, size = T3)) +
+#     geom_point(aes(color = eta, alpha = scenario), shape = 16) +
+#     scale_color_manual(expression(bold(eta)),
+#                        values = c("dodgerblue3", "goldenrod1", "gray70"),
+#                        guide = guide_legend(override.aes = list(size = 4))) +
+#     theme(legend.position = "top") +
+#     xlab("Trait 1") +
+#     ylab("Trait 2") +
 #     theme_black() +
 #     theme(legend.position = "top", legend.direction = "horizontal",
 #           legend.key = element_blank(), legend.margin = margin(0,0,0,0)) +
 #     scale_alpha_manual(values = c(c(1, 0.1, 0.1), rep(c(1, 0.01, 0.01), 2)),
 #                        guide = FALSE) +
-#     scale_size_continuous("Trait 3", breaks = -1:1, 
+#     scale_size_continuous("Trait 3", breaks = -1:1,
 #                           guide = guide_legend(override.aes = list(color = "white")))
-# ggsave("~/Desktop/plot3.png", ppt_plot3, width = 6, height = 3, dpi = 300)
+# ggsave("~/Desktop/plot3.png", ppt_plot3, width = 4, height = 4.25, dpi = 300)
 
 ```
 
