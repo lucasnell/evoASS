@@ -3,9 +3,26 @@
 
 
 #include <RcppArmadillo.h>
+#include <progress.hpp>
+#include <progress_bar.hpp>
 #include "pcg.hpp"
 
 using namespace Rcpp;
+
+
+
+
+// For checking for user interrupts every N iterations:
+inline bool interrupt_check(uint32_t& iters,
+                            Progress& prog_bar,
+                            const uint32_t& N) {
+    ++iters;
+    if (iters > N) {
+        if (prog_bar.is_aborted() || prog_bar.check_abort()) return true;
+        iters = 0;
+    }
+    return false;
+}
 
 
 //' Normal distribution truncated above zero.

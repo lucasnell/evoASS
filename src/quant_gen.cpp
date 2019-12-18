@@ -278,8 +278,7 @@ inline void unq_spp_(arma::uvec& is_unq,
         for (uint32_t j = 0; j < i; j++) {
             if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
             arma::rowvec diff_;
-            diff_ = V[i] - V[j];
-            diff_ %= diff_;
+            diff_ = (V[i] - V[j]) * (V[i] - V[j]);
             if (arma::mean(diff_) < precision_) {
                 is_unq(i) = 0;
                 break;
@@ -314,7 +313,7 @@ arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-void one_quant_gen__(OneRepInfo& info,
+int one_quant_gen__(OneRepInfo& info,
                      const std::vector<arma::rowvec>& V0,
                      const std::vector<double>& N0,
                      const double& f,
@@ -328,7 +327,8 @@ void one_quant_gen__(OneRepInfo& info,
                      const uint32_t& max_t,
                      const double& min_N,
                      const uint32_t& save_every,
-                     pcg64& eng) {
+                     pcg64& eng,
+                     Progress& prog_bar) {
 
 
     info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd);
@@ -340,35 +340,51 @@ void one_quant_gen__(OneRepInfo& info,
     uint32_t t = 0;
     bool all_gone = false;
 
+    uint32_t iters = 0;
+
     while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
         t++;
+        prog_bar.increment();
+
+        // Check for user interrupt:
+        if (interrupt_check(iters, prog_bar, 1000)) return -1;
 
     }
+
 
     // perturb trait values
     if (perturb_sd > 0) info.perturb(eng);
 
     t = 0;
+    uint32_t n_incr = 0;
     while (!all_gone && t < max_t) {
+
+        n_incr++;
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t);
+            prog_bar.increment(n_incr);
+            n_incr = 0;
         }
 
         t++;
+
+        // Check for user interrupt:
+        if (interrupt_check(iters, prog_bar, 1000)) return -1;
+
     }
 
     // Calculate final fitnesses and selection pressure to see if we're at equilibrium
     info.fitness_selection(f, a0, C, r0, d);
 
 
-    return;
+    return 0;
 }
 
 
@@ -401,7 +417,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     std::vector<OneRepInfo> rep_infos(n_reps);
 
     const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
-    Progress prog_bar(n_reps, show_progress);
+    Progress prog_bar(n_reps * (max_t + start_t), show_progress);
     bool interrupted = false;
 
     #ifdef _OPENMP
@@ -425,11 +441,10 @@ List quant_gen_cpp(const uint32_t& n_reps,
     #pragma omp for schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
-        if (!Progress::check_abort()) {
-            one_quant_gen__(rep_infos[i], V0, N0, f, a0, eta, r0, d, add_var,
-                            perturb_sd, start_t, max_t, min_N, save_every, eng);
-            prog_bar.increment();
-        } else if (active_thread == 0) interrupted = true;
+        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, eta, r0, d, add_var,
+                                     perturb_sd, start_t, max_t, min_N, save_every,
+                                     eng, prog_bar);
+        if (active_thread == 0 && status != 0) interrupted = true;
     }
     #ifdef _OPENMP
     }
