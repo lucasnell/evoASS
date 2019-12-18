@@ -18,8 +18,8 @@ From the main text, we know that
 
 \begin{equation*}
 \begin{split}
-    F_{i} &= \exp \left\{ 
-        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -    
+    F_{i} &= \exp \left\{
+        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -
         \alpha_0 ~\textrm{e}^{- \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} } \mathbf{\Omega}_{i}
         \right\} \\
     \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + \left( \frac{1}{F_i}
@@ -39,7 +39,7 @@ $$
             - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}}
         \right\}
         \left[
-            2 ~ \alpha_0 ~ \mathbf{\Omega} ~
+            2 ~ \alpha_0 ~ \mathbf{\Omega}_i ~
                 \textrm{e}^{- \mathbf{V}_i \mathbf{V}_{i}^{\textrm{T}}}
                 \mathbf{V}_i
             - f ~ \mathbf{V}_i (\mathbf{C} + \mathbf{C}^{\textrm{T}})
@@ -84,7 +84,7 @@ $$
 
 The off-diagonal blocks of the Jacobian are the partial derivatives of species $i$
 traits at time $t+1$ with respect to species $k$ traits at time $t$, where $k \ne i$.
-To calculate this, it's useful to rearrange equation \ref{eq:trait-change-full} and 
+To calculate this, it's useful to rearrange equation \ref{eq:trait-change-full} and
 extract the portion that includes $\mathbf{V}_{k,t}$:
 
 \begin{equation*}

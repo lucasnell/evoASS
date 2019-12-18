@@ -139,11 +139,11 @@ Hereafter we will refer to $\mathbf{\Omega}_i$ as the scaled community size.
 
 % \subsection*{Adaptive dynamics}
 %
-% We started simulations with a single competitive clone with trait values set to zero.
-% We tracked clone population densities through time using equation \ref{eq:fitness} and
-% considered a clone extinct if its density fell below $10^{-4}$.
-% Clones produced daughter clones with a probability of 0.01 per clone per time step.
-% We generated daughter-clone trait values from normal distributions with means of the
+% We started simulations with a single competitive species with trait values set to zero.
+% We tracked species population densities through time using equation \ref{eq:fitness} and
+% considered a species extinct if its density fell below $10^{-4}$.
+% Species produced daughter species with a probability of 0.01 per species per time step.
+% We generated daughter-species trait values from normal distributions with means of the
 % mother trait values and standard deviations of $\sigma_{d}$.
 
 
@@ -163,11 +163,11 @@ Assuming also that $\sigma^2_i$ is relatively small
     \textrm{.}
 \end{equation}
 
-We started these simulations with 100 species.
-Each had starting trait values generated from a standard normal distribution.
-We tracked densities through time using equation \ref{eq:fitness} and
-considered a clone extinct if its density fell below $10^{-4}$.
-Equation \ref{eq:trait-change} dictated how traits changed.
+% We started these simulations with 100 species.
+% Each had starting trait values generated from a standard normal distribution.
+% We tracked densities through time using equation \ref{eq:fitness} and
+% considered a species extinct if its density fell below $10^{-4}$.
+% Equation \ref{eq:trait-change} dictated how traits changed.
 
 To determine the stability of ending points (trait values and abundances of surviving
 competitor(s)), we computed the $nq \times nq$ Jacobian matrices of first derivatives
