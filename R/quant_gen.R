@@ -13,12 +13,11 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
     # List for all parameters:
     args <- list(n_cores = 4, q = q)
     # the non-additive effects of traits on `r`:
-    args$eta <- 0.01 * sign(eta_sign)
+    args$eta <- 0.6 * sign(eta_sign)
     # changes how the focal line's traits affect other lines' effects of competition:
-    args$d <- 0.1 * sign(d_sign)
-    # High d takes a very long time to run, plus it has to run longer to reach equilibrium
+    args$d <- 1e-4 * sign(d_sign)
+    # d > 0 has to run longer to reach equilibrium
     if (args$d > 0) {
-        args$d <- 1e-4
         args$max_t <- 2e7L
         args$save_every <- 1e5L
     }
@@ -60,6 +59,7 @@ quant_gen <- function(eta, d, q,
                       min_N = 1e-4, save_every = 1e4L,
                       show_progress = TRUE, n_cores = 1) {
 
+    stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
     stopifnot(N0 >= 0)
     stopifnot(n >= 1 && q >= 1)
