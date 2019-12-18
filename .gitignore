@@ -6,3 +6,5 @@
 inst/doc
 *.pdf
 _output
+*.html
+*.rds

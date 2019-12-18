@@ -22,7 +22,7 @@ perturb <- function(obj, ...) UseMethod("perturb")
 #'
 theme_black = function(base_size = 12, base_family = "") {
 
-    theme_grey(base_size = base_size, base_family = base_family) %+replace%
+    theme_classic(base_size = base_size, base_family = base_family) %+replace%
 
         theme(
             # Specify axis options
@@ -33,13 +33,14 @@ theme_black = function(base_size = 12, base_family = "") {
                                        lineheight = 0.9),
             axis.ticks = element_line(color = "white", size  =  0.2),
             axis.title.x = element_text(size = base_size, color = "white",
-                                        margin = margin(0, 10, 0, 0)),
+                                        margin = margin(10, 0, 0, 0)),
             axis.title.y = element_text(size = base_size, color = "white", angle = 90,
                                         margin = margin(0, 10, 0, 0)),
             axis.ticks.length = unit(0.3, "lines"),
             # Specify legend options
             legend.background = element_blank(),
-            legend.key = element_rect(color = "white",  fill = "black"),
+            legend.key = element_blank(),
+            legend.margin = margin(0,0,0,0),
             legend.key.size = unit(1.2, "lines"),
             legend.key.height = NULL,
             legend.key.width = NULL,
@@ -65,7 +66,7 @@ theme_black = function(base_size = 12, base_family = "") {
             # Specify plot options
             plot.background = element_rect(color = "black", fill = "black"),
             plot.title = element_text(size = base_size*1.2, color = "white"),
-            plot.margin = unit(rep(1, 4), "lines")
+            plot.margin = margin(0,0,0,0)
 
         )
 
