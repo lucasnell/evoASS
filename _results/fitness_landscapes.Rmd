@@ -24,7 +24,6 @@ if (!isTRUE(getOption('knitr.in.progress'))) source(".Rprofile")
 suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
-    library(ggforce)
 })
 theme_set(theme_black())
 ```
@@ -43,42 +42,6 @@ fitness <- function(V1, V2, eta, Ni, f = 0.1, a0 = 0.5, r0 = 0.5) {
 O_eq <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
     rho <- ifelse(eta < 0, f * (1 + eta), f * (1 - eta))
     (rho / a0) * exp((r0 / rho) - 1)
-}
-# Stable points:
-stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
-    if (eta < 0) {
-        rho <- f * (1 + eta)
-        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
-        pts <- tibble(V1 = xy, V2 = xy)
-        geom <- geom_point(data = pts, aes(V1, V2), color = "black")
-    } else if (eta > 0) {
-        rho <- f * (1 - eta)
-        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
-        pts <- tibble(V1 = xy, V2 = rev(xy))
-        geom <- geom_point(data = pts, aes(V1, V2), color = "black")
-    } else {
-        radius <- sqrt((r0 - f) / f)
-        geom <- geom_circle(data = tibble(x0 = 0, y0 = 0, r = radius),
-                            aes(x0 = x0, y0 = y0, r = r), linetype = 2)
-    }
-    return(geom)
-}
-# Unstable points:
-unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
-    if (eta < 0) {
-        rho <- f * (1 - eta)
-        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
-        pts <- tibble(V1 = xy, V2 = rev(xy))
-        geom <- geom_point(data = pts, aes(V1, V2), color = "black", shape = 1)
-    } else if (eta > 0) {
-        rho <- f * (1 + eta)
-        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
-        pts <- tibble(V1 = xy, V2 = xy)
-        geom <- geom_point(data = pts, aes(V1, V2), color = "black", shape = 1)
-    } else {
-        geom <- geom_blank()
-    }
-    return(geom)
 }
 
 fitness_landscape <- function(eta_, max_mag = 6) {
@@ -101,8 +64,8 @@ fitness_landscape <- function(eta_, max_mag = 6) {
     hm_df %>% 
         ggplot() +
         geom_raster(aes(V1, V2, fill = fit), interpolate = FALSE) +
-        stable_points(eta_) +
-        unstable_points(eta_) +
+        stable_points(eta_, return_geom = TRUE) +
+        unstable_points(eta_, return_geom = TRUE) +
         facet_wrap(~ Ni, nrow = 2, labeller = label_parsed) +
         scale_fill_gradient2("F", high = "firebrick", low = "dodgerblue3",
                              mid = "white", midpoint = 1) +

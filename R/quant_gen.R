@@ -194,3 +194,72 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 
 
 
+#' Stable points from quantitative genetics simulations and analytical solutions.
+#'
+#' *Note:* Only works for 2 traits for now.
+#'
+#' @inheritParams adapt_dyn
+#' @param return_geom Logical for whether to return a `ggplot2` `geom_*` object for
+#'     plotting rather than a `tibble`. Defaults to `FALSE`.
+#' @param line_n Number of points to use for lines. Defaults to `1000`.
+#' @param ... Other arguments to pass to the call to `geom_point` or `geom_path`.
+#'
+#' @return A `tibble` if `return_geom` is `FALSE`, and a  `geom_*` object if it's `TRUE`.
+#'
+#' @export
+#'
+stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
+                                 return_geom = FALSE, line_n = 1000, ...) {
+    if (eta < 0) {
+        rho <- f * (1 + eta)
+        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+        pts <- tibble(V1 = xy, V2 = xy)
+        if (!return_geom) return(pts)
+        geom <- geom_point(data = pts, aes(V1, V2), ...)
+    } else if (eta > 0) {
+        rho <- f * (1 - eta)
+        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+        pts <- tibble(V1 = xy, V2 = rev(xy))
+        if (!return_geom) return(pts)
+        geom <- geom_point(data = pts, aes(V1, V2), ...)
+    } else {
+        radius <- sqrt((r0 - f) / f)
+        pts <- tibble(V1 = c(seq(-radius, radius, length.out = line_n),
+                             seq(radius, -radius, length.out = line_n)),
+                      V2 = c(map_dbl(V1[1:line_n], ~ sqrt(radius ^2 - .x^2)),
+                             map_dbl(V1[(line_n+1):(2*line_n)],
+                                     ~ - sqrt(radius^2 - .x^2))))
+        if (!return_geom) return(pts)
+        geom <- geom_path(data = pts, aes(V1, V2), ...)
+    }
+    return(geom)
+}
+
+
+#' @describeIn stable_points Unstable points
+#'
+#' @inheritParams stable_points
+#'
+#' @export
+#'
+unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE, ...) {
+    if (eta < 0) {
+        rho <- f * (1 - eta)
+        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+        pts <- tibble(V1 = xy, V2 = rev(xy))
+        if (!return_geom) return(pts)
+        geom <- geom_point(data = pts, aes(V1, V2), ...)
+    } else if (eta > 0) {
+        rho <- f * (1 + eta)
+        xy <- c(-1, 1) * sqrt((r0 - rho) / (2 * rho))
+        pts <- tibble(V1 = xy, V2 = xy)
+        if (!return_geom) return(pts)
+        geom <- geom_point(data = pts, aes(V1, V2), ...)
+    } else {
+        if (!return_geom) return(tibble(V1 = numeric(0), V2 = numeric(0)))
+        geom <- geom_blank()
+    }
+    return(geom)
+}
+
+
