@@ -111,6 +111,7 @@ public:
         // Then include additive genetic variance when adding to trait values:
         for (uint32_t i = 0; i < V.size(); i++) {
             V[i] += (add_var(i) * ss_mat.row(i));
+            for (double& v : V[i]) if (v < 0) v *= -1; // <-- keeping traits >= 0
         }
 
         /*
@@ -130,8 +131,9 @@ public:
     // perturb trait values
     void perturb(pcg64& eng) {
         for (uint32_t i = 0; i < V.size(); i++) {
-            for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                V[i](j) += norm_distr(eng);
+            for (double& v : V[i]) {
+                v += norm_distr(eng);
+                if (v < 0) v *= -1; // <-- keeping traits >= 0
             }
         }
         return;

@@ -135,7 +135,10 @@ public:
 
                 all_V.push_back(all_V[I[i]]);
                 arma::rowvec& new_V(all_V.back());
-                for (double& d : new_V) d += norm_distr(eng);
+                for (double& v : new_V) {
+                    v += norm_distr(eng);
+                    if (v < 0) v *= -1; // <-- keeping traits >= 0
+                }
 
             }
 

@@ -61,6 +61,7 @@ quant_gen <- function(eta, d, q,
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
+    stopifnot(all(sapply(V0, function(x) all(x >= 0))))
     stopifnot(N0 >= 0)
     stopifnot(n >= 1 && q >= 1)
     stopifnot(sapply(list(n_reps, start_t, max_t, save_every, n_cores, N0), is.numeric))

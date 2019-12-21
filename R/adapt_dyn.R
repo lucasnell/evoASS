@@ -87,6 +87,7 @@ adapt_dyn <- function(
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
+    stopifnot(all(sapply(V0, function(x) all(x >= 0))))
     stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, a0, r0, max_t, min_N, save_every,
                           mut_sd, mut_prob, max_clones, n_cores), is.numeric))
     stopifnot(inherits(show_progress, "logical"))
