@@ -91,12 +91,14 @@ adapt_dyn <- function(
     stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, a0, r0, max_t, min_N, save_every,
                           mut_sd, mut_prob, max_clones, n_cores), is.numeric))
     stopifnot(inherits(show_progress, "logical"))
-    stopifnot(sapply(list(eta, d, q, n_reps, n, f, a0, r0, max_t, min_N, save_every,
+    stopifnot(sapply(list(d, q, n_reps, n, f, a0, r0, max_t, min_N, save_every,
                           mut_sd, mut_prob, max_clones, show_progress, n_cores),
                      length) == 1)
     stopifnot(c(N0, min_N, mut_sd) > 0)
     stopifnot(mut_prob >= 0 && mut_prob <= 1)
     stopifnot(c(q, n_reps, n, max_t, save_every, n_cores) >= 1)
+    stopifnot(length(eta) == 1 || length(eta) == q)
+    if (length(eta) == 1) eta <- rep(eta, q)
 
     if (max_clones < 100) max_clones <- 100
 

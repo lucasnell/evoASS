@@ -24,7 +24,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
                         const std::vector<double>& N0,
                         const double& f,
                         const double& a0,
-                        const double& eta,
+                        const arma::vec& eta,
                         const double& r0,
                         const double& d,
                         const double& max_t,
@@ -43,14 +43,17 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
 
     // # traits:
     uint32_t q = V0[0].n_elem;
+    if (eta.n_elem != q) stop("eta.n_elem != q");
 
     for (uint32_t i = 0; i < V0.size(); i++) {
         if (V0[i].n_cols != q) stop("all items in V0 must have the same length / # cols");
     }
 
     arma::mat C(q, q);
-    C.fill(eta);
-    C.diag().fill(1);
+    for (uint32_t i = 0; i < q; i++) {
+        C.col(i).fill(eta(i));
+        C(i,i) = 1;
+    }
 
     std::vector<OneRepInfoAD> rep_infos(n_reps);
 

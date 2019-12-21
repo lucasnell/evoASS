@@ -318,7 +318,7 @@ int one_quant_gen__(OneRepInfo& info,
                      const std::vector<double>& N0,
                      const double& f,
                      const double& a0,
-                     const double& eta,
+                     const arma::vec& eta,
                      const double& r0,
                      const double& d,
                      const arma::vec& add_var,
@@ -333,9 +333,13 @@ int one_quant_gen__(OneRepInfo& info,
 
     info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd);
 
-    arma::mat C(V0[0].n_elem, V0[0].n_elem);
-    C.fill(eta);
-    C.diag().fill(1.0);
+    uint32_t q = V0[0].n_elem;
+    arma::mat C(q, q);
+    for (uint32_t i = 0; i < q; i++) {
+        C.col(i).fill(eta(i));
+        C(i,i) = 1;
+    }
+
 
     uint32_t t = 0;
     bool all_gone = false;
@@ -399,7 +403,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const std::vector<double>& N0,
                   const double& f,
                   const double& a0,
-                  const double& eta,
+                  const arma::vec& eta,
                   const double& r0,
                   const double& d,
                   const arma::vec& add_var,
@@ -413,6 +417,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
     if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
     if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
+    if (eta.n_elem != V0[0].n_elem) stop("eta.n_elem != V0[0].n_elem");
 
     std::vector<OneRepInfo> rep_infos(n_reps);
 
