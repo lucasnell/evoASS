@@ -86,3 +86,89 @@ for (e in -1:1) {
 
 
 
+```{r}
+
+
+qg <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 10e3L, n_reps = 4,
+                save_every = 1L, n = 2, perturb_sd = 0, n_cores = 4,
+                V0 = list(as.matrix(stable_points(-0.6)[1,]),
+                          as.matrix(stable_points(-0.6)[1,])))
+
+
+qg <- quant_gen(q = 2, eta = -0.6, d = 0, max_t = 2e6L, n_reps = 4,
+                save_every = 1e3L, n = 1, perturb_sd = 0, n_cores = 4,
+                V0 = list(as.matrix(stable_points(-0.6)[1,])))
+
+
+eta <- -0.6
+d <- 1e-4
+
+N <- function(eta, d, f = 0.1, a0 = 0.5, r0 = 0.5) {
+    rho <- f * (1 + eta)
+    (rho / a0) * exp((r0 / rho) - 1)
+}
+
+
+N(-0.6, 0)
+
+
+
+Omega_hat <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5) {
+    rho <- ifelse(eta < 0, f * (1 + eta), f * (1 - eta))
+    (rho / a0) * exp((r0 / rho) - 1)
+}
+# St
+
+
+Omega_hat(-0.6)
+
+N <- 3950.901
+Vi <- as.matrix(stable_points(-0.6)[1,])
+N + N * exp(-d * Vi[1]^2 * Vi[2]^2)
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(time == max(time)) %>% 
+  as.data.frame()
+
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(time < 250) %>% 
+  mutate(id = interaction(rep, spp)) %>% 
+  ggplot(aes(time, value)) +
+  geom_line(aes(group = id)) +
+  facet_wrap(~ trait + spp)
+
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(time < 100, rep == 1) %>% 
+  spread()
+  ggplot(aes(time, value)) +
+  geom_path(aes(group = spp)) +
+  facet_wrap(~ trait + spp)
+
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(time == max(time) & N > 7500) %>% 
+  as.data.frame()
+
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(time == min(time))
+
+
+qg %>% 
+  .[["nv"]] %>% 
+  filter(trait == 1) %>% 
+  mutate(id = interaction(rep, spp)) %>% 
+  ggplot(aes(time, N)) +
+  geom_line(aes(group = id, color = spp), alpha = 0.5)
+
+
+```
+
+

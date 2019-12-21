@@ -61,11 +61,19 @@ color_scale <- scale_colour_viridis_d(guide = FALSE, option = "B", begin = 0.4)
 # long_ts$pos_d <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 10e6L, n_reps = 1,
 #                            save_every = 1e4L, n = 100, N0 = rep(1e-3, 100),
 #                            perturb_sd = 2)
+#
+# # Takes ~3 sec
+# set.seed(3)
+# long_ts$zero_d <- quant_gen(q = 2, eta = -0.6, d = 0, max_t = 2e3L, n_reps = 1,
+#                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+#                             perturb_sd = 2)
+#
 # saveRDS(long_ts, "_simulations/zz-talk_data/long_ts.rds")
+
 
 long_ts <- readRDS("_simulations/zz-talk_data/long_ts.rds")
 
-short_ts <- list(neg_d = NA, pos_d = NA)
+short_ts <- list(neg_d = NA, pos_d = NA, zero_d = NA)
 set.seed(1)
 short_ts$neg_d <- quant_gen(q = 2, eta = -0.6, d = -1e-04, max_t = 2e3L, n_reps = 1,
                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
@@ -74,6 +82,8 @@ set.seed(2)
 short_ts$pos_d <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 2e3L, n_reps = 1,
                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
                             perturb_sd = 2)
+
+short_ts$zero_d <- long_ts$zero_d
 
 
 
@@ -180,7 +190,7 @@ V_space_winner_p <- V_space_p +
 #     unique() %>%
 #     length()
 
-# This shows that over long period, one species dominates
+# This shows that over long period, >1 species coexist
 N_ts_p <- long_ts$pos_d$nv %>%
     filter(trait == 1) %>%
     ggplot(aes(time, N)) +
@@ -230,6 +240,71 @@ V_space_p <- short_ts$pos_d$nv %>%
 
 # save_plot(V_ts_p, .width = 4, .height = 6, .prefix = "+d")
 # save_plot(V_space_p, .width = 5, .height = 5, .prefix = "+d")
+
+
+# ==============*
+# Time series, d = 0 (neutral) ----
+# ==============*
+
+# # Number of species that won:
+# n_winners <- long_ts$zero_d$nv %>%
+#     filter(time == max(time)) %>%
+#     .[["spp"]] %>%
+#     paste() %>% as.integer() %>%
+#     unique() %>%
+#     length()
+
+# This shows that over long period, >1 species coexist
+N_ts_p <- long_ts$zero_d$nv %>%
+    filter(trait == 1) %>%
+    filter(time < 200) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(color = spp), alpha = 0.5, size = 0.5) +
+    color_scale +
+    theme_black() +
+    scale_x_continuous("Generation") +
+    ylab("Abundance")
+
+# save_plot(N_ts_p, .width = 6, .height = 4, .prefix = "0d")
+
+
+# Changes in trait values through time
+V_ts_p <- short_ts$zero_d$nv %>%
+    filter(time < 50) %>%
+    rename(Trait = trait) %>%
+    ggplot(aes(time, value)) +
+    geom_line(aes(color = spp), alpha = 0.5) +
+    facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
+    xlab("Generation") +
+    ylab("Trait value") +
+    color_scale +
+    theme_black()
+
+# How they move through trait space (x's are starting points)
+V_space_p <- short_ts$zero_d$nv %>%
+    filter(time < 50) %>%
+    mutate(trait = paste0("V", trait)) %>%
+    spread(trait, value) %>%
+    arrange(time) %>%
+    ggplot(aes(V1, V2)) +
+    stable_points(eta = eval(short_ts$zero_d$call[["eta"]]), return_geom = TRUE,
+                  color = "gray40", shape = 19, size = 4) +
+    # unstable_points(eta = eval(short_ts$zero_d$call[["eta"]]), return_geom = TRUE,
+    #                 color = "gray40", shape = 1, size = 4) +
+    geom_path(aes(color = spp), alpha = 0.5) +
+    geom_point(data = filter(short_ts$zero_d$nv, time == min(time)) %>%
+                   mutate(trait = paste0("V", trait)) %>%
+                   spread(trait, value),
+               aes(color = spp), alpha = 0.5, shape = 4, size = 1) +
+    scale_x_continuous("Trait 1", limits = 4.533577 * c(-1,1)) +
+    scale_y_continuous("Trait 2", limits = 4.533577 * c(-1,1)) +
+    theme_black() +
+    color_scale +
+    coord_equal()
+
+
+# save_plot(V_ts_p, .width = 4, .height = 6, .prefix = "0d")
+# save_plot(V_space_p, .width = 5, .height = 5, .prefix = "0d")
 
 
 
@@ -427,15 +502,11 @@ traj_df2 <- traj_df %>%
 
 
 
-
-eta_ <- -0.6
-d_ <- 0
-
-invasion <- function(eta_, d_, p_, max_t_ = 250e3) {
+invasion <- function(eta_, d_, p_, max_t_ = 250e3, nearness = 0.99) {
     quant_gen(q = 2, eta = eta_, d = d_, max_t = max_t_, n_reps = 1,
               save_every = 1, n = 2, perturb_sd = 0,
               N0 = c(O_eq(eta_) * p_, O_eq(eta_)),
-              V0 = list(as.matrix(stable_points(eta_)[1,]),
+              V0 = list(as.matrix(stable_points(eta_)[1,]) * nearness,
                         as.matrix(stable_points(eta_)[1,])),
               show_progress = FALSE) %>%
         .[["nv"]] %>%
@@ -460,7 +531,7 @@ inv_df <- crossing(eta_ = -0.6,
 
 inv_df2 <- inv_df %>%
     # filter(spp == "invader") %>%
-    filter(time <= 100e3, time %% 100 == 0) %>%
+    filter(time %% 100 == 0) %>%
     mutate(d = factor(as.numeric(paste(d)), levels = 1e-4 * -1:1,
                       labels = c("conflicting", "neutral", "non-conflicting")))
 
@@ -472,8 +543,8 @@ invasion_p <- inv_df2 %>%
     facet_grid(prop ~ d) +
     scale_colour_viridis_d(guide = FALSE, option = "A", begin = 0.4) +
     scale_linetype_manual(values = c(2, 3)) +
-    scale_x_continuous("Generation", breaks = c(0, 40e3, 80e3),
-                       labels = c("0", "40e3", "80e3")) +
+    scale_x_continuous("Generation", breaks = c(0, 100e3, 200e3),
+                       labels = c("0", "100e3", "200e3")) +
     scale_y_continuous("Abundance", limits = c(0, NA),
                        breaks = c(0, 5e3, 10e3),
                        labels = c("0", "5e3", "10e3")) +
@@ -482,7 +553,7 @@ invasion_p <- inv_df2 %>%
           strip.text.y = element_blank())
 
 
-save_plot(invasion_p, .width = 5, .height = 5)
+# save_plot(invasion_p, .width = 5, .height = 5)
 
 
 
