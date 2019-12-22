@@ -278,7 +278,7 @@ inline void unq_spp_(arma::uvec& is_unq,
         for (uint32_t j = 0; j < i; j++) {
             if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
             arma::rowvec diff_;
-            diff_ = (V[i] - V[j]) * (V[i] - V[j]);
+            diff_ = (V[i] - V[j]) % (V[i] - V[j]);
             if (arma::mean(diff_) < precision_) {
                 is_unq(i) = 0;
                 break;
