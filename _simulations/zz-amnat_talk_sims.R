@@ -17,30 +17,13 @@ save_plot <- function(plot_obj, .width, .height, .prefix = "", .suffix = "") {
     ggsave(fn, plot_obj, width = .width, height = .height, dpi = 300, bg = "black")
     invisible(NULL)
 }
-# Save a PNG file with nice arrows
-save_plot_arrows <- function(plot_obj, .width, .height, .prefix = "", .suffix = "") {
-
-    fn <- gsub("_p$", "", paste(substitute(plot_obj)))
-    if (.prefix != "") fn <- paste0(.prefix, "_", fn)
-    if (.suffix != "") fn <- paste0(fn, "_", .suffix)
-    fn <- sprintf("_simulations/zz-talk_data/%s.png", fn)
-    cat(fn, "\n")
-
-    png(fn, width = .width, height = .height, units = "in", res = 300, bg = "black")
-
-    grid.newpage()
-    grid.draw(plot_obj)
-    grid.force()
-    # change shape of arrows
-    grid.gedit("polyline", gp=gpar(linejoin = "mitre", lineend = "butt"))
-    # change the shape in legend also
-    grid.gedit("layout", gp=gpar(linejoin = "mitre", lineend = "butt"))
-
-    dev.off()
-
-    invisible(NULL)
-}
 color_scale <- scale_colour_viridis_d(guide = FALSE, option = "B", begin = 0.4)
+
+
+# Looking at palettes:
+library(scales)
+show_col(viridis_pal(option = "B", begin = 0.3)(6))
+
 
 
 # =======================*
@@ -69,21 +52,137 @@ color_scale <- scale_colour_viridis_d(guide = FALSE, option = "B", begin = 0.4)
 #                             perturb_sd = 2)
 #
 # saveRDS(long_ts, "_simulations/zz-talk_data/long_ts.rds")
+#
+# long_ts <- readRDS("_simulations/zz-talk_data/long_ts.rds")
+#
+# short_ts <- list(neg_d = NA, pos_d = NA, zero_d = NA)
+# set.seed(1)
+# short_ts$neg_d <- quant_gen(q = 2, eta = -0.6, d = -1e-04, max_t = 2e3L, n_reps = 1,
+#                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+#                             perturb_sd = 2)
+# set.seed(2)
+# short_ts$pos_d <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 2e3L, n_reps = 1,
+#                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+#                             perturb_sd = 2)
+#
+# short_ts$zero_d <- long_ts$zero_d
 
 
-long_ts <- readRDS("_simulations/zz-talk_data/long_ts.rds")
 
-short_ts <- list(neg_d = NA, pos_d = NA, zero_d = NA)
-set.seed(1)
-short_ts$neg_d <- quant_gen(q = 2, eta = -0.6, d = -1e-04, max_t = 2e3L, n_reps = 1,
-                            save_every = 1L, n = 100, N0 = rep(1e-3, 100),
-                            perturb_sd = 2)
-set.seed(2)
-short_ts$pos_d <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 2e3L, n_reps = 1,
-                            save_every = 1L, n = 100, N0 = rep(1e-3, 100),
-                            perturb_sd = 2)
+set.seed(3)
+ts <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 5e6L, n_reps = 10,
+                save_every = 1e3L, n = 10, N0 = rep(1e-3, 10),
+                perturb_sd = 2)
+set.seed(3)
+ts2 <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 2e3L, n_reps = 10,
+                 save_every = 1L, n = 10, N0 = rep(1e-3, 10),
+                 perturb_sd = 2)
 
-short_ts$zero_d <- long_ts$zero_d
+
+# ts$nv %>%
+#     filter(trait == 1) %>%
+#     filter(time < 1.4e6, N >= 1) %>%
+#     ggplot(aes(time, N)) +
+#     geom_line(aes(color = spp), alpha = 0.5, size = 0.5) +
+#     color_scale +
+#     theme_black() +
+#     facet_wrap(~ rep, nrow = 2) +
+#     scale_x_continuous("Generation",
+#                        breaks = seq(0, 1e6, 0.5e6),
+#                        labels = c(0, "500,000", "1,000,000")) +
+#     ylab("Abundance")
+
+
+ts2$nv %>%
+    filter(time < 200) %>%
+    mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
+    rename(Trait = trait) %>%
+    ggplot(aes(time, value)) +
+    geom_line(aes(color = id), alpha = 0.5) +
+    facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
+    xlab("Generation") +
+    ylab("Trait value") +
+    color_scale +
+    theme_black()
+
+
+ts$nv %>%
+    filter(time == max(time)) %>%
+    group_by(rep, spp) %>%
+    summarize(radius = sqrt(value[1]^2 + value[2]^2)) %>%
+    .[["radius"]] %>%
+    range()
+
+
+sqrt(sum(unlist(stable_points(eta = mean(eval(ts$call[["eta"]])))[1,])^2))
+
+
+
+
+#'
+#' With different eta values that sum to > 0, I can't figure out how to calculate
+#' the alternative state values.
+#' Below is my attempt to get closer.
+#'
+# unlist(stable_points(eta = mean(eval(ts$call[["eta"]])))[1,])
+# unlist(stable_points(eta = mean(abs(eval(ts$call[["eta"]]))))[1,])
+# unlist(stable_points(eta = eval(ts$call[["eta"]])[1])[1,])
+# unlist(stable_points(eta = eval(ts$call[["eta"]])[2])[1,])
+#
+# f / mean(eval(ts$call[["eta"]]))
+#
+#
+# unlist(stable_points(eta = 0.4431945)[1,])
+# 0.4431945
+#
+# eval(ts$call[["eta"]])
+#
+# f = 0.1; r0 = 0.5
+# sqrt(r0 / f - 1)
+#
+# prod(abs(eval(ts$call[["eta"]])))^(1/2)
+# 2 / sum(1 / abs(eval(ts$call[["eta"]])))
+#
+#
+# stable_points(eta = sum(eval(ts$call[["eta"]])))
+# stable_points(eta = eval(ts$call[["eta"]])[1])
+# stable_points(eta = eval(ts$call[["eta"]])[2])
+
+
+
+ts2$nv %>%
+    # filter(time < 100) %>%
+    mutate(trait = paste0("V", trait)) %>%
+    spread(trait, value) %>%
+    mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
+    arrange(time) %>%
+    ggplot(aes(V1, V2)) +
+    geom_point(data = stable_points(eta = mean(eval(ts2$call[["eta"]]))),
+                  color = "gray40", shape = 19, size = 6) +
+    # unstable_points(eta = eval(short_ts$neg_d$call[["eta"]]), return_geom = TRUE,
+    #                 color = "gray40", shape = 1, size = 4) +
+    geom_path(aes(color = id), alpha = 0.5) +
+    geom_point(data = filter(ts2$nv, time == min(time)) %>%
+                   mutate(trait = paste0("V", trait)) %>%
+                   spread(trait, value) %>%
+                   mutate(id = factor(paste(rep, spp, sep = "_"))),
+               aes(color = id), alpha = 0.5, shape = 43, size = 4) +
+    geom_point(data = filter(ts2$nv, time == max(time)) %>%
+                   mutate(trait = paste0("V", trait)) %>%
+                   spread(trait, value) %>%
+                   mutate(id = factor(paste(rep, spp, sep = "_"))),
+               aes(color = id), alpha = 0.5, shape = 20, size = 4) +
+    scale_x_continuous("Trait 1") +
+    scale_y_continuous("Trait 2") +
+    theme_black() +
+    # facet_wrap(~ rep, nrow = 2) +
+    color_scale +
+    coord_equal(xlim = c(0, 4.5), ylim = c(0, 4.5))
+
+
+
+
+
 
 
 
@@ -313,25 +412,174 @@ V_space_p <- short_ts$zero_d$nv %>%
 # Winner values, 2 traits ----
 # ==============*
 
-two_trait_pts_p <- tibble(eta = 0.6 * -1:1) %>%
-    mutate(points = map(eta, stable_points, line_n = 10e3)) %>%
-    unnest(cols = points) %>%
-    mutate(eta = factor(eta)) %>%
-    ggplot() +
-    geom_point(aes(V1, V2, color = eta), size = 4) +
-    scale_color_manual(expression(bold(eta)),
-                       values = c("dodgerblue3", "goldenrod1", "gray70"),
-                       guide = guide_legend(override.aes = list(alpha = 1, size = 4))) +
+two_trait_pts_p <- ggplot() +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 4) +
     xlab("Trait 1") +
     ylab("Trait 2") +
     theme_black() +
-    theme(legend.key = element_blank(),
+    theme(panel.border = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
           legend.title = element_text(size = 20, margin = margin(0,0,0,b=-4)),
           plot.margin = margin(0,0,0,0)) +
-    coord_equal()
+    scale_x_continuous(breaks = 1:2) +
+    scale_y_continuous(breaks = 1:2) +
+    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
 
+two_trait_pts_p2 <- two_trait_pts_p +
+    stable_points(0.6, return_geom = TRUE, color = "dodgerblue", size = 4)
+two_trait_pts_p3 <- two_trait_pts_p2 +
+    stable_points(0, return_geom = TRUE, color = "goldenrod1", size = 2)
 # save_plot(two_trait_pts_p, .width = 4.5, .height = 3.75)
+# save_plot(two_trait_pts_p2, .width = 4.5, .height = 3.75)
+# save_plot(two_trait_pts_p3, .width = 4.5, .height = 3.75)
 
+
+
+# ==============*
+# Winner values, 3 traits ----
+# ==============*
+
+
+
+set.seed(7890524)
+ts_3q_ne <- quant_gen(q = 3, eta = -0.1, d = -1e-4, max_t = 2e3L, n_reps = 10,
+                   save_every = 1L, n = 10, N0 = rep(1, 10))
+set.seed(7890556)
+ts_3q_pe <- quant_gen(q = 3, eta = 0.1, d = -1e-4, max_t = 5e3L, n_reps = 10,
+                   save_every = 1L, n = 10, N0 = rep(1, 10))
+set.seed(9090556)
+ts_3q_ze <- quant_gen(q = 3, eta = 0, d = -1e-4, max_t = 2e3L, n_reps = 10,
+                   save_every = 1L, n = 10, N0 = rep(1, 10))
+
+# Prep data frames for 3d "winner" plots
+prep_win_3d <- function(obj) {
+
+    obj_nv <- obj$nv %>%
+        filter(time == max(time)) %>%
+        mutate(trait = factor(paste0("V", paste(trait)))) %>%
+        spread("trait", "value")
+
+    if ("V3" %in% colnames(obj_nv)) obj_nv <- obj_nv %>% arrange(V3)
+
+    return(obj_nv)
+}
+
+
+
+ts_3q_pe$nv %>%
+    mutate(id = paste(spp, rep, sep = "_")) %>%
+    rename(Trait = trait) %>%
+    ggplot(aes(time, value)) +
+    geom_line(aes(color = id), alpha = 0.5) +
+    facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
+    xlab("Generation") +
+    ylab("Trait value") +
+    color_scale +
+    theme_black()
+
+
+
+obj$nv %>%
+    ggplot() +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    # stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 4) +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
+    theme_black() +
+    # theme(panel.border = element_blank(),
+    #       axis.ticks = element_blank(),
+    #       axis.title = element_blank(),
+    #       axis.text = element_blank(),
+    #       legend.title = element_text(size = 20, margin = margin(0,0,0,b=-4)),
+    #       plot.margin = margin(0,0,0,0)) +
+    scale_x_continuous(breaks = 1:2) +
+    scale_y_continuous(breaks = 1:2) +
+    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
+
+
+# arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
+#                        const double& precision)
+
+ts_3q_pe %>%
+    prep_win_3d() %>%
+    mutate(r = sqrt(V1^2 + V2^2 + V3^2)) %>%
+    .[["r"]] %>%
+    range()
+
+ts_3q_pe %>%
+    prep_win_3d() %>%
+    select(starts_with("V", ignore.case = FALSE)) %>%
+    pmap(~ cbind(V1 = ..1, V2 = ..2, V3 = ..3)) %>%
+    sauron:::unq_spp_cpp(precision = 0.001) %>%
+    as.logical() %>%
+    {prep_win_3d(ts_3q_pe)[.,]}
+
+
+set.seed(7890557)
+ts_3q_pe2 <- quant_gen(q = 3, eta = c(0.1, -0.1, 0.1), d = -1e-4, max_t = 5e3L, n_reps = 10,
+                      save_every = 1L, n = 10, N0 = rep(1, 10))
+
+ts_3q_pe2 %>%
+    prep_win_3d() %>%
+    select(starts_with("V", ignore.case = FALSE)) %>%
+    pmap(~ cbind(V1 = ..1, V2 = ..2, V3 = ..3)) %>%
+    sauron:::unq_spp_cpp(precision = 0.001) %>%
+    as.logical() %>%
+    {prep_win_3d(ts_3q_pe2)[.,]}
+ts_3q_pe2 %>%
+    prep_win_3d() %>%
+    mutate(r = sqrt(V1^2 + V2^2 + V3^2)) %>%
+    .[["r"]] %>%
+    range()
+
+
+
+
+ggplot(NULL, aes(V1, V2, size = V3)) +
+    # geom_point(data = ts_3q_ne %>% prep_win_3d(),
+    #            shape = 16, color = "firebrick3", alpha = 0.7) +
+    geom_point(data = ts_3q_pe %>% prep_win_3d(),
+               shape = 16, color = "dodgerblue", alpha = 0.7) +
+    # geom_point(data = ts_3q_ze %>% prep_win_3d(),
+    #            shape = 16, color = "goldenrod1", alpha = 0.7) +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
+    theme_black() +
+    scale_size_continuous("Trait 3", breaks = c(0.5, 1, 1.5)) +
+    coord_equal() +
+    NULL
+
+
+
+# three_trait_pts_p <- ggplot() +
+#     geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+#     geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+#     stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 4) +
+#     xlab("Trait 1") +
+#     ylab("Trait 2") +
+#     theme_black() +
+#     theme(panel.border = element_blank(),
+#           axis.ticks = element_blank(),
+#           axis.title = element_blank(),
+#           axis.text = element_blank(),
+#           legend.title = element_text(size = 20, margin = margin(0,0,0,b=-4)),
+#           plot.margin = margin(0,0,0,0)) +
+#     scale_x_continuous(breaks = 1:2) +
+#     scale_y_continuous(breaks = 1:2) +
+#     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
+#
+# three_trait_pts_p2 <- three_trait_pts_p +
+#     stable_points(0.6, return_geom = TRUE, color = "dodgerblue", size = 4)
+# three_trait_pts_p3 <- three_trait_pts_p2 +
+#     stable_points(0, return_geom = TRUE, color = "goldenrod1", size = 2)
+# # save_plot(three_trait_pts_p, .width = 4.5, .height = 3.75)
+# # save_plot(three_trait_pts_p2, .width = 4.5, .height = 3.75)
+# # save_plot(three_trait_pts_p3, .width = 4.5, .height = 3.75)
 
 
 
