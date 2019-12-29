@@ -19,10 +19,16 @@ save_plot <- function(plot_obj, .width, .height, .prefix = "", .suffix = "") {
 }
 color_scale <- scale_colour_viridis_d(guide = FALSE, option = "B", begin = 0.4)
 
+unq_spp_filter <- function(..., .prec = 0.001) {
+    V <- list(...)
+    V <- do.call(cbind, V)
+    V <- split(V, row(V))
+    return(as.logical(sauron:::unq_spp_cpp(V, precision = .prec)))
+}
 
-# Looking at palettes:
-library(scales)
-show_col(viridis_pal(option = "B", begin = 0.3)(6))
+# # Looking at palettes:
+# library(scales)
+# show_col(viridis_pal(option = "B", begin = 0.3)(6))
 
 
 
@@ -55,30 +61,34 @@ show_col(viridis_pal(option = "B", begin = 0.3)(6))
 #
 # long_ts <- readRDS("_simulations/zz-talk_data/long_ts.rds")
 #
-# short_ts <- list(neg_d = NA, pos_d = NA, zero_d = NA)
-# set.seed(1)
-# short_ts$neg_d <- quant_gen(q = 2, eta = -0.6, d = -1e-04, max_t = 2e3L, n_reps = 1,
-#                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
-#                             perturb_sd = 2)
-# set.seed(2)
-# short_ts$pos_d <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 2e3L, n_reps = 1,
-#                             save_every = 1L, n = 100, N0 = rep(1e-3, 100),
-#                             perturb_sd = 2)
+
+
+
+short_ts <- list(neg_d = NA, pos_d = NA, zero_d = NA)
+set.seed(1)
+short_ts$neg_d <- quant_gen(q = 2, eta = 0.6, d = -1e-04, max_t = 2e3L, n_reps = 1,
+                            save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+                            perturb_sd = 2)
+set.seed(2)
+short_ts$pos_d <- quant_gen(q = 2, eta = 0.6, d = 1e-04, max_t = 2e3L, n_reps = 1,
+                            save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+                            perturb_sd = 2)
+set.seed(3)
+short_ts$zero_d <- quant_gen(q = 2, eta = 0.6, d = 0, max_t = 2e3L, n_reps = 1,
+                            save_every = 1L, n = 100, N0 = rep(1e-3, 100),
+                            perturb_sd = 2)
+
+
+# set.seed(3)
+# ts <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 5e6L, n_reps = 10,
+#                 save_every = 1e3L, n = 10, N0 = rep(1e-3, 10),
+#                 perturb_sd = 2)
+# set.seed(3)
+# ts2 <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 2e3L, n_reps = 10,
+#                  save_every = 1L, n = 10, N0 = rep(1e-3, 10),
+#                  perturb_sd = 2)
 #
-# short_ts$zero_d <- long_ts$zero_d
-
-
-
-set.seed(3)
-ts <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 5e6L, n_reps = 10,
-                save_every = 1e3L, n = 10, N0 = rep(1e-3, 10),
-                perturb_sd = 2)
-set.seed(3)
-ts2 <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 2e3L, n_reps = 10,
-                 save_every = 1L, n = 10, N0 = rep(1e-3, 10),
-                 perturb_sd = 2)
-
-
+#
 # ts$nv %>%
 #     filter(trait == 1) %>%
 #     filter(time < 1.4e6, N >= 1) %>%
@@ -91,30 +101,30 @@ ts2 <- quant_gen(q = 2, eta = c(-0.6, 0.14), d = -1e-4, max_t = 2e3L, n_reps = 1
 #                        breaks = seq(0, 1e6, 0.5e6),
 #                        labels = c(0, "500,000", "1,000,000")) +
 #     ylab("Abundance")
-
-
-ts2$nv %>%
-    filter(time < 200) %>%
-    mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
-    rename(Trait = trait) %>%
-    ggplot(aes(time, value)) +
-    geom_line(aes(color = id), alpha = 0.5) +
-    facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
-    xlab("Generation") +
-    ylab("Trait value") +
-    color_scale +
-    theme_black()
-
-
-ts$nv %>%
-    filter(time == max(time)) %>%
-    group_by(rep, spp) %>%
-    summarize(radius = sqrt(value[1]^2 + value[2]^2)) %>%
-    .[["radius"]] %>%
-    range()
-
-
-sqrt(sum(unlist(stable_points(eta = mean(eval(ts$call[["eta"]])))[1,])^2))
+#
+#
+# ts2$nv %>%
+#     filter(time < 200) %>%
+#     mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
+#     rename(Trait = trait) %>%
+#     ggplot(aes(time, value)) +
+#     geom_line(aes(color = id), alpha = 0.5) +
+#     facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
+#     xlab("Generation") +
+#     ylab("Trait value") +
+#     color_scale +
+#     theme_black()
+#
+#
+# ts$nv %>%
+#     filter(time == max(time)) %>%
+#     group_by(rep, spp) %>%
+#     summarize(radius = sqrt(value[1]^2 + value[2]^2)) %>%
+#     .[["radius"]] %>%
+#     range()
+#
+#
+# sqrt(sum(unlist(stable_points(eta = mean(eval(ts$call[["eta"]])))[1,])^2))
 
 
 
@@ -147,37 +157,37 @@ sqrt(sum(unlist(stable_points(eta = mean(eval(ts$call[["eta"]])))[1,])^2))
 # stable_points(eta = sum(eval(ts$call[["eta"]])))
 # stable_points(eta = eval(ts$call[["eta"]])[1])
 # stable_points(eta = eval(ts$call[["eta"]])[2])
-
-
-
-ts2$nv %>%
-    # filter(time < 100) %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread(trait, value) %>%
-    mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
-    arrange(time) %>%
-    ggplot(aes(V1, V2)) +
-    geom_point(data = stable_points(eta = mean(eval(ts2$call[["eta"]]))),
-                  color = "gray40", shape = 19, size = 6) +
-    # unstable_points(eta = eval(short_ts$neg_d$call[["eta"]]), return_geom = TRUE,
-    #                 color = "gray40", shape = 1, size = 4) +
-    geom_path(aes(color = id), alpha = 0.5) +
-    geom_point(data = filter(ts2$nv, time == min(time)) %>%
-                   mutate(trait = paste0("V", trait)) %>%
-                   spread(trait, value) %>%
-                   mutate(id = factor(paste(rep, spp, sep = "_"))),
-               aes(color = id), alpha = 0.5, shape = 43, size = 4) +
-    geom_point(data = filter(ts2$nv, time == max(time)) %>%
-                   mutate(trait = paste0("V", trait)) %>%
-                   spread(trait, value) %>%
-                   mutate(id = factor(paste(rep, spp, sep = "_"))),
-               aes(color = id), alpha = 0.5, shape = 20, size = 4) +
-    scale_x_continuous("Trait 1") +
-    scale_y_continuous("Trait 2") +
-    theme_black() +
-    # facet_wrap(~ rep, nrow = 2) +
-    color_scale +
-    coord_equal(xlim = c(0, 4.5), ylim = c(0, 4.5))
+#
+#
+#
+# ts2$nv %>%
+#     # filter(time < 100) %>%
+#     mutate(trait = paste0("V", trait)) %>%
+#     spread(trait, value) %>%
+#     mutate(id = factor(paste(rep, spp, sep = "_"))) %>%
+#     arrange(time) %>%
+#     ggplot(aes(V1, V2)) +
+#     geom_point(data = stable_points(eta = mean(eval(ts2$call[["eta"]]))),
+#                   color = "gray40", shape = 19, size = 6) +
+#     # unstable_points(eta = eval(short_ts$neg_d$call[["eta"]]), return_geom = TRUE,
+#     #                 color = "gray40", shape = 1, size = 4) +
+#     geom_path(aes(color = id), alpha = 0.5) +
+#     geom_point(data = filter(ts2$nv, time == min(time)) %>%
+#                    mutate(trait = paste0("V", trait)) %>%
+#                    spread(trait, value) %>%
+#                    mutate(id = factor(paste(rep, spp, sep = "_"))),
+#                aes(color = id), alpha = 0.5, shape = 43, size = 4) +
+#     geom_point(data = filter(ts2$nv, time == max(time)) %>%
+#                    mutate(trait = paste0("V", trait)) %>%
+#                    spread(trait, value) %>%
+#                    mutate(id = factor(paste(rep, spp, sep = "_"))),
+#                aes(color = id), alpha = 0.5, shape = 20, size = 4) +
+#     scale_x_continuous("Trait 1") +
+#     scale_y_continuous("Trait 2") +
+#     theme_black() +
+#     # facet_wrap(~ rep, nrow = 2) +
+#     color_scale +
+#     coord_equal(xlim = c(0, 4.5), ylim = c(0, 4.5))
 
 
 
@@ -353,41 +363,60 @@ V_space_p <- short_ts$pos_d$nv %>%
 #     unique() %>%
 #     length()
 
-# This shows that over long period, >1 species coexist
-N_ts_p <- long_ts$zero_d$nv %>%
-    filter(trait == 1) %>%
-    filter(time < 200) %>%
-    ggplot(aes(time, N)) +
-    geom_line(aes(color = spp), alpha = 0.5, size = 0.5) +
-    color_scale +
-    theme_black() +
-    scale_x_continuous("Generation") +
-    ylab("Abundance")
-
-# save_plot(N_ts_p, .width = 6, .height = 4, .prefix = "0d")
+# # This shows that over long period, >1 species coexist
+# N_ts_p <- long_ts$zero_d$nv %>%
+#     filter(trait == 1) %>%
+#     filter(time < 200) %>%
+#     ggplot(aes(time, N)) +
+#     geom_line(aes(color = spp), alpha = 0.5, size = 0.5) +
+#     color_scale +
+#     theme_black() +
+#     scale_x_continuous("Generation") +
+#     ylab("Abundance")
+#
+# # save_plot(N_ts_p, .width = 6, .height = 4, .prefix = "0d")
 
 
 # Changes in trait values through time
 V_ts_p <- short_ts$zero_d$nv %>%
-    filter(time < 50) %>%
+    filter(time < 75) %>%
     rename(Trait = trait) %>%
     ggplot(aes(time, value)) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray30", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray30", size = 1) +
     geom_line(aes(color = spp), alpha = 0.5) +
     facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
     xlab("Generation") +
     ylab("Trait value") +
     color_scale +
-    theme_black()
+    theme_black() +
+    theme(panel.border = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_blank()) +
+    coord_cartesian(ylim = c(0, 4.25))
+
+
+
 
 # How they move through trait space (x's are starting points)
 V_space_p <- short_ts$zero_d$nv %>%
-    filter(time < 50) %>%
+    filter(time < 100) %>%
     mutate(trait = paste0("V", trait)) %>%
     spread(trait, value) %>%
     arrange(time) %>%
     ggplot(aes(V1, V2)) +
-    stable_points(eta = eval(short_ts$zero_d$call[["eta"]]), return_geom = TRUE,
-                  color = "gray40", shape = 19, size = 4) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray30", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray30", size = 1) +
+    geom_point(data = filter(short_ts$zero_d$nv, time == max(time)) %>%
+                   mutate(trait = paste0("V", trait)) %>%
+                   spread(trait, value) %>%
+                   filter(unq_spp_filter(V1, V2)),
+               color = "gray60", shape = 19, size = 4) +
+    # stable_points(eta = eval(short_ts$zero_d$call[["eta"]]), return_geom = TRUE,
+    #               color = "gray40", shape = 19, size = 4) +
     # unstable_points(eta = eval(short_ts$zero_d$call[["eta"]]), return_geom = TRUE,
     #                 color = "gray40", shape = 1, size = 4) +
     geom_path(aes(color = spp), alpha = 0.5) +
@@ -395,15 +424,20 @@ V_space_p <- short_ts$zero_d$nv %>%
                    mutate(trait = paste0("V", trait)) %>%
                    spread(trait, value),
                aes(color = spp), alpha = 0.5, shape = 4, size = 1) +
-    scale_x_continuous("Trait 1", limits = 4.533577 * c(-1,1)) +
-    scale_y_continuous("Trait 2", limits = 4.533577 * c(-1,1)) +
+    xlab("Trait 1") +
+    ylab("Trait 2") +
     theme_black() +
+    theme(panel.border = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          plot.margin = margin(0,0,0,0)) +
     color_scale +
-    coord_equal()
+    coord_equal(ylim = c(0, 4.5), xlim = c(0, 4.5))
 
 
-# save_plot(V_ts_p, .width = 4, .height = 6, .prefix = "0d")
-# save_plot(V_space_p, .width = 5, .height = 5, .prefix = "0d")
+# save_plot(V_ts_p, .width = 3, .height = 6, .prefix = "0d")
+# save_plot(V_space_p, .width = 4, .height = 4, .prefix = "0d")
 
 
 
@@ -415,7 +449,7 @@ V_space_p <- short_ts$zero_d$nv %>%
 two_trait_pts_p <- ggplot() +
     geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
     geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
-    stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 4) +
+    stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 8) +
     xlab("Trait 1") +
     ylab("Trait 2") +
     theme_black() +
@@ -429,13 +463,81 @@ two_trait_pts_p <- ggplot() +
     scale_y_continuous(breaks = 1:2) +
     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
 
-two_trait_pts_p2 <- two_trait_pts_p +
-    stable_points(0.6, return_geom = TRUE, color = "dodgerblue", size = 4)
-two_trait_pts_p3 <- two_trait_pts_p2 +
-    stable_points(0, return_geom = TRUE, color = "goldenrod1", size = 2)
+
+# Simulations from this scenario doesn't coincide with calculated stable points,
+# because of constraining all V >= 0
+q2_pts_pe <- quant_gen(q = 2, eta = 0.6, d = 0, max_t = 2e3L, n_reps = 12,
+                       save_every = 0L, n = 100, N0 = rep(1e-3, 100),
+                       perturb_sd = 2, n_cores = 4, show_progress = FALSE) %>%
+    .[["nv"]] %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    filter(unq_spp_filter(V1, V2))
+
+two_trait_pts2_p <- two_trait_pts_p +
+    geom_point(data = q2_pts_pe,
+               aes(V1, V2), color = "dodgerblue", size = 8)
+
+two_trait_pts3_p <- two_trait_pts_p +
+    stable_points(0, return_geom = TRUE, color = "goldenrod1", size = 3) +
+    geom_point(data = q2_pts_pe,
+               aes(V1, V2), color = "dodgerblue", size = 8)
+
+
 # save_plot(two_trait_pts_p, .width = 4.5, .height = 3.75)
-# save_plot(two_trait_pts_p2, .width = 4.5, .height = 3.75)
-# save_plot(two_trait_pts_p3, .width = 4.5, .height = 3.75)
+# save_plot(two_trait_pts2_p, .width = 4.5, .height = 3.75)
+# save_plot(two_trait_pts3_p, .width = 4.5, .height = 3.75)
+
+
+
+set.seed(7835456)
+ts_2q <- tibble(e1 = c(-1, 1, 1, 1) * 0.1,
+                e2 = c(-0.11, -0.11, -0.09, 0.11)) %>%
+    pmap_dfr(~ quant_gen(q = 2, eta = c(..1, ..2),
+                         d = 0, max_t = 20e3L, n_reps = 12,
+                         save_every = 10L, n = 100, N0 = rep(1e-3, 100),
+                         perturb_sd = 2, n_cores = 4) %>%
+                 .[["nv"]] %>%
+                 mutate(eta1 = ..1,
+                        eta2 = ..2)) %>%
+    mutate(id = paste(paste(spp), paste(rep), sep = "_"),
+           id2 = paste(paste(spp), paste(rep), paste(trait), sep = "_"))
+
+
+ts_2q %>%
+    filter(time == max(time)) %>%
+    select(-rep, -time, -spp, -id2) %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    group_by(eta1, eta2) %>%
+    summarize(sum = round(eta1[1] + eta2[1], 4),
+              N = sum(unq_spp_filter(V1, V2))) %>%
+    print()
+
+
+ts_2q %>%
+    filter(time == max(time)) %>%
+    select(-rep, -time, -spp, -id2) %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    group_by(eta1, eta2) %>%
+    filter(unq_spp_filter(V1, V2)) %>%
+    ungroup() %>%
+    ggplot(aes(V1, V2)) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_point(alpha = 0.5, shape = 19, color = "dodgerblue") +
+    geom_point(shape = 1, color = "dodgerblue") +
+    facet_wrap(~ eta1 + eta2, nrow = 2) +
+    theme_black() +
+    theme(panel.border = element_blank(),
+          # axis.ticks = element_blank(),
+          # axis.title = element_blank(),
+          # axis.text = element_blank(),
+          plot.margin = margin(0,0,0,0)) +
+    # coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+    coord_equal() +
+    NULL
 
 
 
@@ -445,15 +547,168 @@ two_trait_pts_p3 <- two_trait_pts_p2 +
 
 
 
-set.seed(7890524)
-ts_3q_ne <- quant_gen(q = 3, eta = -0.1, d = -1e-4, max_t = 2e3L, n_reps = 10,
-                   save_every = 1L, n = 10, N0 = rep(1, 10))
-set.seed(7890556)
-ts_3q_pe <- quant_gen(q = 3, eta = 0.1, d = -1e-4, max_t = 5e3L, n_reps = 10,
-                   save_every = 1L, n = 10, N0 = rep(1, 10))
-set.seed(9090556)
-ts_3q_ze <- quant_gen(q = 3, eta = 0, d = -1e-4, max_t = 2e3L, n_reps = 10,
-                   save_every = 1L, n = 10, N0 = rep(1, 10))
+# set.seed(7890524)
+# ts_3q_ne <- quant_gen(q = 3, eta = -0.1, d = -1e-4, max_t = 2e3L, n_reps = 10,
+#                    save_every = 1L, n = 10, N0 = rep(1e-3, 10))
+# set.seed(7890556)
+# ts_3q_pe <- quant_gen(q = 3, eta = 0.1, d = -1e-4, max_t = 5e3L, n_reps = 10,
+#                    save_every = 1L, n = 10, N0 = rep(1e-3, 10))
+# set.seed(9090556)
+# ts_3q_ze <- quant_gen(q = 3, eta = 0, d = -1e-4, max_t = 2e3L, n_reps = 10,
+#                    save_every = 1L, n = 10, N0 = rep(1e-3, 10))
+#
+set.seed(1105998337)
+ts_3q <- crossing(e1 = c(-1, 1) * 0.09,
+                  e2 = c(-1, 1) * 0.1,
+                  e3 = c(-1, 1) * 0.11) %>%
+    pmap_dfr(~ quant_gen(q = 3, eta = c(..1, ..2, ..3),
+                         d = 0, max_t = 2e3L, n_reps = 12,
+                         save_every = 10L, n = 100, N0 = rep(1e-3, 100),
+                         perturb_sd = 2, n_cores = 4) %>%
+                 .[["nv"]] %>%
+                 mutate(eta1 = ..1,
+                        eta2 = ..2,
+                        eta3 = ..3)) %>%
+    mutate(id = paste(paste(spp), paste(rep), sep = "_"),
+           id2 = paste(paste(spp), paste(rep), paste(trait), sep = "_"))
+
+
+
+set.seed(1105998339 + 3)
+etas <- runif(3, 0.09, 0.11)
+# Make sure they can't sum to >1.4 (causes infinite pop. sizes when all negative)
+if (sum(etas) > 1.4) etas <- 1.4 * etas / sum(etas)
+ts_3q2 <- crossing(e1 = c(-1, 1) * etas[1],
+                  e2 = c(-1, 1) * etas[2],
+                  e3 = c(-1, 1) * etas[3]) %>%
+    pmap_dfr(~ quant_gen(q = 3, eta = c(..1, ..2, ..3),
+                         d = 0, max_t = 2e3L, n_reps = 12,
+                         save_every = 10L, n = 100, N0 = rep(1e-3, 100),
+                         perturb_sd = 2, n_cores = 4) %>%
+                 .[["nv"]] %>%
+                 mutate(eta1 = ..1,
+                        eta2 = ..2,
+                        eta3 = ..3)) %>%
+    mutate(id = paste(paste(spp), paste(rep), sep = "_"),
+           id2 = paste(paste(spp), paste(rep), paste(trait), sep = "_"))
+
+
+
+
+
+
+
+
+
+
+ts_3q2 %>%
+    filter(time == max(time)) %>%
+    select(-rep, -time, -spp, -id2) %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    group_by(eta1, eta2) %>%
+    summarize(sum = round(eta1[1] + eta2[1], 4),
+              N = sum(unq_spp_filter(V1, V2))) %>%
+    print()
+
+
+
+{
+    ts_3q %>%
+        filter(time == max(time)) %>%
+        select(-rep, -time, -spp, -id2) %>%
+        mutate(trait = factor(paste0("V", paste(trait)))) %>%
+        spread("trait", "value") %>%
+        arrange(V3) %>%
+        group_by(eta1, eta2, eta3) %>%
+        summarize(sum = round(eta1[1] + eta2[1] + eta3[1], 4),
+                  N = sum(unq_spp_filter(V1, V2, V3))) %>%
+        print()
+
+    ts_3q2 %>%
+        filter(time == max(time)) %>%
+        select(-rep, -time, -spp, -id2) %>%
+        mutate(trait = factor(paste0("V", paste(trait)))) %>%
+        spread("trait", "value") %>%
+        arrange(V3) %>%
+        group_by(eta1, eta2, eta3) %>%
+        summarize(sum = round(eta1[1] + eta2[1] + eta3[1], 4),
+        N = sum(unq_spp_filter(V1, V2, V3))) %>%
+        print()
+}
+
+
+
+
+
+ts_3q %>%
+    # filter(time < 250) %>%
+    # filter_at(vars(starts_with("eta")), ~ . == -1) %>%
+    ggplot(aes(time, value)) +
+    geom_line(aes(group = id2, color = trait)) +
+    theme_black() +
+    facet_wrap(~ eta1 + eta2 + eta3, nrow = 2) +
+    # scale_color_brewer(palette = "Dark2")
+    # scale_color_manual(values = c("dodgerblue", "firebrick3", "white"))
+    scale_color_viridis_d(begin = 0.25, option = "A")
+
+
+
+
+ts_3q2 %>%
+    filter(time == max(time)) %>%
+    select(-rep, -time, -spp, -id2) %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    arrange(V3) %>%
+    group_by(eta1, eta2, eta3) %>%
+    filter(unq_spp_filter(V1, V2, V3)) %>%
+    ungroup() %>%
+    ggplot(aes(V1, V2, size = V3)) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_point(alpha = 0.5, shape = 19, color = "dodgerblue") +
+    geom_point(shape = 1, color = "dodgerblue") +
+    facet_wrap(~ eta1 + eta2 + eta3, nrow = 2) +
+    theme_black() +
+    theme(panel.border = element_blank(),
+          # axis.ticks = element_blank(),
+          # axis.title = element_blank(),
+          # axis.text = element_blank(),
+          plot.margin = margin(0,0,0,0)) +
+    scale_size_continuous("Trait 3", breaks = c(0.5, 1, 1.5), range = c(2, 8)) +
+    # coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+    coord_equal() +
+    NULL
+
+
+ts_3q2 %>%
+    filter(time == max(time)) %>%
+    filter(eta1 > 0,eta2 < 0, eta3 > 0) %>%
+    select(-rep, -time, -spp, -id2) %>%
+    mutate(trait = factor(paste0("V", paste(trait)))) %>%
+    spread("trait", "value") %>%
+    arrange(V3) %>%
+    # group_by(eta1, eta2, eta3) %>%
+    # filter(unq_spp_filter(V1, V2, V3)) %>%
+    # ungroup() %>%
+    ggplot(aes(V1, V2, size = V3)) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+    geom_point(alpha = 0.5, shape = 19, color = "dodgerblue") +
+    geom_point(shape = 1, color = "dodgerblue") +
+    # facet_wrap(~ eta1 + eta2 + eta3, nrow = 2) +
+    theme_black() +
+    theme(panel.border = element_blank(),
+          # axis.ticks = element_blank(),
+          # axis.title = element_blank(),
+          # axis.text = element_blank(),
+          plot.margin = margin(0,0,0,0)) +
+    scale_size_continuous("Trait 3", range = c(2, 8)) +
+    # coord_equal() +
+    NULL
+
+
 
 # Prep data frames for 3d "winner" plots
 prep_win_3d <- function(obj) {
@@ -461,7 +716,8 @@ prep_win_3d <- function(obj) {
     obj_nv <- obj$nv %>%
         filter(time == max(time)) %>%
         mutate(trait = factor(paste0("V", paste(trait)))) %>%
-        spread("trait", "value")
+        spread("trait", "value") %>%
+        mutate(eta = sign(eval(obj$call[["eta"]])))
 
     if ("V3" %in% colnames(obj_nv)) obj_nv <- obj_nv %>% arrange(V3)
 
@@ -470,40 +726,64 @@ prep_win_3d <- function(obj) {
 
 
 
-ts_3q_pe$nv %>%
-    mutate(id = paste(spp, rep, sep = "_")) %>%
-    rename(Trait = trait) %>%
-    ggplot(aes(time, value)) +
-    geom_line(aes(color = id), alpha = 0.5) +
-    facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
-    xlab("Generation") +
-    ylab("Trait value") +
-    color_scale +
-    theme_black()
+# ts_3q_pe$nv %>%
+#     mutate(id = paste(spp, rep, sep = "_")) %>%
+#     rename(Trait = trait) %>%
+#     ggplot(aes(time, value)) +
+#     geom_line(aes(color = id), alpha = 0.5) +
+#     facet_wrap(~ Trait, ncol = 1, labeller = function(x) label_both(x, sep = " ")) +
+#     xlab("Generation") +
+#     ylab("Trait value") +
+#     color_scale +
+#     theme_black()
 
 
+three_trait_pts_p <- function(.dd) {
+    .dd %>%
+        mutate(eta = factor(eta, levels = -1:1)) %>%
+        arrange(V3) %>%
+        ggplot(aes(V1, V2, size = V3)) +
+        geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
+        geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
+        geom_point(aes(color = eta), alpha = 0.75) +
+        theme_black() +
+        theme(panel.border = element_blank(),
+              axis.ticks = element_blank(),
+              axis.title = element_blank(),
+              axis.text = element_blank(),
+              legend.title = element_text(size = 20, margin = margin(0,0,0,b=-4)),
+              plot.margin = margin(0,0,0,0)) +
+        scale_x_continuous("Trait 1", breaks = 1:2) +
+        scale_y_continuous("Trait 2", breaks = 1:2) +
+        scale_size_continuous("Trait 3", breaks = c(0.5, 1, 1.5), guide = FALSE) +
+        scale_color_manual(values = c("firebrick3", "goldenrod1", "dodgerblue"),
+                           drop = FALSE, guide = FALSE) +
+        coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+        NULL
+}
 
-obj$nv %>%
-    ggplot() +
-    geom_hline(yintercept = 0, linetype = 1, color = "gray90", size = 1) +
-    geom_vline(xintercept = 0, linetype = 1, color = "gray90", size = 1) +
-    # stable_points(-0.6, return_geom = TRUE, color = "firebrick3", size = 4) +
-    xlab("Trait 1") +
-    ylab("Trait 2") +
-    theme_black() +
-    # theme(panel.border = element_blank(),
-    #       axis.ticks = element_blank(),
-    #       axis.title = element_blank(),
-    #       axis.text = element_blank(),
-    #       legend.title = element_text(size = 20, margin = margin(0,0,0,b=-4)),
-    #       plot.margin = margin(0,0,0,0)) +
-    scale_x_continuous(breaks = 1:2) +
-    scale_y_continuous(breaks = 1:2) +
-    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
+three_trait_pts1_p <- ts_3q_ne %>%
+    prep_win_3d() %>%
+    three_trait_pts_p()
+three_trait_pts2_p <- list(ts_3q_ne, ts_3q_pe) %>%
+    map_dfr(prep_win_3d)  %>%
+    three_trait_pts_p()
+three_trait_pts3_p <- list(ts_3q_ne, ts_3q_pe, ts_3q_ze) %>%
+    map_dfr(prep_win_3d)  %>%
+    three_trait_pts_p()
+
+
+# save_plot(three_trait_pts1_p, .width = 4.5, .height = 3.75)
+# save_plot(three_trait_pts2_p, .width = 4.5, .height = 3.75)
+# save_plot(three_trait_pts3_p, .width = 4.5, .height = 3.75)
 
 
 # arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
 #                        const double& precision)
+
+
+three_trait_pts_p2 <- three_trait_pts_p +
+    geom_point(data = ts_3q_pe %>% prep_win_3d(), color = "dodgerblue")
 
 ts_3q_pe %>%
     prep_win_3d() %>%
@@ -553,6 +833,8 @@ ggplot(NULL, aes(V1, V2, size = V3)) +
     scale_size_continuous("Trait 3", breaks = c(0.5, 1, 1.5)) +
     coord_equal() +
     NULL
+
+
 
 
 
