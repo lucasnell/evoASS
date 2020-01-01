@@ -11,14 +11,15 @@ stable_points(
   a0 = 0.5,
   r0 = 0.5,
   return_geom = FALSE,
-  line_n = 1000
+  line_n = 1000,
+  ...
 )
 
-unstable_points(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE)
+unstable_points(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE, ...)
 }
 \arguments{
-\item{eta}{A single number representing the non-additive effects of traits on the
-growth rate.}
+\item{eta}{Number(s) representing the non-additive effects of traits on the
+growth rate. Should be of length 1 or the same as the number of traits.}
 
 \item{f}{A single number representing the cost of the trait on the growth rate.}
 
@@ -30,6 +31,8 @@ growth rate.}
 plotting rather than a \code{tibble}. Defaults to \code{FALSE}.}
 
 \item{line_n}{Number of points to use for lines. Defaults to \code{1000}.}
+
+\item{...}{Other arguments to pass to the call to \code{geom_point} or \code{geom_path}.}
 }
 \value{
 A \code{tibble} if \code{return_geom} is \code{FALSE}, and a  \verb{geom_*} object if it's \code{TRUE}.

@@ -38,11 +38,12 @@ adapt_dyn(
 )
 }
 \arguments{
-\item{eta}{A single number representing the non-additive effects of traits on the
-growth rate.}
+\item{eta}{Number(s) representing the non-additive effects of traits on the
+growth rate. Should be of length 1 or the same as the number of traits.}
 
-\item{d}{A single number that adjusts how the focal line is affected by
+\item{d}{Number(s) that adjusts how the focal line is affected by
 other lines' trait values.
+Should be of length 1 or the same as the number of traits.
 If \code{d < 0}, then increases in \code{V_j} (trait that reduces competition
 experienced by clone \code{j}) increases competition experienced by clone \code{i},
 thereby giving conflicting coevolution.

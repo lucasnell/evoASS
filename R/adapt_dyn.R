@@ -35,11 +35,12 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
 #'     matrix row or column.
 #' @param f A single number representing the cost of the trait on the growth rate.
 #' @param a0 A single number representing the base density dependence.
-#' @param eta A single number representing the non-additive effects of traits on the
-#'     growth rate.
+#' @param eta Number(s) representing the non-additive effects of traits on the
+#'     growth rate. Should be of length 1 or the same as the number of traits.
 #' @param r0 A single number representing the base growth rate.
-#' @param d A single number that adjusts how the focal line is affected by
+#' @param d Number(s) that adjusts how the focal line is affected by
 #'     other lines' trait values.
+#'     Should be of length 1 or the same as the number of traits.
 #'     If `d < 0`, then increases in `V_j` (trait that reduces competition
 #'     experienced by clone `j`) increases competition experienced by clone `i`,
 #'     thereby giving conflicting coevolution.

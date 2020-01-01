@@ -4,7 +4,7 @@
 \alias{F_t_cpp}
 \title{Fitness at time t.}
 \usage{
-F_t_cpp(V, N, f, a0, C, r0, d)
+F_t_cpp(V, N, f, a0, C, r0, D)
 }
 \arguments{
 \item{V}{List of row vectors, each containing trait values at time t (1x2 vector)
