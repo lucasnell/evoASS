@@ -289,46 +289,7 @@ pts_var_eta_q3 %>%
 
 
 
-# ====================================================================================*
-# ====================================================================================*
 
-# num. states for q traits ----
-
-# ====================================================================================*
-# ====================================================================================*
-
-
-q_nstates <- function(.q, .eta = 0.1) {
-    cat(.q, "\n")
-    quant_gen(q = .q, eta = .eta, d = 0, max_t = 200e3L, n_reps = 12,
-              save_every = 0L, n = 100, N0 = rep(1e-3, 100),
-              perturb_sd = 2, n_cores = 4, show_progress = FALSE) %>%
-        .[["nv"]] %>%
-        mutate(q = .q)
-}
-
-qns_df <- map_dfr(3:5, q_nstates)
-
-
-qns_df %>%
-    mutate(trait = factor(paste0("V", paste(trait)))) %>%
-    split(.$q) %>%
-    map_dbl(~ spread(.x, "trait", "value") %>%
-                select(starts_with("V", ignore.case = FALSE)) %>%
-                split(1:nrow(.)) %>%
-                map(as.matrix) %>%
-                sauron:::unq_spp_cpp(precision = 0.1) %>%
-                sum())
-
-
-
-qns_df %>%
-    mutate(q = factor(q)) %>%
-    ggplot(aes(trait, value, color = trait)) +
-    geom_point(alpha = 0.5, shape = 1, size = 1) +
-    facet_wrap(~ q, nrow = 1) +
-    theme_black() +
-    color_scale
 
 
 
