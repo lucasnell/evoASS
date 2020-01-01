@@ -320,9 +320,9 @@ int one_quant_gen__(OneRepInfo& info,
                      const std::vector<double>& N0,
                      const double& f,
                      const double& a0,
-                     const arma::vec& eta,
+                     const arma::mat& C,
                      const double& r0,
-                     const arma::vec& d,
+                     const arma::mat& D,
                      const arma::vec& add_var,
                      const double& perturb_sd,
                      const uint32_t& start_t,
@@ -334,17 +334,6 @@ int one_quant_gen__(OneRepInfo& info,
 
 
     info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd);
-
-    uint32_t q = V0[0].n_elem;
-    arma::mat C(q, q);
-    for (uint32_t i = 0; i < q; i++) {
-        C.col(i).fill(eta(i));
-        C(i,i) = 1;
-    }
-
-    arma::mat D(q, q, arma::fill::zeros);
-    D.diag() = d;
-
 
     uint32_t t = 0;
     bool all_gone = false;
@@ -408,9 +397,9 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const std::vector<double>& N0,
                   const double& f,
                   const double& a0,
-                  const arma::vec& eta,
+                  const arma::mat& C,
                   const double& r0,
-                  const arma::vec& d,
+                  const arma::mat& D,
                   const arma::vec& add_var,
                   const double& perturb_sd,
                   const uint32_t& start_t,
@@ -422,7 +411,12 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
     if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
     if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
-    if (eta.n_elem != V0[0].n_elem) stop("eta.n_elem != V0[0].n_elem");
+
+
+    if (C.n_cols != V0[0].n_elem) stop("C.n_cols != q");
+    if (C.n_rows != V0[0].n_elem) stop("C.n_rows != q");
+    if (D.n_cols != V0[0].n_elem) stop("D.n_cols != q");
+    if (D.n_rows != V0[0].n_elem) stop("D.n_rows != q");
 
     std::vector<OneRepInfo> rep_infos(n_reps);
 
@@ -451,7 +445,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
     #pragma omp for schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
-        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, eta, r0, d, add_var,
+        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D, add_var,
                                      perturb_sd, start_t, max_t, min_N, save_every,
                                      eng, prog_bar);
         if (active_thread == 0 && status != 0) interrupted = true;

@@ -70,10 +70,23 @@ quant_gen <- function(eta, d, q,
     stopifnot(N0 >= 0)
     stopifnot(c(n_reps, max_t, n_cores) >= 1)
     stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
-    stopifnot(length(eta) == 1 || length(eta) == q)
-    stopifnot(length(d) == 1 || length(d) == q)
-    if (length(eta) == 1) eta <- rep(eta, q)
-    if (length(d) == 1) d <- rep(d, q)
+
+    stopifnot(length(eta) %in% c(1, q^2))
+    stopifnot(length(d) %in% c(1, q))
+
+    C <- matrix(eta[1], q, q)
+    if (length(eta) == q^2) {
+        stopifnot(inherits(eta, "matrix") && isSymmetric(eta))
+        C <- eta
+    }
+    diag(C) <- 1
+
+    D <- matrix(0, q, q)
+    if (length(d) == 1) {
+        diag(D) <- rep(d, q)
+    } else if (length(d) == q) {
+        diag(D) <- rep(d, q)
+    }
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
@@ -86,9 +99,9 @@ quant_gen <- function(eta, d, q,
                         N0 = N0,
                         f = f,
                         a0 = a0,
-                        eta = eta,
+                        C = C,
                         r0 = r0,
-                        d = d,
+                        D = D,
                         add_var = add_var,
                         perturb_sd = perturb_sd,
                         start_t = start_t,

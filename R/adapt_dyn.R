@@ -98,10 +98,23 @@ adapt_dyn <- function(
     stopifnot(c(N0, min_N, mut_sd) > 0)
     stopifnot(mut_prob >= 0 && mut_prob <= 1)
     stopifnot(c(q, n_reps, n, max_t, save_every, n_cores) >= 1)
-    stopifnot(length(eta) == 1 || length(eta) == q)
-    stopifnot(length(d) == 1 || length(d) == q)
-    if (length(eta) == 1) eta <- rep(eta, q)
-    if (length(d) == 1) d <- rep(d, q)
+
+    stopifnot(length(eta) %in% c(1, q^2))
+    stopifnot(length(d) %in% c(1, q))
+
+    C <- matrix(eta[1], q, q)
+    if (length(eta) == q^2) {
+        stopifnot(inherits(eta, "matrix") && isSymmetric(eta))
+        C <- eta
+    }
+    diag(C) <- 1
+
+    D <- matrix(0, q, q)
+    if (length(d) == 1) {
+        diag(D) <- rep(d, q)
+    } else if (length(d) == q) {
+        diag(D) <- rep(d, q)
+    }
 
     if (max_clones < 100) max_clones <- 100
 
@@ -111,7 +124,7 @@ adapt_dyn <- function(
         call_[1] <- as.call(quote(adapt_dyn()))
     }
 
-    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, a0, eta, r0, d, max_t, min_N,
+    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N,
                                 mut_sd, mut_prob, show_progress, max_clones,
                                 save_every, n_cores)
 
