@@ -112,6 +112,7 @@ public:
         for (uint32_t i = 0; i < V.size(); i++) {
             V[i] += (add_var(i) * ss_mat.row(i));
             for (double& v : V[i]) if (v < 0) v *= -1; // <-- keeping traits >= 0
+            // for (double& v : V[i]) if (v < 0) v = 0; // <-- keeping traits >= 0
         }
 
         /*
@@ -134,6 +135,7 @@ public:
             for (double& v : V[i]) {
                 v += norm_distr(eng);
                 if (v < 0) v *= -1; // <-- keeping traits >= 0
+                // if (v < 0) v = 0; // <-- keeping traits >= 0
             }
         }
         return;
