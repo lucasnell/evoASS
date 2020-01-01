@@ -54,8 +54,8 @@ NULL
 #'
 #' @noRd
 #'
-sel_str_cpp <- function(V, N, f, a0, C, r0, d) {
-    .Call(`_sauron_sel_str_cpp`, V, N, f, a0, C, r0, d)
+sel_str_cpp <- function(V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_sel_str_cpp`, V, N, f, a0, C, r0, D)
 }
 
 #' R-exported version of above, to be used in R for testing.
@@ -130,7 +130,7 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 #'
 #' @export
 #'
-F_t_cpp <- function(V, N, f, a0, C, r0, d) {
-    .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, d)
+F_t_cpp <- function(V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, D)
 }
 

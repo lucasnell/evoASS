@@ -81,7 +81,7 @@ public:
                  const double& a0,
                  const arma::mat& C,
                  const double& r0,
-                 const double& d,
+                 const arma::mat& D,
                  const double& max_t,
                  const double& min_N,
                  const double& mut_sd,
@@ -90,7 +90,7 @@ public:
                  pcg64& eng) {
 
         // Fill in density dependences:
-        A_VNI__<std::vector<double>>(A, all_V, N, I, a0, d);
+        A_VNI__<std::vector<double>>(A, all_V, N, I, a0, D);
 
         // Extinct clones (if any):
         std::vector<uint32_t> extinct;

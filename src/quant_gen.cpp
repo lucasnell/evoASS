@@ -43,7 +43,7 @@ inline void sel_str__(arma::mat& ss_mat,
                       const double& a0,
                       const arma::mat& C,
                       const double& r0,
-                      const double& d) {
+                      const arma::mat& D) {
 
     uint32_t n_spp = V.size();      // # species
     uint32_t n_trt = V[0].size();   // # traits
@@ -54,7 +54,7 @@ inline void sel_str__(arma::mat& ss_mat,
     arma::vec W(n_spp, arma::fill::zeros);
     for (uint32_t j = 0; j < n_spp; j++) {
         // Calculate `N_j * exp(-d * V_j * transpose(V_j))`:
-        double W_ = N[j] * std::exp(-d * arma::as_scalar(V[j] * V[j].t()));
+        double W_ = N[j] * std::exp(-1 * arma::as_scalar(V[j] * D * V[j].t()));
         // Now insert this value at all `i` where `j != i`:
         for (uint32_t i = 0; i < n_spp; i++) {
             if (i == j) continue;
@@ -76,6 +76,7 @@ inline void sel_str__(arma::mat& ss_mat,
 }
 
 
+
 //' R-exported version of above, so it can be tested in R for accuracy.
 //'
 //' @noRd
@@ -87,14 +88,15 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
                       const double& a0,
                       const arma::mat& C,
                       const double& r0,
-                      const double& d) {
+                      const arma::mat& D) {
 
     arma::mat ss_mat;
 
-    sel_str__(ss_mat, V, N, f, a0, C, r0, d);
+    sel_str__(ss_mat, V, N, f, a0, C, r0, D);
 
     return ss_mat;
 }
+
 
 
 //' Partial derivative of species i traits at time t+1 with respect to species i traits
@@ -320,7 +322,7 @@ int one_quant_gen__(OneRepInfo& info,
                      const double& a0,
                      const arma::vec& eta,
                      const double& r0,
-                     const double& d,
+                     const arma::vec& d,
                      const arma::vec& add_var,
                      const double& perturb_sd,
                      const uint32_t& start_t,
@@ -340,6 +342,9 @@ int one_quant_gen__(OneRepInfo& info,
         C(i,i) = 1;
     }
 
+    arma::mat D(q, q, arma::fill::zeros);
+    D.diag() = d;
+
 
     uint32_t t = 0;
     bool all_gone = false;
@@ -349,7 +354,7 @@ int one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
         t++;
         prog_bar.increment();
 
@@ -369,7 +374,7 @@ int one_quant_gen__(OneRepInfo& info,
         n_incr++;
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, d, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t);
@@ -385,7 +390,7 @@ int one_quant_gen__(OneRepInfo& info,
     }
 
     // Calculate final fitnesses and selection pressure to see if we're at equilibrium
-    info.fitness_selection(f, a0, C, r0, d);
+    info.fitness_selection(f, a0, C, r0, D);
 
 
     return 0;
@@ -405,7 +410,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const double& a0,
                   const arma::vec& eta,
                   const double& r0,
-                  const double& d,
+                  const arma::vec& d,
                   const arma::vec& add_var,
                   const double& perturb_sd,
                   const uint32_t& start_t,

@@ -26,7 +26,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
                         const double& a0,
                         const arma::vec& eta,
                         const double& r0,
-                        const double& d,
+                        const arma::vec& d,
                         const double& max_t,
                         const double& min_N,
                         const double& mut_sd,
@@ -54,6 +54,8 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
         C.col(i).fill(eta(i));
         C(i,i) = 1;
     }
+    arma::mat D(q, q, arma::fill::zeros);
+    D.diag() = d;
 
     std::vector<OneRepInfoAD> rep_infos(n_reps);
 
@@ -89,7 +91,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
 
             for (uint32_t t = 0; t < max_t; t++) {
 
-                rep_infos[i].iterate(t, f, a0, C, r0, d, max_t, min_N, mut_sd, mut_prob,
+                rep_infos[i].iterate(t, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob,
                                      save_every, eng);
 
             }

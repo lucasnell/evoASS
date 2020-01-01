@@ -92,24 +92,26 @@ inline void A_VN_(T& A,
                   const std::vector<arma::rowvec>& V,
                   const std::vector<double>& N,
                   const double& a0,
-                  const double& d) {
+                  const arma::mat& D) {
 
     // Values of sum of squared trait values for each clone
-    std::vector<double> W;
-    W.reserve(V.size());
+    std::vector<double> W_intra; // `exp(- V %*% t(V))` for intraspecific component
+    std::vector<double> W_inter; // `exp(- V %*% D %*% t(V))` for interspecific component
+    W_intra.reserve(V.size());
+    W_inter.reserve(V.size());
     for (uint32_t j = 0; j < V.size(); j++) {
-        W.push_back(arma::as_scalar(V[j] * V[j].t()));
+        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[j] * V[j].t())));
+        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[j] * D * V[j].t())));
     }
 
     for (uint32_t i = 0; i < V.size(); i++) {
         // Effects of intra- and inter-specific competition
-        double intra = a0 * std::exp(-1 * W[i]) * N[i];
-        double inter = 0;
+        double Omega = N[i];
         for (uint32_t j = 0; j < V.size(); j++) {
             if (j == i) continue;
-            inter += (a0 * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
+            Omega += N[j] * W_inter[j];
         }
-        A[i] = intra + inter;
+        A[i] = a0 * W_intra[i] * Omega;
     }
 
     return;
@@ -131,25 +133,26 @@ inline void A_VNI__(T& A,
                     const std::vector<double>& N,
                     const std::vector<uint32_t>& I,
                     const double& a0,
-                    const double& d) {
+                    const arma::mat& D) {
 
     // Values of sum of squared trait values for each clone
-    std::vector<double> W;
-    W.reserve(I.size());
-    for (uint32_t i = 0; i < I.size(); i++) {
-        W.push_back(arma::as_scalar(V[I[i]] * V[I[i]].t()));
+    std::vector<double> W_intra; // `exp(- V %*% t(V))` for intraspecific component
+    std::vector<double> W_inter; // `exp(- V %*% D %*% t(V))` for interspecific component
+    W_intra.reserve(I.size());
+    W_inter.reserve(I.size());
+    for (uint32_t j = 0; j < I.size(); j++) {
+        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[I[j]] * V[I[j]].t())));
+        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[I[j]] * D * V[I[j]].t())));
     }
 
     for (uint32_t i = 0; i < I.size(); i++) {
-
         // Effects of intra- and inter-specific competition
-        double intra = a0 * std::exp(-1 * W[i]) * N[i];
-        double inter = 0;
-        for (uint32_t j = 0; j < I.size(); j++) {
+        double Omega = N[i];
+        for (uint32_t j = 0; j < V.size(); j++) {
             if (j == i) continue;
-            inter += (a0 * std::exp(-1 * (W[i] + d * W[j])) * N[j]);
+            Omega += N[j] * W_inter[j];
         }
-        A[i] = intra + inter;
+        A[i] = a0 * W_intra[i] * Omega;
     }
 
     return;
@@ -171,10 +174,10 @@ inline void F_t__(T& F,
                   const double& a0,
                   const arma::mat& C,
                   const double& r0,
-                  const double& d) {
+                  const arma::mat& D) {
 
     std::vector<double> A(V.size());
-    A_VN_<std::vector<double>>(A, V, N, a0, d);
+    A_VN_<std::vector<double>>(A, V, N, a0, D);
 
     for (uint32_t i = 0; i < V.size(); i++) {
         double r = r_V_(V[i], f, C, r0);

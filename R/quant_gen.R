@@ -63,7 +63,7 @@ quant_gen <- function(eta, d, q,
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
     stopifnot(sapply(list(eta, d, q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
                           n_cores, N0), is.numeric))
-    stopifnot(sapply(list(d, q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
+    stopifnot(sapply(list(q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
                           n_cores), length) == 1)
     stopifnot(sapply(V0, function(x) all(x >= 0)))
     stopifnot(n >= 1 && q >= 1)
@@ -71,7 +71,9 @@ quant_gen <- function(eta, d, q,
     stopifnot(c(n_reps, max_t, n_cores) >= 1)
     stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
     stopifnot(length(eta) == 1 || length(eta) == q)
+    stopifnot(length(d) == 1 || length(d) == q)
     if (length(eta) == 1) eta <- rep(eta, q)
+    if (length(d) == 1) d <- rep(d, q)
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:

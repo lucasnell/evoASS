@@ -15,7 +15,7 @@ void sel_str__(arma::mat& ss_mat,
                const double& a0,
                const arma::mat& C,
                const double& r0,
-               const double& d);
+               const arma::mat& D);
 
 /*
  Output info for one repetition:
@@ -74,7 +74,7 @@ public:
                  const double& a0,
                  const arma::mat& C,
                  const double& r0,
-                 const double& d,
+                 const arma::mat& D,
                  const arma::vec& add_var,
                  const double& min_N) {
 
@@ -85,7 +85,7 @@ public:
         std::vector<uint32_t> extinct;
         extinct.reserve(V.size());
         // Fill in density dependences:
-        A_VN_<std::vector<double>>(A, V, N, a0, d);
+        A_VN_<std::vector<double>>(A, V, N, a0, D);
         // Fill in abundances:
         for (uint32_t i = 0; i < A.size(); i++) {
             double r = r_V_(V[i], f, C, r0);
@@ -107,7 +107,7 @@ public:
          Update traits
          */
         // Fill in selection-strength matrix:
-        sel_str__(ss_mat, V, N, f, a0, C, r0, d);
+        sel_str__(ss_mat, V, N, f, a0, C, r0, D);
         // Then include additive genetic variance when adding to trait values:
         for (uint32_t i = 0; i < V.size(); i++) {
             V[i] += (add_var(i) * ss_mat.row(i));
@@ -165,14 +165,14 @@ public:
                            const double& a0,
                            const arma::mat& C,
                            const double& r0,
-                           const double& d) {
+                           const arma::mat& D) {
 
         // Temporary objects:
         arma::vec WN(this->V.size());
         arma::mat SV;
         // Filling in fitnesses and selection strengths:
-        F_t__<arma::vec>(WN, this->V, this->N, f, a0, C, r0, d);
-        sel_str__(SV, this->V, this->N, f, a0, C, r0, d);
+        F_t__<arma::vec>(WN, this->V, this->N, f, a0, C, r0, D);
+        sel_str__(SV, this->V, this->N, f, a0, C, r0, D);
 
         // Fill final values:
         this->fitness = arma::prod(WN);
