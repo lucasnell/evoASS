@@ -151,11 +151,10 @@ pts_q2_pe <- quant_gen(q = 2, eta = 0.6, d = 0, max_t = 2e3L, n_reps = 12,
     filter(unq_spp_filter(V1, V2))
 
 
-pts_q2_p <- ggplot(NULL, aes(V1, V2)) +
+pts_q2_a_p <- ggplot(NULL, aes(V1, V2)) +
     geom_hline(yintercept = 0, linetype = 1, color = "gray30", size = 1) +
     geom_vline(xintercept = 0, linetype = 1, color = "gray30", size = 1) +
     state_geom(.dd = stable_points(-0.6), color = "firebrick3", size = 8) +
-    state_geom(.dd = pts_q2_pe, color = "dodgerblue", size = 8) +
     xlab("Trait 1") +
     ylab("Trait 2") +
     theme_black() +
@@ -169,10 +168,11 @@ pts_q2_p <- ggplot(NULL, aes(V1, V2)) +
     scale_y_continuous(breaks = 1:2) +
     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
 
+pts_q2_b_p <- pts_q2_a_p +
+    state_geom(.dd = pts_q2_pe, color = "dodgerblue", size = 8)
 
-
-
-# save_plot(pts_q2_p, .width = 4.5, .height = 3.75)
+# save_plot(pts_q2_a_p, .width = 4.5, .height = 3.75)
+# save_plot(pts_q2_b_p, .width = 4.5, .height = 3.75)
 
 
 
@@ -244,6 +244,7 @@ vary_eta <- function(e1, e2, e3, ...) {
     return(qg_nv)
 }
 
+# Takes ~4.3 min
 set.seed(1105998337)
 pts_var_eta_q3 <- crossing(e1 = c(-1, 1) * 0.1,
                            e2 = c(-1, 1) * 0.1,
@@ -262,32 +263,80 @@ pts_var_eta_q3 %>%
     print(row.names = FALSE)
 
 
-pts_var_eta_q3 %>%
+
+
+
+
+
+pts_var_eta_q3_p_df <- pts_var_eta_q3 %>%
     mutate(trait = factor(paste0("V", paste(trait)))) %>%
     spread("trait", "value") %>%
     arrange(V3) %>%
     group_by(eta1, eta2, eta3) %>%
-    filter(unq_spp_filter(V1, V2, V3)) %>%
+    filter(unq_spp_filter(V1, V2, V3, .prec = 0.08)) %>%
     ungroup() %>%
+    mutate(eta_comb = pmap_chr(list(eta1, eta2, eta3),
+                               ~ paste0(ifelse(..1 < 0, "-", "+"),
+                                        ifelse(..2 < 0, "-", "+"),
+                                        ifelse(..3 < 0, "-", "+"))) %>%
+               factor(levels = c("---", "+++", "--+", "-+-", "+--", "-++", "+-+", "++-")),
+           eta_cat = case_when(eta1 < 0 & eta2 < 0 & eta3 < 0 ~ "sub",
+                               eta1 > 0 & eta2 > 0 & eta3 > 0 ~ "super",
+                               eta1 * eta2 * eta3 > 0 ~ "mostly sub",
+                               eta1 * eta2 * eta3 < 0 ~ "mostly super",
+                               TRUE ~ "HUH") %>%
+               factor(levels = c("sub", "super", paste("mostly", c("sub", "super"))))) %>%
+    select(eta_cat, eta_comb, starts_with("V"))
+
+
+pts_var_eta_q3_a_p <- pts_var_eta_q3_p_df %>%
+    filter(eta_cat %in% c("sub", "super")) %>%
     ggplot(aes(V1, V2, size = V3)) +
     geom_hline(yintercept = 0, linetype = 1, color = "gray30", size = 1) +
     geom_vline(xintercept = 0, linetype = 1, color = "gray30", size = 1) +
-    geom_point(alpha = 0.5, shape = 19, color = "dodgerblue") +
-    geom_point(shape = 1, color = "dodgerblue") +
-    facet_wrap(~ eta1 + eta2 + eta3, nrow = 2) +
+    geom_point(aes(color = eta_comb), alpha = 0.5, shape = 19) +
+    geom_point(aes(color = eta_comb), shape = 1) +
     theme_black() +
     theme(panel.border = element_blank(),
-          # axis.ticks = element_blank(),
-          # axis.title = element_blank(),
-          # axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          legend.text = element_blank(),
+          strip.text = element_blank(),
           plot.margin = margin(0,0,0,0)) +
-    scale_size_continuous("Trait 3", breaks = c(0.5, 1, 1.5), range = c(2, 8)) +
-    # coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    coord_equal() +
+    scale_size_continuous(NULL, range = c(2, 8), breaks = 0.5 * 1:3) +
+    scale_color_manual(values = c("firebrick3", "dodgerblue"), guide = FALSE) +
+    guides(size = guide_legend(override.aes = list(color = "white"))) +
+    coord_equal(xlim = c(-0.1, 2.25), ylim = c(-0.1, 2.25)) +
     NULL
 
 
 
+pts_var_eta_q3_b_p <- pts_var_eta_q3_p_df %>%
+    filter(eta_cat == "mostly sub") %>%
+    ggplot(aes(V1, V2, size = V3)) +
+    geom_hline(yintercept = 0, linetype = 1, color = "gray30", size = 1) +
+    geom_vline(xintercept = 0, linetype = 1, color = "gray30", size = 1) +
+    geom_point(aes(color = eta_comb), alpha = 0.5, shape = 19) +
+    geom_point(aes(color = eta_comb), shape = 1) +
+    theme_black() +
+    theme(panel.border = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          legend.text = element_blank(),
+          strip.text = element_blank(),
+          plot.margin = margin(0,0,0,0)) +
+    scale_size_continuous(NULL, range = c(2, 8), breaks = 0.5 * 1:3) +
+    scale_color_viridis_d(begin = 0.3, option = "B", guide = FALSE) +
+    guides(size = guide_legend(override.aes = list(color = "white"))) +
+    coord_equal(xlim = c(-0.1, 2.25), ylim = c(-0.1, 2.25)) +
+    NULL
+
+
+
+# save_plot(pts_var_eta_q3_a_p, .width = 4.5, .height = 3.75)
+# save_plot(pts_var_eta_q3_b_p, .width = 4.5, .height = 3.75)
 
 
 
@@ -309,6 +358,8 @@ pts_var_eta_q3 %>%
 #'
 #' It appears that when `d` varies among traits, the trait with the negative
 #' `d` (conflicting evolution) eventually gets maximized while the others go to ~0.
+#'
+#' This is not in the talk, but it's interesting...
 #'
 
 
