@@ -231,19 +231,17 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
                                  return_geom = FALSE, line_n = 1000, ...) {
     if (eta < 0) {
-        rho <- f * (1 + eta)
-        xy <- sqrt((r0 - rho) / (2 * rho))
+        xy <- sqrt(0.5 * ((r0 / (f * (1 + eta))) - 1))
         pts <- tibble(V1 = xy, V2 = xy)
         if (!return_geom) return(pts)
         geom <- geom_point(data = pts, aes(V1, V2), ...)
     } else if (eta > 0) {
-        rho <- f * (1 - eta)
-        xy <- c(0, 1) * sqrt((r0 - rho) / (2 * rho))
+        xy <- c(0, 1) * sqrt((r0 / f) - 1)
         pts <- tibble(V1 = xy, V2 = rev(xy))
         if (!return_geom) return(pts)
         geom <- geom_point(data = pts, aes(V1, V2), ...)
     } else {
-        radius <- sqrt((r0 - f) / f)
+        radius <- sqrt((r0 / f) - 1)
         pts <- tibble(V1 = seq(0, radius, length.out = line_n),
                       V2 = sqrt(radius ^2 - V1^2))
         if (!return_geom) return(pts)
@@ -261,14 +259,12 @@ stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
 #'
 unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE, ...) {
     if (eta < 0) {
-        rho <- f * (1 - eta)
-        xy <- c(0, 1) * sqrt((r0 - rho) / (2 * rho))
+        xy <- c(0, 1) * sqrt((r0 / f) - 1)
         pts <- tibble(V1 = xy, V2 = rev(xy))
         if (!return_geom) return(pts)
         geom <- geom_point(data = pts, aes(V1, V2), ...)
     } else if (eta > 0) {
-        rho <- f * (1 + eta)
-        xy <- sqrt((r0 - rho) / (2 * rho))
+        xy <- sqrt(0.5 * ((r0 / (f * (1 + eta))) - 1))
         pts <- tibble(V1 = xy, V2 = xy)
         if (!return_geom) return(pts)
         geom <- geom_point(data = pts, aes(V1, V2), ...)
