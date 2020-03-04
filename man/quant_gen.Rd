@@ -27,7 +27,8 @@ quant_gen(
 }
 \arguments{
 \item{eta}{Number(s) representing the non-additive effects of traits on the
-growth rate. Should be of length 1 or the same as the number of traits.}
+growth rate.
+Should be a single number or a symmetrical, numeric, \code{q} by \code{q} matrix.}
 
 \item{d}{Number(s) that adjusts how the focal line is affected by
 other lines' trait values.

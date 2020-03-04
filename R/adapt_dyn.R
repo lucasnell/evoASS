@@ -36,7 +36,8 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
 #' @param f A single number representing the cost of the trait on the growth rate.
 #' @param a0 A single number representing the base density dependence.
 #' @param eta Number(s) representing the non-additive effects of traits on the
-#'     growth rate. Should be of length 1 or the same as the number of traits.
+#'     growth rate.
+#'     Should be a single number or a symmetrical, numeric, `q` by `q` matrix.
 #' @param r0 A single number representing the base growth rate.
 #' @param d Number(s) that adjusts how the focal line is affected by
 #'     other lines' trait values.

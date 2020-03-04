@@ -19,7 +19,8 @@ unstable_points(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE, ...)
 }
 \arguments{
 \item{eta}{Number(s) representing the non-additive effects of traits on the
-growth rate. Should be of length 1 or the same as the number of traits.}
+growth rate.
+Should be a single number or a symmetrical, numeric, \code{q} by \code{q} matrix.}
 
 \item{f}{A single number representing the cost of the trait on the growth rate.}
 
