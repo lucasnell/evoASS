@@ -137,8 +137,8 @@ public:
                 arma::rowvec& new_V(all_V.back());
                 for (double& v : new_V) {
                     v += norm_distr(eng);
-                    if (v < 0) v *= -1; // <-- keeping traits >= 0
-                    // if (v < 0) v = 0; // <-- keeping traits >= 0
+                    // if (v < 0) v *= -1; // <-- keeping traits >= 0
+                    if (v < 0) v = 0; // <-- keeping traits >= 0
                 }
 
             }
