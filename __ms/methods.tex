@@ -8,21 +8,18 @@ We used a simple model of competition to evaluate how competition affects outcom
 community assembly and trait evolution.
 Each of $n$ species has $q$ traits that affect competition.
 All traits and species are symmetrical.
-As traits diverge (i.e., evolve away from zero), they benefit the species via reduced
+Increases in traits benefit the species via reduced
 effects of both interspecific and intraspecific competition;
 they also incur a cost by decreasing the species' population growth rate.
 In both the costs and benefits, trait effects are concave functions that,
-combined, ensure that two fitness peaks exist for each trait.
-The resulting disruptive selection is a common feature of
-negative frequency-dependent interactions such as competition
-\citep{Rosenzweig:1978bj,Doebeli:2000iq,Abrams:1993cr}.
+combined, ensure that one fitness peak exists for each trait.
 Traits can also have non-additive trade-offs that either increase or decrease the cost
-associated with diverging multiple traits compared to diverging just one.
+associated with increasing multiple traits compared to increasing just one.
 Trait evolution in one species also affects competition experienced by others.
 This can be either conflicting or non-conflicting:
-When conflicting, diverging traits in one species increase the effects of competition
+When conflicting, increasing traits in one species increase the effects of competition
 for all other species.
-When non-conflicting, all competitors' competition is reduced when traits diverge in
+When non-conflicting, all competitors' competition is reduced when traits increase in
 one species.
 
 We analyzed the model for 2--4 traits.
@@ -42,19 +39,31 @@ its per-capita growth---equivalent to fitness---is
 \end{equation}
 
 \noindent where $N_i$ is the population density of  species $i$.
-The parameter $r(\mathbf{V}_i)$ describes how trait divergence decreases the growth rate:
+The parameter $r(\mathbf{V}_i)$ describes how a trait increase decreases the growth rate:
 
 \begin{equation} \label{eq:growth-rate}
-    r(\mathbf{V}_i) = r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}}
+\begin{split}
+    r(\mathbf{V}_i) &= r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} \\
+    \mathbf{C} &= \begin{pmatrix}
+        1      & \eta_{12} & \ldots & \eta_{1q} \\
+        \eta_{21} & 1      & \ldots & \eta_{2q} \\
+        \vdots & \vdots & \ddots & \vdots \\
+        \eta_{q1} & \eta_{q2} & \ldots & 1      \\
+        \end{pmatrix}
     \textrm{,}
+\end{split}
 \end{equation}
 
-\noindent where $r_0$ is the baseline growth rate, and
-$f$ is the cost of diverging traits on the growth rate.
-The $q \times q$ matrix $\mathbf{C}$ contains ones in diagonal elements, and the
-non-additive trade-off of having multiple diverging traits ($\eta$) in off-diagonal
-elements.
-When $\eta > 0$, diverging multiple traits incurs an extra cost.
+\noindent where $r_0$ is the baseline growth rate,
+$f$ is the cost of increasing traits on the growth rate, and
+$\eta_{k,l}$ is the non-additive trade-off of increasing both the
+$k$\textsuperscript{th} and $l$\textsuperscript{th} traits.
+When $\eta > 0$, increasing multiple traits incurs an extra cost.
+Non-additive trade-offs are symmetrical (i.e., $\eta_{k,l} = \eta_{l,k}$ for all
+$l$ and $k$).
+This and other relationships between traits and other parameters are of the form
+$v^2 \propto X$ for parameter $X$, so $v = z$ is equivalent to $v = -z$.
+Thus, traits are not allowed to be $< 0$.
 
 
 %The term $\alpha(\mathbf{V}, \mathbf{N}, i)$ in
@@ -81,16 +90,16 @@ When $\eta > 0$, diverging multiple traits incurs an extra cost.
 %$N_i$ is the abundance of species $i$.
 %Parameter $d$ determines how the evolution of traits in one species affects
 %competition experienced by others:
-%When $d < 0$, divergence of $\mathbf{V}_i$ increases the effects of competition in
+%When $d < 0$, increase of $\mathbf{V}_i$ increases the effects of competition in
 %all other species.
-%Alternatively, when $d > 0$, $\mathbf{V}_i$ divergence decreases the effects of
+%Alternatively, when $d > 0$, $\mathbf{V}_i$ increase decreases the effects of
 %competition on all other species.
 %Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting
 %evolution \citep{Northfield:2013if}.
 
 
 The terms $\alpha_{ii}(\mathbf{V}_i)$ and $\alpha_{ij}(\mathbf{V}_i, \mathbf{V}_j)$
-in equation \ref{eq:fitness} represent how trait divergences decrease the effects
+in equation \ref{eq:fitness} represent how trait increases decrease the effects
 of intraspecific and interspecific competition, respectively.
 Competition effects are given by
 
@@ -100,17 +109,23 @@ Competition effects are given by
         \mathbf{V}_i^{\textrm{T}} \right\} \\
     \alpha_{ij}(\mathbf{V}_i, \mathbf{V}_j) &= \alpha_0 ~\exp \left\{
         - \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} -
-        d ~ \mathbf{V}_j \mathbf{V}_j^{\textrm{T}} \right\}
+        \mathbf{V}_j \mathbf{D} \mathbf{V}_j^{\textrm{T}} \right\} \\
+    \mathbf{D} &= \begin{pmatrix}
+        d_1     & \ldots    & 0 \\
+        \vdots  & \ddots    & \vdots \\
+        0       & \ldots    & d_q
+        \end{pmatrix}
 	\textrm{,}
 \end{split}
 \end{equation}
 
 \noindent where $\alpha_0$ is the base density dependence.
-Parameter $d$ determines how evolution of traits in one species affects competition
-experienced by others: When $d < 0$, divergence of $\mathbf{V}_i$ decreases the
-effect of competition on species $i$, but increases it in all others.
-Alternatively, when $d > 0$, $\mathbf{V}_i$ divergence decreases the effect of
-competition on all speciess including itself.
+Matrix $\mathbf{D}$ contains parameters that determine how evolution of traits
+in one species affects competition experienced by others:
+When $d_k < 0$, increases in $v_{i,k}$ decrease the
+effect of competition on species $i$, but increase it in all others.
+Alternatively, when $d_k > 0$, increases in $v_{i,k}$ decrease the effect of
+competition on all species including itself.
 Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting evolution
 \citep{Northfield:2013if}.
 
@@ -124,7 +139,7 @@ If we combine the above equations and simplify them, we get
         \alpha_0 ~\textrm{e}^{- \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} } \mathbf{\Omega}_{i}
         \right\} \\
         \mathbf{\Omega}_i &\equiv N_i +
-            \sum_{j \ne i}^{n}{ N_j \textrm{e}^{ -d \mathbf{V}_j \mathbf{V}_j^{\textrm{T}} } }
+            \sum_{j \ne i}^{n}{ N_j \textrm{e}^{ - \mathbf{V}_j \mathbf{D} \mathbf{V}_j^{\textrm{T}} } }
         \textrm{,}
 \end{split}
 \end{equation}

@@ -92,7 +92,7 @@ extract the portion that includes $\mathbf{V}_{k,t}$:
     \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
     \left[
         \left(
-            N_{k,t} ~ \textrm{e}^{-d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^\textrm{T}} +
+            N_{k,t} ~ \textrm{e}^{-\mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^\textrm{T}} +
             \mathbf{\Phi}_{i,t}
         \right)
         \left(
@@ -102,7 +102,7 @@ extract the portion that includes $\mathbf{V}_{k,t}$:
         - f \mathbf{V}_{i,t} \mathbf{C}
     \right] \\
     \mathbf{\Phi}_{i,t} &= N_{i,t} + \sum_{j \ne i, j \ne k}^{n}{
-        N_{j,t} ~ \textrm{e}^{-d \mathbf{V}_{j,t}
+        N_{j,t} ~ \textrm{e}^{- \mathbf{V}_{j,t} \mathbf{D}
         \mathbf{V}_{j,t}^{\textrm{T}}} }
     \textrm{.}
 \end{split}
