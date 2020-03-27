@@ -26,26 +26,9 @@ std::vector<double> trunc_rnorm_cpp(const uint32_t& N,
 
 
 
-
-//' Fitness at time t.
-//'
-//' @param V List of row vectors, each containing trait values at time t (1x2 vector)
-//'     for a particular clone.
-//' @param N Row vector of population abundances at time t.
-//' @param f Effect of traits on growth rate.
-//' @param a0 Base density dependence.
-//' @param C Matrix containing non-additive effects of traits on growth rate.
-//' @param r0 Starting growth rate.
-//' @param d Changes how the focal line is affected by other lines' trait values.
-//'     If `d < 0`, then increases in `V_j` (trait that reduces competition
-//'     experienced by clone `j`) increases competition experienced by clone `i`,
-//'     thereby giving conflicting coevolution.
-//'     Conversely, if `d > 0`, then increases in `V_j` decrease competition
-//'     experienced by clone `i`, leading to nonconflicting coevolution.
-//'
-//'
-//' @export
-//'
+/*
+ Fitness at time t.
+ */
 //[[Rcpp::export]]
 arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V,
                      const std::vector<double>& N,

@@ -70,8 +70,8 @@ dVi_dVi_cpp <- function(i, V, Z, CCC, f, a0, add_var) {
 #'
 #' @noRd
 #'
-dVi_dVk_cpp <- function(i, k, N, V, d, a0, add_var) {
-    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, d, a0, add_var)
+dVi_dVk_cpp <- function(i, k, N, V, D, a0, add_var) {
+    .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, D, a0, add_var)
 }
 
 #' Calculate the Jacobian of first derivatives.
@@ -80,8 +80,8 @@ dVi_dVk_cpp <- function(i, k, N, V, d, a0, add_var) {
 #'
 #' @noRd
 #'
-jacobian_cpp <- function(V, N, f, a0, d, C, add_var) {
-    .Call(`_sauron_jacobian_cpp`, V, N, f, a0, d, C, add_var)
+jacobian_cpp <- function(V, N, f, a0, D, C, add_var) {
+    .Call(`_sauron_jacobian_cpp`, V, N, f, a0, D, C, add_var)
 }
 
 #' Same as above, but exported for use in R
@@ -111,25 +111,6 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
     .Call(`_sauron_trunc_rnorm_cpp`, N, mu, sigma)
 }
 
-#' Fitness at time t.
-#'
-#' @param V List of row vectors, each containing trait values at time t (1x2 vector)
-#'     for a particular clone.
-#' @param N Row vector of population abundances at time t.
-#' @param f Effect of traits on growth rate.
-#' @param a0 Base density dependence.
-#' @param C Matrix containing non-additive effects of traits on growth rate.
-#' @param r0 Starting growth rate.
-#' @param d Changes how the focal line is affected by other lines' trait values.
-#'     If `d < 0`, then increases in `V_j` (trait that reduces competition
-#'     experienced by clone `j`) increases competition experienced by clone `i`,
-#'     thereby giving conflicting coevolution.
-#'     Conversely, if `d > 0`, then increases in `V_j` decrease competition
-#'     experienced by clone `i`, leading to nonconflicting coevolution.
-#'
-#'
-#' @export
-#'
 F_t_cpp <- function(V, N, f, a0, C, r0, D) {
     .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, D)
 }

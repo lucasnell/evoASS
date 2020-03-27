@@ -9,8 +9,12 @@
 #'   at time t
 #'
 
+context("derivative functions")
 
-dir <- "../../_check_derivs/"
+
+dir <- sprintf("%s/../../_check_derivs/", testthat::test_path())
+
+
 
 # --------------------*
 # Function to get simulated dataset
@@ -32,6 +36,8 @@ get_sim_info <- function(sim_i) {
         diag(C) = 1
         CCC = C + t(C)
         add_var = 0.01
+        D <- matrix(0, ncol(V), ncol(V))
+        diag(D) <- d
     })
 
     return(as.list(info))
@@ -44,9 +50,9 @@ get_sim_info <- function(sim_i) {
 # --------------------*
 
 calc_dF_dVi <- function(sim_info) {
-    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, a0, C, r0, d))
+    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, a0, C, r0, D))
     ss <- with(sim_info, {
-        sauron:::sel_str_cpp(V_, N, f, a0, C, r0, d)
+        sauron:::sel_str_cpp(V_, N, f, a0, C, r0, D)
     })
     sauron_results <- diag(as.numeric(F_)) %*% ss
     return(sauron_results)
@@ -58,7 +64,7 @@ calc_dVi_dVi <- function(sim_info) {
             N[i] + sum(sapply(1:length(N),
                               function(j) {
                                   if (j == i) return(0)
-                                  exp(-d * V[j,,drop=F] %*% t(V[j,,drop=F])) * N[j]
+                                  exp(-V[j,,drop=F] %*% D %*% t(V[j,,drop=F])) * N[j]
                               }))
         })
         with(sim_info, {
@@ -71,7 +77,7 @@ calc_dVi_dVk <- function(sim_info) {
     mats <- lapply(1:n, function(i) {
         lapply((1:n)[1:n != i], function(k) {
             with(sim_info, {
-                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, d, a0, add_var)
+                sauron:::dVi_dVk_cpp(i-1, k-1, N, V, D, a0, add_var)
             })
         })
     })
@@ -97,7 +103,6 @@ check_results <- function(type) {
 
     for (sim_i in 1:nsims) {
 
-
         py_results <- as.numeric(py_results_df[sim_i,])
         info <- get_sim_info(sim_i)
 
@@ -119,8 +124,11 @@ check_results <- function(type) {
 
     }
 
+
     return(sum(same_results))
 }
+
+
 
 
 expect_equal(check_results("dF_dVi"), 100)

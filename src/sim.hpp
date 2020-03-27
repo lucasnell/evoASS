@@ -159,13 +159,9 @@ inline void A_VNI__(T& A,
 }
 
 
-
-//' Fitness at time t.
-//'
-//' @inheritParams F_t_cpp
-//'
-//' @noRd
-//'
+/*
+ Fitness at time t.
+*/
 template <typename T>
 inline void F_t__(T& F,
                   const std::vector<arma::rowvec>& V,

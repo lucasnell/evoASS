@@ -50,10 +50,10 @@ inline void sel_str__(arma::mat& ss_mat,
 
     if (ss_mat.n_rows != n_spp || ss_mat.n_cols != n_trt) ss_mat.set_size(n_spp, n_trt);
 
-    // For all i, calculate `N_j * exp(-d * V_j * transpose(V_j))`, where `j != i`
+    // For all i, calculate `N_j * exp(- V_j * D * transpose(V_j))`, where `j != i`
     arma::vec W(n_spp, arma::fill::zeros);
     for (uint32_t j = 0; j < n_spp; j++) {
-        // Calculate `N_j * exp(-d * V_j * transpose(V_j))`:
+        // Calculate `N_j * exp(-V_j * D * transpose(V_j))`:
         double W_ = N[j] * std::exp(-1 * arma::as_scalar(V[j] * D * V[j].t()));
         // Now insert this value at all `i` where `j != i`:
         for (uint32_t i = 0; i < n_spp; i++) {
@@ -108,8 +108,11 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
-                     const arma::rowvec& Vi, const double& Z,
-                     const arma::mat& CCC, const double& f, const double& a0,
+                     const arma::rowvec& Vi,
+                     const double& Z,
+                     const arma::mat& CCC,
+                     const double& f,
+                     const double& a0,
                      const double& add_var) {
     uint32_t q = Vi.n_elem;
     arma::mat I = arma::eye<arma::mat>(q, q);
@@ -156,15 +159,14 @@ inline void dVi_dVk_(arma::mat& dVhat,
                      const double& Nk,
                      const arma::rowvec& Vi,
                      const arma::rowvec& Vk,
-                     const double& d, const double& a0,
+                     const arma::mat& D,
+                     const double& a0,
                      const double& add_var) {
     uint32_t row_end = row_start + Vi.n_elem - 1;
     uint32_t col_end = col_start + Vi.n_elem - 1;
-    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) =
-        -4 * add_var * Nk * d * a0 * (
-                ( Vk.t() * arma::exp(-d * Vk * Vk.t()) ) *
-                ( arma::exp(-1 * Vi * Vi.t()) * Vi )
-        );
+    arma::mat M = D * Vk.t() * arma::exp(-1 * Vk * D * Vk.t() - Vi * Vi.t()) * Vi;
+    M *= (-4 * a0 * add_var * Nk);
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
     return;
 }
 
@@ -174,14 +176,17 @@ inline void dVi_dVk_(arma::mat& dVhat,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k,
-                      const std::vector<double>& N, const arma::mat& V,
-                      const double& d, const double& a0,
+arma::mat dVi_dVk_cpp(const uint32_t& i,
+                      const uint32_t& k,
+                      const std::vector<double>& N,
+                      const arma::mat& V,
+                      const arma::mat& D,
+                      const double& a0,
                       const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
     // Fill dVhat:
-    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), d, a0, add_var);
+    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), D, a0, add_var);
 
     return dVhat;
 }
@@ -203,7 +208,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                         const std::vector<double>& N,
                         const double& f,
                         const double& a0,
-                        const double& d,
+                        const arma::mat& D,
                         const arma::mat& C,
                         const arma::vec& add_var) {
 
@@ -220,7 +225,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
 
     arma::vec Z_vec(n);
     for (uint32_t j = 0; j < n; j++) {
-        Z_vec[j] = (N[j] * std::exp(-d * arma::as_scalar(V[j] * V[j].t())));
+        Z_vec[j] = (N[j] * std::exp(arma::as_scalar(-1 * V[j] * D * V[j].t())));
     }
 
     arma::mat CCC = C + C.t();
@@ -247,7 +252,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
             } else {
 
                 // Fill Jacobian:
-                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], d, a0, add_var_i);
+                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], D, a0, add_var_i);
 
             }
 

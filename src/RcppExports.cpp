@@ -67,8 +67,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // dVi_dVk_cpp
-arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k, const std::vector<double>& N, const arma::mat& V, const double& d, const double& a0, const double& add_var);
-RcppExport SEXP _sauron_dVi_dVk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP NSEXP, SEXP VSEXP, SEXP dSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
+arma::mat dVi_dVk_cpp(const uint32_t& i, const uint32_t& k, const std::vector<double>& N, const arma::mat& V, const arma::mat& D, const double& a0, const double& add_var);
+RcppExport SEXP _sauron_dVi_dVk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP NSEXP, SEXP VSEXP, SEXP DSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -76,16 +76,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const uint32_t& >::type k(kSEXP);
     Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
-    Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
-    rcpp_result_gen = Rcpp::wrap(dVi_dVk_cpp(i, k, N, V, d, a0, add_var));
+    rcpp_result_gen = Rcpp::wrap(dVi_dVk_cpp(i, k, N, V, D, a0, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
 // jacobian_cpp
-arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& a0, const double& d, const arma::mat& C, const arma::vec& add_var);
-RcppExport SEXP _sauron_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP dSEXP, SEXP CSEXP, SEXP add_varSEXP) {
+arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& D, const arma::mat& C, const arma::vec& add_var);
+RcppExport SEXP _sauron_jacobian_cpp(SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP DSEXP, SEXP CSEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -93,10 +93,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
-    Rcpp::traits::input_parameter< const double& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    rcpp_result_gen = Rcpp::wrap(jacobian_cpp(V, N, f, a0, d, C, add_var));
+    rcpp_result_gen = Rcpp::wrap(jacobian_cpp(V, N, f, a0, D, C, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
