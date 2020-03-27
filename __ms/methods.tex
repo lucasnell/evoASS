@@ -45,10 +45,9 @@ The parameter $r(\mathbf{V}_i)$ describes how a trait increase decreases the gro
 \begin{split}
     r(\mathbf{V}_i) &= r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} \\
     \mathbf{C} &= \begin{pmatrix}
-        1      & \eta_{12} & \ldots & \eta_{1q} \\
-        \eta_{21} & 1      & \ldots & \eta_{2q} \\
-        \vdots & \vdots & \ddots & \vdots \\
-        \eta_{q1} & \eta_{q2} & \ldots & 1      \\
+        1         & \ldots & \eta_{1q} \\
+        \vdots    & \ddots & \vdots \\
+        \eta_{q1} & \ldots & 1      \\
         \end{pmatrix}
     \textrm{,}
 \end{split}
@@ -60,10 +59,12 @@ $\eta_{k,l}$ is the non-additive trade-off of increasing both the
 $k$\textsuperscript{th} and $l$\textsuperscript{th} traits.
 When $\eta > 0$, increasing multiple traits incurs an extra cost.
 Non-additive trade-offs are symmetrical (i.e., $\eta_{k,l} = \eta_{l,k}$ for all
-$l$ and $k$).
-This and other relationships between traits and other parameters are of the form
+$l$ and $k$), and all values on the diagonal of $\mathbf{C}$ are 1.
+The relationships between trait values and other components of fitness
+(growth rates and effects of competition) are of the form
 $v^2 \propto X$ for parameter $X$, so $v = z$ is equivalent to $v = -z$.
-Thus, traits are not allowed to be $< 0$.
+To avoid alternative outcomes due to artifacts of this relationship, traits are not
+allowed to be $< 0$.
 
 
 %The term $\alpha(\mathbf{V}, \mathbf{N}, i)$ in
@@ -126,8 +127,8 @@ When $d_k < 0$, increases in $v_{i,k}$ decrease the
 effect of competition on species $i$, but increase it in all others.
 Alternatively, when $d_k > 0$, increases in $v_{i,k}$ decrease the effect of
 competition on all species including itself.
-Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting evolution
-\citep{Northfield:2013if}.
+Thus $d_k < 0$ causes conflicting and $d_k > 0$ causes non-conflicting evolution
+for trait $k$ \citep{Northfield:2013if}.
 
 
 If we combine the above equations and simplify them, we get
@@ -145,7 +146,7 @@ If we combine the above equations and simplify them, we get
 \end{equation}
 
 \noindent where $\mathbf{\Omega}_i$ represents the community abundance scaled
-for the effect each species' trait values has on competition
+for the effect other species' trait values has on competition
 experienced by species $i$.
 Hereafter we will refer to $\mathbf{\Omega}_i$ as the scaled community size.
 
@@ -204,7 +205,11 @@ We considered a state stable when $\lambda < 1$,
 neutrally stable when $\lambda = 1$,
 and unstable when $\lambda > 1$.
 
-Full analytical solutions are found in appendix A.
+Full analytical solutions to matrix derivatives (for trait change and
+Jacobian matrices) are found in appendix A.
+
+We also analyzed equilibrium solutions for 2--4 trait cases.
+These are found in appendices B--D.
 
 
 \subsection*{Code}
