@@ -11,6 +11,10 @@
 As in the main text, $^{\textrm{T}}$ indicates transposition,
 multiplication between matrices is always matrix multiplication, and
 bold face indicates a matrix.
+Also note that both $\mathbf{C}$ and $\mathbf{D}$ are symmetrical,
+so $\mathbf{C} + \mathbf{C}^{\textrm{T}} = 2 \; \mathbf{C}$ and
+$\mathbf{D} + \mathbf{D}^{\textrm{T}} = 2 \; \mathbf{D}$.
+
 
 \subsection*{Trait change}
 
@@ -18,12 +22,12 @@ From the main text, we know that
 
 \begin{equation*}
 \begin{split}
-    F_{i} &= \exp \left\{
-        r_0 - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}} -
-        \alpha_0 ~\textrm{e}^{- \mathbf{V}_i \mathbf{V}_i^{\textrm{T}} } \mathbf{\Omega}_{i}
+    F_{i,t+1} &= \exp \left\{
+        r_0 - f \; \mathbf{V}_{i,t} \; \mathbf{C} \; \mathbf{V}_{i,t}^{\textrm{T}} -
+        \alpha_0 \;\textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}} } \mathbf{\Omega}_{i,t}
         \right\} \\
-    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + \left( \frac{1}{F_i}
-        \frac{\partial F_i}{\partial \mathbf{V}_{i}} \right) \sigma^2_i
+    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + \left( \frac{1}{F_{i,t+1}}
+        \frac{\partial F_{i,t+1}}{\partial \mathbf{V}_{i,t}} \right) \sigma^2_i
     \textrm{.}
 \end{split}
 \end{equation*}
@@ -31,32 +35,68 @@ From the main text, we know that
 
 The partial derivative of fitness in relation to traits for species $i$ is
 
-$$
-\frac{ \partial F_i }{ \partial \mathbf{V}_i } =
+
+\begin{equation*}
+\begin{split}
+    \frac{\partial F_{i,t+1}}{\partial \mathbf{V}_{i,t}} &=
         \exp \left\{
-            r_0 - \alpha_0 ~ \mathbf{\Omega}_i ~
-                \textrm{e}^{- \mathbf{V}_i \mathbf{V}_{i}^{\textrm{T}}}
-            - f ~ \mathbf{V}_i ~ \mathbf{C} ~ \mathbf{V}_{i}^{\textrm{T}}
+            r_0
+            - f \mathbf{V}_{i,t} \mathbf{C} \mathbf{V}_{i,t}^{\textrm{T}}
+            - \alpha_0  \mathbf{\Omega}_{i,t} \,
+                \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}}
+        \right\}
+        \frac{\partial \!
+            \left(
+                r_0
+                - f \; \mathbf{V}_{i,t} \; \mathbf{C} \; \mathbf{V}_{i,t}^{\textrm{T}}
+                - \alpha_0 \; \mathbf{\Omega}_{i,t} \;
+                    \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}}
+            \right)
+            }{ \partial \mathbf{V}_{i,t} } \\
+     &=
+        \exp \left\{
+            r_0
+            - f \mathbf{V}_{i,t} \mathbf{C} \mathbf{V}_{i,t}^{\textrm{T}}
+            - \alpha_0  \mathbf{\Omega}_{i,t} \,
+                \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}}
         \right\}
         \left[
-            2 ~ \alpha_0 ~ \mathbf{\Omega}_i ~
-                \textrm{e}^{- \mathbf{V}_i \mathbf{V}_{i}^{\textrm{T}}}
-                \mathbf{V}_i
-            - f ~ \mathbf{V}_i (\mathbf{C} + \mathbf{C}^{\textrm{T}})
+            - 2 f \mathbf{V}_{i,t} \mathbf{C}
+            - \alpha_0 \, \mathbf{\Omega}_{i,t} \,
+                \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}} \:
+                \frac{\partial \! \left( - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}} \right)
+                    }{ \partial \mathbf{V}_{i,t} }
+        \right] \\[2ex]
+    \frac{ \partial F_{i,t} }{ \partial \mathbf{V}_{i,t} } &=
+        \exp \left\{
+            r_0
+            - f \mathbf{V}_{i,t} \mathbf{C} \mathbf{V}_{i,t}^{\textrm{T}}
+            - \alpha_0  \mathbf{\Omega}_{i,t} \,
+                \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}}
+        \right\}
+        \left[
+            2 \alpha_0 \mathbf{\Omega}_{i,t} \,
+                \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}} \:
+                \mathbf{V}_{i,t}
+            - 2 f \mathbf{V}_{i,t} \mathbf{C}
         \right]
     \textrm{.}
-$$
+\end{split}
+\end{equation*}
 
-Combining above with equation \ref{eq:trait-change} and with the fact that
-$\mathbf{C}$ is symmetrical, we find that trait values at time $t+1$ are
+
+
+Combining above with equation \ref{eq:trait-change}, we find that trait values at
+time $t+1$ are
 
 \begin{equation} \label{eq:trait-change-full}
-    \mathbf{V}_{i,t+1} = \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
-    \left[
-        \alpha_0 ~ \mathbf{\Omega}_{i,t} ~
-            \textrm{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\textrm{T}} ~ \mathbf{V}_{i,t}
-        - f ~ \mathbf{V}_{i,t} \mathbf{C}
-    \right]
+    \mathbf{V}_{i,t+1} = \mathbf{V}_{i,t} + 2 \sigma_i^2
+    \left(
+        \alpha_0 \mathbf{\Omega}_{i,t} \,
+            \textrm{e}^{- \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}} \:
+            \mathbf{V}_{i,t}
+        - f \mathbf{V}_{i,t} \mathbf{C}
+    \right)
     \textrm{.}
 \end{equation}
 
@@ -67,17 +107,44 @@ The $nq \times nq$ Jacobian matrix consists of $n^2$ inner $q \times q$ blocks.
 The on-diagonal blocks are the partial derivatives of species $i$ traits at time $t+1$ with respect
 to species $i$ traits at time $t$:
 
-$$
-    \frac{ \partial \mathbf{V}_{i,t+1} }{ \partial \mathbf{V}_{i,t} } = \mathbf{I} + 2 ~ \sigma_i^2 ~
+\begin{equation*}
+\begin{split}
+    \frac{ \partial \; \mathbf{V}_{i,t+1} }{ \partial \; \mathbf{V}_{i,t} } &=
+        \frac{ \partial \; \mathbf{V}_{i,t} }{ \partial \; \mathbf{V}_{i,t} } +
+        2 \; \sigma_i^2
+        \left(
+            \frac{ \partial \;
+                \alpha_0 \; \mathbf{\Omega}_{i,t} \;
+                    \textrm{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\textrm{T}} \,
+                    \mathbf{V}_{i,t}}{\partial \; \mathbf{V}_{i,t} } -
+            \frac{ \partial \; f \, \mathbf{V}_{i,t} \mathbf{C}}{\partial \; \mathbf{V}_{i,t} }
+        \right) \\
+    &=
+        \mathbf{I} +
+        2 \; \sigma_i^2
         \left[
-            \alpha_0 ~ \mathbf{\Omega}_{i,t} ~ \textrm{e}^{ - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}} }
+            \alpha_0 \; \mathbf{\Omega}_{i,t} \,
             \left(
-                \mathbf{I} - 2 ~ \mathbf{V}_{i,t}^{\textrm{T}} \mathbf{V}_{i,t}
+                \textrm{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\textrm{T}} \: \mathbf{I} +
+                \frac{ \partial \;
+                        \textrm{e}^{-\mathbf{V}_{i,t} \mathbf{V}_{i,t}^\textrm{T}}
+                        }{\partial \; \mathbf{V}_{i,t} } \, \mathbf{V}_{i,t}
             \right) -
-            f \mathbf{C}
+            f \, \mathbf{C}
+            \right] \\[2ex]
+    \frac{ \partial \; \mathbf{V}_{i,t+1} }{ \partial \; \mathbf{V}_{i,t} } &= \mathbf{I} +
+        2 \; \sigma_i^2 \;
+        \left[
+            \alpha_0 \; \mathbf{\Omega}_{i,t} \;
+            \textrm{e}^{ - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}} }
+            \left(
+                \mathbf{I} - 2 \; \mathbf{V}_{i,t}^{\textrm{T}} \mathbf{V}_{i,t}
+            \right) -
+            f \, \mathbf{C}
         \right]
     \textrm{,}
-$$
+\end{split}
+\end{equation*}
 
 \noindent where $\mathbf{I}$ is a $q \times q$ identity matrix.
 
@@ -89,39 +156,84 @@ extract the portion that includes $\mathbf{V}_{k,t}$:
 
 \begin{equation*}
 \begin{split}
-    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + 2 ~ \sigma_i^2
+    \mathbf{V}_{i,t+1} &= \mathbf{V}_{i,t} + 2 \; \sigma_i^2
     \left[
         \left(
-            N_{k,t} ~ \textrm{e}^{-\mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^\textrm{T}} +
+            N_{k,t} \; \textrm{e}^{-\mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^\textrm{T}} +
             \mathbf{\Phi}_{i,t}
         \right)
         \left(
-            \alpha_0 ~ \textrm{e}^{-\mathbf{V}_{i,t}
-            \mathbf{V}_{i,t}^\textrm{T}} ~ \mathbf{V}_{i,t}
+            \alpha_0 \; \textrm{e}^{-\mathbf{V}_{i,t}
+            \mathbf{V}_{i,t}^\textrm{T}} \; \mathbf{V}_{i,t}
         \right)
         - f \mathbf{V}_{i,t} \mathbf{C}
     \right] \\
     \mathbf{\Phi}_{i,t} &= N_{i,t} + \sum_{j \ne i, j \ne k}^{n}{
-        N_{j,t} ~ \textrm{e}^{- \mathbf{V}_{j,t} \mathbf{D}
+        N_{j,t} \; \textrm{e}^{- \mathbf{V}_{j,t} \mathbf{D}
         \mathbf{V}_{j,t}^{\textrm{T}}} }
     \textrm{.}
 \end{split}
 \end{equation*}
 
-From this we calculated the partial derivative of $\mathbf{V}_{i,t+1}$ in relation to $\mathbf{V}_{k,t}$
+From this we calculated the partial derivative of $\mathbf{V}_{i,t+1}$ in relation to
+$\mathbf{V}_{k,t}$
 
-$$
-    \frac{ \partial\mathbf{V}_{i,t+1} }{ \partial\mathbf{V}_{k,t}} =
-        -4 ~ d ~ \alpha_0 ~ \sigma^2 ~ N_{k,t}
+
+\begin{equation*}
+\begin{split}
+    \frac{ \partial \: \mathbf{V}_{i,t+1} }{ \partial \: \mathbf{V}_{k,t} } &=
+        \frac{ \partial \: \mathbf{V}_{i,t} }{ \partial \: \mathbf{V}_{k,t} } +
+        2 \; \sigma_i^2 \;
         \left[
-            \mathbf{V}_{k,t}^{\textrm{T}}
-            \textrm{e}^{
+            \frac{ \partial \:
+                \left(
+                    N_{k,t} \textrm{e}^{- \mathbf{V}_{k,t} \mathbf{D}
+                    \mathbf{V}_{k,t}^{\textrm{T}}} + \mathbf{\Phi}_{i,t}
+                \right)
+                \left(
+                    \alpha_0 \; \textrm{e}^{- \mathbf{V}_{i,t}
+                    \mathbf{V}_{i,t}^{\textrm{T}}} \mathbf{V}_{i,t}
+                \right)
+            }{ \partial \:  \mathbf{V}_{k,t} } -
+            \frac{ \partial \:  f \, \mathbf{V}_{i,t} \mathbf{C} }{
+            \partial \: \mathbf{V}_{k,t} }
+        \right] \\
+    &= 2 \; \sigma_i^2 \; \alpha_0 \; N_{k,t} \;
+        \frac{ \partial \:
+                \textrm{e}^{
+                    - \mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^{\textrm{T}}
+                    - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
+                } \; \mathbf{V}_{i,t}
+            }{ \partial \:  \mathbf{V}_{k,t} } \\
+    &= 2 \; \sigma_i^2 \; \alpha_0 \; N_{k,t} \;
+        \frac{ \partial \:
+                \left(
+                    - \mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^{\textrm{T}}
+                    - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
+                \right)
+            }{ \partial \:  \mathbf{V}_{k,t} } \;
+        \textrm{e}^{
+                    - \mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^{\textrm{T}}
+                    - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
+                } \; \mathbf{V}_{i,t} \\
+    &= - 2 \; \sigma_i^2 \; \alpha_0 \; N_{k,t} \,
+        \left( \mathbf{D} + \mathbf{D}^{\textrm{T}} \right) \,
+        \mathbf{V}_{k,t}^{\textrm{T}} \;
+        \textrm{e}^{
+                    - \mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^{\textrm{T}}
+                    - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
+                } \; \mathbf{V}_{i,t} \\[2ex]
+    \frac{ \partial \: \mathbf{V}_{i,t+1} }{ \partial \: \mathbf{V}_{k,t}} &=
+        -4 \; \sigma_i^2 \; \alpha_0 \; N_{k,t} \;
+        \mathbf{D} \; \mathbf{V}_{k,t}^{\textrm{T}} \;
+        \textrm{e}^{
+                - \mathbf{V}_{k,t} \mathbf{D} \mathbf{V}_{k,t}^{\textrm{T}}
                 - \mathbf{V}_{i,t} \mathbf{V}_{i,t}^{\textrm{T}}
-                - d \mathbf{V}_{k,t} \mathbf{V}_{k,t}^{\textrm{T}}
-            }
+            } \;
             \mathbf{V}_{i,t}
-        \right]
-    \textrm{.}
-$$
+    \textrm{.} \\
+\end{split}
+\end{equation*}
+
 
 
