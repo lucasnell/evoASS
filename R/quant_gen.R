@@ -228,6 +228,11 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 #'
 #' @export
 #'
+#' @importFrom tibble tibble
+#' @importFrom ggplot2 geom_point
+#' @importFrom ggplot2 geom_path
+#' @importFrom ggplot2 aes
+#'
 stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
                                  return_geom = FALSE, line_n = 1000, ...) {
     if (eta < 0) {
@@ -256,6 +261,8 @@ stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
 #' @inheritParams stable_points
 #'
 #' @export
+#'
+#' @importFrom ggplot2 geom_blank
 #'
 unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALSE, ...) {
     if (eta < 0) {
