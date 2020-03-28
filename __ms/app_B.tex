@@ -304,64 +304,6 @@ Now we combine this with \ref{eq:two-traits-v1-nonzero-v2-zero}
 
 
 
-% =======================================================================================
-% =======================================================================================
-% =======================================================================================
-% =======================================================================================
-
-
-
-
-
-
-
-
-\subsection*{Differences in abundance among species}
-
-
-> THIS SECTION NEEDS TO BE RE-DONE
-
-Because the values of $\hat{\Omega}$ above depend only on state variables,
-we can conclude that it should not differ among species.
-We have also shown that $\sqrt{\hat{v}_1^2 + \hat{v}_2^2}$ should never
-differ among species.
-Thus, if we define $\hat{X} = \hat{v}_1^2 + \hat{v}_2^2$,
-then for any two ($i$ and $j$) of the $n$ species,
-
-\begin{equation*}
-\begin{split}
-    \hat{\Omega} &= \hat{N}_i + \textrm{e}^{-d \hat{X}} \hat{N}_j +
-        \textrm{e}^{-d \hat{X}} \sum_{k \ne i,j}^{n}{ \hat{N}_k } \\
-    \hat{\Omega} &= \hat{N}_j + \textrm{e}^{-d \hat{X}} \hat{N}_i +
-        \textrm{e}^{-d \hat{X}} \sum_{k \ne i,j}^{n}{ \hat{N}_k }
-    \textrm{.}
-\end{split}
-\end{equation*}
-
-
-Now we compare them:
-
-\begin{equation*}
-\begin{split}
-    \hat{N}_i + \textrm{e}^{-d \hat{X}} \hat{N}_j &=
-        \hat{N}_j + \textrm{e}^{-d \hat{X}} \hat{N}_i \\
-    \hat{N}_i \left( 1 - \textrm{e}^{-d \hat{X}} \right) &=
-        \hat{N}_j \left( 1 - \textrm{e}^{-d \hat{X}} \right) \\
-    \hat{N}_i &= \hat{N}_j
-    \textrm{.}
-\end{split}
-\end{equation*}
-
-\noindent So equilibrium abundances do not differ among species.
-
-
-
-
-
-
-
-
-
 
 
 % =======================================================================================
@@ -418,5 +360,201 @@ When $\hat{v}_1 = \hat{v}_2$,
 \noindent Thus, when $v_1 \ne 0$, $v_2 = 0$, and $\eta \ne 0$, the equilibrium
 dynamics match that for when $\eta = 0$, which is not surprising given that
 you cannot have a non-additive tradeoff when one trait has a zero value.
+
+
+
+
+
+
+
+
+
+% =======================================================================================
+% =======================================================================================
+% =======================================================================================
+% =======================================================================================
+
+
+
+
+
+
+
+
+\subsection*{Differences in abundance among species}
+
+
+
+This section analyzes a two-species community where each species has one of two potential
+outcomes in terms of trait equilibria:
+(1) $\hat{v}_1 = \hat{v}_2$ and
+(2) $\hat{v}_1 \ne 0 \; \& \; \hat{v}_2 = 0$.
+I'm not discussing when $\eta = 0$ because that's not biologically very realistic
+and those results are likely an artifact of the model structure.
+
+
+\subsubsection*{At the same trait equilibria:}
+
+The first scenario is when both species have $\hat{v}_1 = \hat{v}_2$.
+If this is the case, then from above, we know that
+
+\begin{equation*}
+\begin{split}
+    \hat{v}_{11} &= \hat{v}_{12} = \hat{v}_{21} = \hat{v}_{22} = \sqrt{\frac{1}{2}
+        \left( \frac{r_0}{f (1 + \eta)} - 1 \right)} \\
+    \hat\Omega_1 &= \hat\Omega_2 = \frac{f (1 + \eta)}{\alpha_0}
+        \text{e}^{\frac{r_0}{f (1 + \eta)} - 1}
+    \text{.}
+\end{split}
+\end{equation*}
+
+Because all traits and scale community sizes are equal, and because of our
+definition of $\Omega$ from equation \ref{eq:fitness-full}
+
+\begin{equation} \label{eq:two-traits-v1-v2-equal-N1-N2}
+\begin{split}
+    \hat{N}_1 + \hat{N}_2 \: \text{e}^{-\hat{v}_{11}^2 (d_1 + d_2)} &=
+        \hat{N}_2 + \hat{N}_1 \: \text{e}^{-\hat{v}_{11}^2 (d_1 + d_2)} \\
+    \hat{N}_1 \left( 1 - \text{e}^{-\hat{v}_{11}^2 (d_1 + d_2)} \right) &=
+        \hat{N}_2 \left( 1 - \text{e}^{-\hat{v}_{11}^2 (d_1 + d_2)} \right) \\
+    \hat{N}_1 &= \hat{N}_2
+    \text{.}
+\end{split}
+\end{equation}
+
+\noindent Combining the above two sets of equations to solve for $\hat{N}_1$ in
+terms of parameters:
+
+
+\begin{equation} \label{eq:two-traits-v1-v2-equal-N}
+\begin{split}
+    \hat\Omega_1 &= \hat{N}_1 + \hat{N}_2 \: \text{e}^{-d_1 \hat{v}_{21}^2 -
+        d_2 v_{22}^2} \\
+    \frac{f (1 + \eta)}{\alpha_0} \text{e}^{\frac{r_0}{f (1 + \eta)} - 1} &=
+        \hat{N}_1 + \hat{N}_1 \: \text{e}^{- \hat{v}_{11}^2 (d_1 + d_2)} \\
+    \frac{f (1 + \eta)}{\alpha_0} \text{e}^{\frac{r_0}{f (1 + \eta)} - 1} &=
+        \hat{N}_1 \left[ 1 + \text{e}^{- \frac{1}{2} \left(
+            \frac{r_0}{f (1 + \eta)} - 1 \right) (d_1 + d_2)} \right] \\
+    \hat{N}_1 &= \frac{f (1 + \eta)}{\alpha_0  \left[ 1 + \text{e}^{- \frac{1}{2} \left(
+        \frac{r_0}{f (1 + \eta)} - 1 \right) (d_1 + d_2)} \right] }
+        \text{e}^{\frac{r_0}{f (1 + \eta)} - 1}
+    \text{.}
+\end{split}
+\end{equation}
+
+
+
+
+Similarly, when both species have $\hat{v}_1 \ne 0 \; \& \; \hat{v}_2 = 0$:
+
+\begin{equation*}
+\begin{split}
+    \hat{v}_{11} &= \hat{v}_{21} = \sqrt{ \frac{ r_0 }{ f } - 1 } \\
+    \hat{v}_{12} &= \hat{v}_{22} = 0 \\
+    \hat\Omega_1 &= \hat\Omega_2 = \frac{f}{\alpha_0} \textrm{e}^{\frac{r_0}{f} - 1}
+    \text{.}
+\end{split}
+\end{equation*}
+
+\noindent Therefore,
+
+\begin{equation} \label{eq:two-traits-v1-nonzero-v2-zero-N1-N2}
+\begin{split}
+    \hat{N}_1 + \hat{N}_2 \: \text{e}^{- d_1 \hat{v}_{11}^2 } &=
+        \hat{N}_2 + \hat{N}_1 \: \text{e}^{- d_1 \hat{v}_{11}^2 } \\
+    \hat{N}_1 \left( 1 - \text{e}^{- d_1 \hat{v}_{11}^2 } \right) &=
+        \hat{N}_2 \left( 1 - \text{e}^{- d_1 \hat{v}_{11}^2 } \right) \\
+    \hat{N}_1 &= \hat{N}_2
+    \text{.}
+\end{split}
+\end{equation}
+
+\noindent And,
+
+\begin{equation} \label{eq:two-traits-v1-nonzero-v2-zero-N}
+\begin{split}
+    \hat\Omega_1 &= \hat{N}_1 + \hat{N}_2 \: \text{e}^{-d_1 \hat{v}_{21}^2 -
+        d_2 v_{22}^2} \\
+    \frac{f}{\alpha_0} \textrm{e}^{\frac{r_0}{f} - 1} &= \hat{N}_1 \left[
+        1 + \text{e}^{- d_1 \left( \frac{ r_0 }{ f } - 1 \right) } \right] \\
+    \hat{N}_1 &= \frac{ f }{ \alpha_0 \left[ 1 + \text{e}^{- d_1 \left(
+        \frac{ r_0 }{ f } - 1 \right) } \right] } \text{e}^{\frac{r_0}{f} - 1}
+    \text{.}
+\end{split}
+\end{equation}
+
+
+
+
+
+
+% ----------------------------------------
+% ----------------------------------------
+
+\subsubsection*{At different trait equilibria:}
+
+
+
+
+Now we'll look at what happens when the species differ in their trait equilibria.
+If $\hat{v}_{11} = \hat{v}_{12}$ and $\hat{v}_{21} \ne 0 \; \& \; \hat{v}_{22} = 0$
+
+\begin{equation*}
+\begin{split}
+    \hat{v}_{11} &= \hat{v}_{12} = \sqrt{\frac{1}{2}
+        \left( \frac{r_0}{f (1 + \eta)} - 1 \right)} \\
+    \hat{v}_{21} &= \sqrt{ \frac{ r_0 }{ f } - 1 } \\
+    \hat{v}_{22} &= 0 \\
+    \hat\Omega_1 &= \frac{f (1 + \eta)}{\alpha_0}
+        \text{e}^{\frac{r_0}{f (1 + \eta)} - 1} \\
+    \hat\Omega_2 &= \frac{f}{\alpha_0} \textrm{e}^{\frac{r_0}{f} - 1}
+    \text{.}
+\end{split}
+\end{equation*}
+
+Therefore,
+
+\begin{equation*}
+\begin{split}
+    \frac{\hat\Omega_1}{\hat\Omega_2} &= \left[
+            \frac{f (1 + \eta)}{\alpha_0}
+            \text{e}^{\frac{r_0}{f (1 + \eta)} - 1}
+        \right] \left[
+            \frac{ \alpha_0 }{ f \; \textrm{e}^{\frac{r_0}{f} - 1} }
+        \right] \\
+    &= ( 1 + \eta) \text{e}^{\frac{ r_0 - r_0 \, (1 + \eta) }{f (1 + \eta)}} \\
+    \hat\Omega_1 &= ( 1 + \eta) \; \text{e}^{\frac{ - r_0 \eta }{f (1 + \eta)}} \;
+        \hat\Omega_2
+    \text{.}
+\end{split}
+\end{equation*}
+
+
+Now looking at the relationship between $\hat{N}_1$ and $\hat{N}_2$:
+
+\begin{equation*}
+\begin{split}
+    \hat{N}_1 + \hat{N}_2 \; \text{e}^{-d_1 \left( \frac{r_0}{f} - 1 \right)} &=
+        ( 1 + \eta) \; \text{e}^{\frac{ - r_0 \eta }{f (1 + \eta)}}
+        \left[
+            \hat{N}_2 + \hat{N}_1 \; \text{e}^{- \frac{1}{2}
+            \left(
+                \frac{r_0}{f (1 + \eta)} - 1
+            \right) (d_1 + d_2)}
+        \right] \\
+    \hat{N}_1 + \hat{N}_2 \; \text{e}^{-d_1 \left( \frac{r_0}{f} - 1 \right)} &=
+        \hat{N}_2 ( 1 + \eta) \; \text{e}^{\frac{ - r_0 \eta }{f (1 + \eta)}} +
+        \hat{N}_1 \; \text{e}^{ - \frac{1}{2} (d_1 + d_2) \left(
+            \frac{r_0 - f (1 + \eta)}{f (1 + \eta)} \right) -
+            \left( \frac{r_0 \eta}{ f (1 + \eta) } \right)  } \\
+    \hat{N}_1 &= \hat{N}_2 \frac{ ( 1 + \eta) \;
+        \text{e}^{\frac{ - r_0 \eta }{f (1 + \eta)}} -
+        \text{e}^{-d_1 \left( \frac{r_0}{f} - 1 \right)} }{
+        1 - \text{e}^{ - \frac{1}{2 f (1 + \eta)} \left[ (d_1 + d_2)
+        \left( r_0 - f (1 + \eta) \right) + 2 r_0 \eta \right]  } }
+    \text{.}
+\end{split}
+\end{equation*}
+
 
 
