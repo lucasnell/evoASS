@@ -4,36 +4,49 @@
 
 For both 2 and 3 traits:
 
-Coexistence occurs when $d \ge 0$
+Coexistence occurs when $d \ge 0$ (i.e., when non-conflicting or neutral)
+
+I need to check on what happens when you have both conflicting and non-conflicting
+traits.
+I think the analytical solutions related to coexistence / stability will
+help with this.
+
+
 
 \subsection*{Patterns of outcomes}
 
 For 2 traits...
 
 \begin{enumerate}
-    \item when $\eta < 0$, two alternative stable states
+    \item when $\eta < 0$ (sub-additive), one state where both traits are equal
     \item when $\eta = 0$, neutrally stable ring
-    \item when $\eta > 0$, alternative stable states (perpendicular from when $\eta < 0$)
+    \item when $\eta > 0$ (super-additive), 2 alternative stable states, one for each trait being
+        maximized and the other being 0
 \end{enumerate}
 
-unstable state when all traits are zero
-
-saddle node when $\eta \ne 0$:
-when starting value is exactly on line perpendicular to
-the line formed by the alternative stable states, it'll go to the
-two unstable states that are of the opposite scenario.
-By scenario I mean that when stable states are at $V_1 = V_2$,
-points on the saddle node go to the two points where $V_1 = -V_2$.
-The inverse is also true.
+% unstable state when all traits are zero
+%
+% saddle node when $\eta \ne 0$:
+% when starting value is exactly on line perpendicular to
+% the line formed by the alternative stable states, it'll go to the
+% two unstable states that are of the opposite scenario.
+% By scenario I mean that when stable states are at $V_1 = V_2$,
+% points on the saddle node go to the two points where $V_1 = -V_2$.
+% The inverse is also true.
 
 
 For 3 traits...
 
 \begin{enumerate}
-    \item when $\eta < 0$, two alternative stable states
+    \item when $\eta < 0$ (sub-additive), one state where all traits are equal
     \item when $\eta = 0$, neutrally stable "shell"
-    \item when $\eta > 0$, neutrally stable ring
+    \item when $\eta > 0$ (sper-additive), 3 alternative stable states,
+        one for each trait being maximized and the other being 0
 \end{enumerate}
 
-I haven't explored this in detail, except that there is also
-an unstable state when all traits are zero.
+When you have two traits that are sub-additive and two that are super-additive, you
+can get neutral partial-rings, but this is dependent on all $\eta$ being equal.
+So I don't actually think this is all that interesting.
+
+% I haven't explored this in detail, except that there is also
+% an unstable state when all traits are zero.
