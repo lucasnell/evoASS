@@ -4,13 +4,15 @@
 \name{qg_seeds}
 \alias{qg_seeds}
 \title{Seeds for quantitative genetics simulations.}
-\format{A tibble with 18 rows and 4 variables:
+\format{
+A tibble with 18 rows and 4 variables:
 \describe{
 \item{n_traits}{Number of traits: 2 or 3.}
 \item{eta_par}{Sign of \code{eta} parameter: -1, 0, or 1.}
 \item{d_par}{Sign of \code{d} parameter: -1, 0, or 1.}
 \item{seed}{Seed to use for this particular set of simulations.}
-}}
+}
+}
 \usage{
 qg_seeds
 }

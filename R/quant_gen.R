@@ -76,7 +76,8 @@ quant_gen <- function(eta, d, q,
 
     C <- matrix(eta[1], q, q)
     if (length(eta) == q^2) {
-        stopifnot(inherits(eta, "matrix") && isSymmetric(eta))
+        stopifnot(inherits(eta, "matrix") && identical(dim(eta), as.integer(c(q,q))) &&
+                      isSymmetric(eta))
         C <- eta
     }
     diag(C) <- 1
