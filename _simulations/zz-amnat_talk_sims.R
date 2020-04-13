@@ -1,5 +1,4 @@
 
-
 suppressPackageStartupMessages({
     library(tidyverse)
     library(sauron)
@@ -41,7 +40,25 @@ state_geom <- function(.dd, ...) {
 
 
 
+# v_2^2 >= log(α0 Ω / f ).
+# and omega = (f / a0) * exp(r0 / f - 1)
+# so above simplifies to v2^2 >= r0 / f - 1
 
+
+
+
+trait_ts2 <- quant_gen(q = 2, eta = 0, d = 0, max_t = 20e3L, n_reps = 8,
+                      save_every = 1L, n = 100, N0 = rep(1, 100),
+                      start_t = 0, perturb_sd = 1)
+
+filter(trait_ts$nv, time == max(time)) %>%
+    mutate(trait = paste0("V", trait)) %>%
+    spread(trait, value) %>%
+    filter(unq_spp_filter(V1, V2))
+filter(trait_ts2$nv, time == max(time)) %>%
+    mutate(trait = paste0("V", trait)) %>%
+    spread(trait, value) %>%
+    filter(unq_spp_filter(V1, V2))
 
 
 
@@ -100,9 +117,9 @@ V_space_p <- trait_ts$nv %>%
                    mutate(trait = paste0("V", trait)) %>%
                    spread(trait, value) %>%
                    filter(unq_spp_filter(V1, V2)),
-               color = "gray60", shape = 19, size = 4) +
-    # stable_points(eta = eval(trait_ts$call[["eta"]]), return_geom = TRUE,
-    #               color = "gray40", shape = 19, size = 4) +
+               color = "dodgerblue", shape = 4, size = 10) +
+    stable_points(eta = eval(trait_ts$call[["eta"]]), return_geom = TRUE,
+                  color = "gray40", shape = 19, size = 4) +
     # unstable_points(eta = eval(trait_ts$call[["eta"]]), return_geom = TRUE,
     #                 color = "gray40", shape = 1, size = 4) +
     geom_path(aes(color = spp), alpha = 0.5) +
@@ -113,12 +130,14 @@ V_space_p <- trait_ts$nv %>%
     xlab("Trait 1") +
     ylab("Trait 2") +
     theme_black() +
+    # theme_classic() +
     theme(panel.border = element_blank(),
           axis.ticks = element_blank(),
           axis.title = element_blank(),
           axis.text = element_blank(),
           plot.margin = margin(0,0,0,0)) +
     color_scale +
+    # scale_colour_viridis_d(guide = FALSE, option = "B", end = 0.7) +
     coord_equal(ylim = c(0, 4.5), xlim = c(0, 4.5))
 
 
@@ -175,6 +194,27 @@ pts_q2_b_p <- pts_q2_a_p +
 # save_plot(pts_q2_b_p, .width = 4.5, .height = 3.75)
 
 
+# # (For "puke draft" of ms to Tony, 29 March 2020)
+# cairo_pdf("__ms/fig1.pdf", width = 4, height = 4)
+# bind_rows(stable_points(-0.6) %>% mutate(eta = -0.6),
+#           stable_points(0.6) %>% mutate(eta = 0.6)) %>%
+#     mutate(eta = factor(eta)) %>%
+#     ggplot(aes(V1, V2, color = eta, fill = eta)) +
+#     geom_hline(yintercept = 0, linetype = 2, color = "gray70", size = 0.5) +
+#     geom_vline(xintercept = 0, linetype = 2, color = "gray70", size = 0.5) +
+#     geom_point(shape = 19, alpha = 0.5, size = 4) +
+#     geom_point(shape = 1, size = 4) +
+#     scale_color_manual(values = c("firebrick3", "dodgerblue")) +
+#     xlab("Trait 1") +
+#     ylab("Trait 2") +
+#     theme_classic() +
+#     theme(legend.title = element_text(size = 12, margin = margin(0,0,0,b=-4)),
+#           plot.margin = margin(0,0,0,0)) +
+#     scale_x_continuous(breaks = 0:2) +
+#     scale_y_continuous(breaks = 0:2) +
+#     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
+# dev.off()
+
 
 # ==============*
 # * 3 traits ----
@@ -217,7 +257,12 @@ pts_q3_p <- ggplot(NULL, aes(V1, V2, size = V3)) +
 
 
 
+
+
 # save_plot(pts_q3_p, .width = 4.25, .height = 3.75)
+
+
+
 
 
 
