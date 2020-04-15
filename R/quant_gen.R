@@ -86,7 +86,7 @@ quant_gen <- function(eta, d, q,
     if (length(d) == 1) {
         diag(D) <- rep(d, q)
     } else if (length(d) == q) {
-        diag(D) <- rep(d, q)
+        diag(D) <- d
     }
 
     call_ <- match.call()
