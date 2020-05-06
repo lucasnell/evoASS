@@ -40,7 +40,7 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #' @export
 #'
 #' @importFrom magrittr %>%
-#' @importFrom dplyr as_data_frame
+#' @importFrom tibble as_tibble
 #' @importFrom purrr set_names
 #' @importFrom dplyr mutate_at
 #' @importFrom tidyr gather
@@ -114,9 +114,8 @@ quant_gen <- function(eta, d, q,
 
 
     if (save_every > 0) {
-        NV_ <- as_data_frame(qg$NV) %>%
-            set_names(c("rep", "time", "spp", "N",
-                        paste0("trait_", 1:q))) %>%
+        colnames(qg$NV) <- c("rep", "time", "spp", "N", paste0("trait_", 1:q))
+        NV_ <- as_tibble(qg$NV) %>%
             mutate_at(vars(rep, time, spp), ~ as.integer(.x + 1)) %>%
             gather("trait", "value", starts_with("trait_"), factor_key = TRUE) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
@@ -126,9 +125,8 @@ quant_gen <- function(eta, d, q,
             arrange(rep, time, spp, trait) %>%
             mutate(value = ifelse(is.nan(value), NA, value))
     } else {
-        NV_ <- as_data_frame(qg$NV) %>%
-            set_names(c("rep", "spp", "N",
-                        paste0("trait_", 1:q))) %>%
+        colnames(qg$NV) <- c("rep", "spp", "N", paste0("trait_", 1:q))
+        NV_ <- as_tibble(qg$NV) %>%
             mutate_at(vars(rep, spp), ~ as.integer(.x + 1)) %>%
             gather("trait", "value", starts_with("trait_")) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
@@ -139,8 +137,8 @@ quant_gen <- function(eta, d, q,
             mutate(value = ifelse(is.nan(value), NA, value))
     }
 
-    FS_ <- as_data_frame(qg$FS) %>%
-        set_names(c("fit", "sel")) %>%
+    colnames(qg$FS) <- c("fit", "sel")
+    FS_ <- as_tibble(qg$FS) %>%
         mutate(rep = 1L:(dplyr::n())) %>%
         dplyr::select(rep, fit, sel)
 
