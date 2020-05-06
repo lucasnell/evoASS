@@ -312,6 +312,46 @@ arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
 }
 
 
+/*
+ Similar to above, except that it groups species in to unique groups.
+ */
+//[[Rcpp::export]]
+IntegerVector group_spp_cpp(const std::vector<arma::rowvec>& V,
+                                    double precision) {
+
+
+    precision *= precision;
+
+    uint32_t n = V.size();
+
+    IntegerVector spp_groups(n, 0);
+
+    arma::uvec is_unq = arma::ones<arma::uvec>(n);
+
+    uint32_t g = 1;
+
+    for (uint32_t i = 1; i < n; i++) {
+        for (uint32_t j = 0; j < i; j++) {
+            if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
+            arma::rowvec diff_;
+            diff_ = (V[i] - V[j]) % (V[i] - V[j]);
+            if (arma::mean(diff_) < precision) {
+                is_unq(i) = 0;
+                spp_groups[i] = spp_groups[j];
+                break;
+            }
+        }
+        if (is_unq(i) == 1) {
+            spp_groups[i] = g;
+            g++;
+        }
+    }
+
+    return spp_groups;
+}
+
+
+
 
 //' One repetition of quantitative genetics.
 //'

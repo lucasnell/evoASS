@@ -92,6 +92,10 @@ unq_spp_cpp <- function(V, precision) {
     .Call(`_sauron_unq_spp_cpp`, V, precision)
 }
 
+group_spp_cpp <- function(V, precision) {
+    .Call(`_sauron_group_spp_cpp`, V, precision)
+}
+
 #' Multiple repetitions of quantitative genetics.
 #'
 #'
