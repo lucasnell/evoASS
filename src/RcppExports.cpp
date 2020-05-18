@@ -180,6 +180,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// using_openmp
+bool using_openmp();
+RcppExport SEXP _sauron_using_openmp() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(using_openmp());
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_sauron_adapt_dyn_cpp", (DL_FUNC) &_sauron_adapt_dyn_cpp, 16},
@@ -192,6 +202,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 16},
     {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
     {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
+    {"_sauron_using_openmp", (DL_FUNC) &_sauron_using_openmp, 0},
     {NULL, NULL, 0}
 };
 

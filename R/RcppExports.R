@@ -119,3 +119,7 @@ F_t_cpp <- function(V, N, f, a0, C, r0, D) {
     .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, D)
 }
 
+using_openmp <- function() {
+    .Call(`_sauron_using_openmp`)
+}
+

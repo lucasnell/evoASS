@@ -45,3 +45,15 @@ arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V,
     return F;
 }
 
+
+
+//[[Rcpp::export]]
+bool using_openmp() {
+    bool out = false;
+#ifdef _OPENMP
+    out = true;
+#endif
+    return out;
+}
+
+
