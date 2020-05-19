@@ -6,7 +6,9 @@ suppressPackageStartupMessages({
     library(cowplot)
 })
 
+.REDO_SIMS <- FALSE
 .N_THREADS <- 2
+
 source(".Rprofile")
 
 # Where to save rds files
@@ -53,7 +55,7 @@ group_spp <- function(..., .prec = 0.001) {
 # =======================================================================================`
 # =======================================================================================`
 
-#               Trait outcomes ----
+#               I. Trait outcomes ----
 
 # =======================================================================================`
 # =======================================================================================`
@@ -85,15 +87,18 @@ one_eta_combo <- function(sign1, sign2, sign3) {
 }
 
 
-# # Takes ~2.2 min
-# set.seed(145746935)
-# eta_sim_df <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1) %>%
-#     pmap_dfr(one_eta_combo)
-# saveRDS(eta_sim_df, rds("eta_sim"))
+if (.REDO_SIMS) {
+    # Takes ~2.2 min
+    set.seed(145746935)
+    eta_sim_df <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1) %>%
+        pmap_dfr(one_eta_combo)
+    saveRDS(eta_sim_df, rds("eta_sim"))
+} else {
+    eta_sim_df <- readRDS(rds("eta_sim"))
+}
 
-eta_sim_df <- readRDS(rds("eta_sim"))
 
-eta_sim_df
+# eta_sim_df
 
 
 
@@ -188,7 +193,7 @@ trait_outcomes_p <- trait_outcomes_p_df %>%
 # =======================================================================================`
 # =======================================================================================`
 
-#               Coexistence ----
+#               II. Coexistence ----
 
 # =======================================================================================`
 # =======================================================================================`
@@ -234,7 +239,7 @@ d_sim_df <- crossing(sign1 = c(-1,1), sign2 = c(-1,1), sign3 = c(-1,1)) %>%
 
 
 lab_df <- tibble(idd = c(1, 2, 5, 8) - 0.25, idd_e = c(1, 4, 7, 8) + 0.25,
-                 N = c(rep(20, 3), 75),
+                 N = c(rep(10, 3), 50),
                  lab = sprintf("%i", 0:3))
 
 coexist_all_d_p <- d_sim_df %>%
@@ -251,12 +256,12 @@ coexist_all_d_p <- d_sim_df %>%
            idd = factor(idd, levels = levels(idd),
                         labels = gsub("0|1|2|3", "", levels(idd)))) %>%
     ggplot(aes(idd, N)) +
-    geom_jitter(aes(color = id), width = 0.25, alpha = 0.5) +
+    geom_jitter(aes(color = id), width = 0.25, alpha = 0.5, height = 0) +
     geom_segment(data = lab_df, aes(xend = idd_e, yend = N)) +
     geom_text(data = lab_df, aes(x = (idd + idd_e) / 2, y = N + 2, label = lab),
               hjust = 0.5, vjust = 0) +
     # facet_wrap(~ n_p, scales = "free_x") +
-    scale_y_continuous("Number of surviving species", limits = c(0, 80)) +
+    scale_y_continuous("Number of surviving species", limits = c(0, 55)) +
     scale_x_discrete(expression("Sign of" ~ d[1] * "," ~ d[2] * "," ~ d[3]),
                      labels = rlang::parse_exprs) +
     scale_color_viridis_d(guide = FALSE, end = 0.8, option = "B") +
@@ -292,15 +297,20 @@ one_d_combo_vary_one <- function(.d3, .max_t) {
 
 }
 
-# # Takes ~5 min
-# set.seed(807582316)
-# one_d_sim_df <- tibble(.d3 = c(-10^(c(-2, -3, -4)), 0, 10^(c(-4, -3, -2))),
-#                     .max_t = 200e3L) %>%
-#     mutate(.max_t = ifelse(.d3 == -1e-4, 2e6L, .max_t)) %>%
-#     pmap_dfr(one_d_combo_vary_one)
-# saveRDS(one_d_sim_df, rds("one_d_sim"))
 
-one_d_sim_df <- readRDS(rds("one_d_sim"))
+if (.REDO_SIMS) {
+    # Takes ~5 min
+    set.seed(807582316)
+    one_d_sim_df <- tibble(.d3 = c(-10^(c(-2, -3, -4)), 0, 10^(c(-4, -3, -2))),
+                        .max_t = 200e3L) %>%
+        mutate(.max_t = ifelse(.d3 == -1e-4, 2e6L, .max_t)) %>%
+        pmap_dfr(one_d_combo_vary_one)
+    saveRDS(one_d_sim_df, rds("one_d_sim"))
+} else {
+    one_d_sim_df <- readRDS(rds("one_d_sim"))
+}
+
+
 
 
 lab_fun <- function(.x) {
@@ -336,7 +346,7 @@ coexist_p <- plot_grid(NULL, coexist_all_d_p + theme(axis.title.y = element_blan
     draw_label("Number of surviving species", x = 0.05, y = 0.5,
                vjust = 0.5, angle = 90, hjust = 0.5, size = 12)
 
-save_plot(coexist_p, 6.5, 6, "2-")
+# save_plot(coexist_p, 6.5, 6, "2-")
 
 
 
@@ -346,7 +356,7 @@ save_plot(coexist_p, 6.5, 6, "2-")
 # =======================================================================================`
 # =======================================================================================`
 
-#               Invasibility ----
+#               III. Invasibility ----
 
 # =======================================================================================`
 # =======================================================================================`
@@ -369,15 +379,19 @@ invade_test <- function(r, .V1, .V2, .dsigns, .V3 = 0) {
 }
 
 
-# # Takes ~2 min
-# invade_df <- crossing(.V1 = seq(0, 4, 0.1),
-#                       .V2 = seq(0, 4, 0.1),
-#                       .dsigns = list(c(-1,1,1), c(1,1,1))) %>%
-#     mutate(r = 1:n()) %>%
-#     pmap_dfr(invade_test)
-# saveRDS(invade_df, rds("invade"))
+if (.REDO_SIMS) {
+    # Takes ~2 min
+    invade_df <- crossing(.V1 = seq(0, 4, 0.1),
+                          .V2 = seq(0, 4, 0.1),
+                          .dsigns = list(c(-1,1,1), c(1,1,1))) %>%
+        mutate(r = 1:n()) %>%
+        pmap_dfr(invade_test)
+    saveRDS(invade_df, rds("invade"))
+} else {
+    invade_df <- readRDS(rds("invade"))
+}
 
-invade_df <- readRDS(rds("invade"))
+
 
 
 
@@ -406,7 +420,7 @@ invasion_p <- invasion_p_df %>%
     coord_equal()
 
 
-save_plot(invasion_p, 6.5, 3, "3-")
+# save_plot(invasion_p, 6.5, 3, "3-")
 
 
 
@@ -414,7 +428,7 @@ save_plot(invasion_p, 6.5, 3, "3-")
 # =======================================================================================`
 # =======================================================================================`
 
-#               Conditional coexistence ----
+#               IV. Conditional coexistence ----
 
 # =======================================================================================`
 # =======================================================================================`
@@ -476,7 +490,9 @@ cond_coexist_ts_p <- cond_coexist_df %>%
     facet_wrap(~ V0, scales = "free") +
     scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
     ylab("Abundance") +
-    xlab("Time")
+    scale_x_continuous("Time", breaks = seq(0, 20e3, 5e3),
+                       labels = format(seq(0, 20e3, 5e3), big.mark = ",")) +
+    theme(strip.text = element_text(size = 12, margin = margin(0,0,0,b = 24)))
 
 
 # Movement through trait space for coexistence and exclusion:
@@ -498,16 +514,19 @@ cond_coexist_sp_p <- cond_coexist_df %>%
     facet_wrap(~ V0) +
     coord_equal(xlim = c(0, 4.25), ylim = c(0, 4.25)) +
     ylab("Trait 2") +
-    xlab("Trait 1")
+    xlab("Trait 1") +
+    theme(strip.text = element_blank())
 
 
 
 
 
-cond_coexist_p <- plot_grid(cond_coexist_ts_p, cond_coexist_hm_p, ncol = 1,
-                            rel_heights = c(0.75, 1), labels = LETTERS[1:2])
+cond_coexist_p <- plot_grid(cond_coexist_ts_p, cond_coexist_sp_p, ncol = 1,
+                            rel_heights = c(0.85, 1), labels = LETTERS[1:2],
+                            label_y = c(0.83,1))
 
+cond_coexist_p
 
-save_plot(cond_coexist_p, 5, 5, "4-")
+# save_plot(cond_coexist_p, 5, 5, "4-")
 
 
