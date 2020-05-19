@@ -14,7 +14,7 @@ quant_gen(
   f = 0.1,
   a0 = 0.5,
   r0 = 0.5,
-  add_var = rep(0.5, n),
+  add_var = rep(0.1, n),
   perturb_sd = 1,
   n_reps = 100,
   start_t = 0,
