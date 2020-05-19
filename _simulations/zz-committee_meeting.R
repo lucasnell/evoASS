@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
     library(cowplot)
 })
 
+.N_THREADS <- 2
 source(".Rprofile")
 
 # Where to save rds files
@@ -72,7 +73,7 @@ one_eta_combo <- function(sign1, sign2, sign3) {
 
     trait_ts <- quant_gen(q = .q, eta = eta, d = 0, max_t = 20e3L, n_reps = 24,
                           save_every = 0L, n = 100, N0 = rep(1, 100),
-                          start_t = 0, perturb_sd = 2, n_cores = 3,
+                          start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                           show_progress = FALSE)
 
     trait_ts$nv %>%
@@ -215,7 +216,7 @@ one_d_combo <- function(sign1, sign2, sign3) {
 
     Z <- quant_gen(q = .q, eta = eta, d = .d, max_t = 20e3L, n_reps = 24,
               save_every = 0L, n = 100, N0 = rep(1, 100),
-              start_t = 0, perturb_sd = 2, n_cores = 3,
+              start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
               show_progress = FALSE)
 
     Z$nv %>%
@@ -278,7 +279,7 @@ one_d_combo_vary_one <- function(.d3, .max_t) {
 
     Z <- quant_gen(q = .q, eta = eta, d = .d, max_t = .max_t, n_reps = 24,
                    save_every = 0L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_cores = 3,
+                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                    show_progress = FALSE)
 
     Z$nv %>%

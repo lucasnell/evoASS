@@ -163,7 +163,7 @@ V_space_p <- trait_ts$nv %>%
 # because of constraining all V >= 0
 pts_q2_pe <- quant_gen(q = 2, eta = 0.6, d = 0, max_t = 2e3L, n_reps = 12,
                        save_every = 0L, n = 100, N0 = rep(1e-3, 100),
-                       perturb_sd = 2, n_cores = 4, show_progress = FALSE) %>%
+                       perturb_sd = 2, n_threads = 4, show_progress = FALSE) %>%
     .[["nv"]] %>%
     mutate(trait = factor(paste0("V", paste(trait)))) %>%
     spread("trait", "value") %>%
@@ -226,7 +226,7 @@ set.seed(7890524)
 pts_q3 <- map_dfr(c(-0.1, 0.1),
                   ~ quant_gen(q = 3, eta = .x, d = 0, max_t = 200e3L, n_reps = 12,
                               save_every = 0L, n = 100, N0 = rep(1e-3, 100),
-                              perturb_sd = 2, n_cores = 4) %>%
+                              perturb_sd = 2, n_threads = 4) %>%
                       .[["nv"]] %>%
                       mutate(eta = .x)) %>%
     mutate(trait = factor(paste0("V", paste(trait)))) %>%
@@ -279,7 +279,7 @@ vary_eta <- function(e1, e2, e3, ...) {
     args <- list(q = 3, eta = C,
                  d = 0, max_t = 200e3L, n_reps = 12,
                  save_every = 0, n = 100, N0 = rep(1e-3, 100),
-                 perturb_sd = 2, n_cores = 4)
+                 perturb_sd = 2, n_threads = 4)
     new_args <- list(...)
     for (n in names(new_args)) args[[n]] <- new_args[[n]]
     qg <- do.call(quant_gen, args)
@@ -411,7 +411,7 @@ pts_var_eta_q3_b_p <- pts_var_eta_q3_p_df %>%
 one_d <- function(.d, ...) {
     args <- list(q = 2, eta = 0.6, d = .d, max_t = 200e3L, n_reps = 12,
                  save_every = 0L, n = 100, N0 = rep(1e-3, 100),
-                 perturb_sd = 2, n_cores = 4, show_progress = FALSE)
+                 perturb_sd = 2, n_threads = 4, show_progress = FALSE)
     new_args <- list(...)
     for (n in names(new_args)) args[[n]] <- new_args[[n]]
     dd <- do.call(quant_gen, args)
@@ -433,7 +433,7 @@ var_d <- map_dfr(list(c(0, 1e-2),
 #
 # nppts <- quant_gen(q = 3, eta = 0.6, d = c(-1e-2, 1e-2, 1e-2), max_t = 2e3L, n_reps = 12,
 #                    save_every = 1L, n = 100, N0 = rep(1e-3, 100),
-#                    perturb_sd = 2, n_cores = 4, show_progress = FALSE)
+#                    perturb_sd = 2, n_threads = 4, show_progress = FALSE)
 #
 # nppts %>%
 #     .[["nv"]] %>%

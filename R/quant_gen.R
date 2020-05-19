@@ -11,7 +11,7 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
     stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
     stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
     # List for all parameters:
-    args <- list(n_cores = 4, q = q)
+    args <- list(n_threads = 4, q = q)
     # the non-additive effects of traits on `r`:
     args$eta <- 0.6 * sign(eta_sign)
     # changes how the focal line's traits affect other lines' effects of competition:
@@ -32,7 +32,7 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #' @param perturb_sd Standard deviation of the perturbation.
 #' @param add_var Vector of additive genetic variances for all starting species.
 #' @param start_t Number of starting iterations (before the perturbation).
-#' @param n_cores Number of cores to use. Defaults to 1.
+#' @param n_threads Number of cores to use. Defaults to 1.
 #' @inheritParams adapt_dyn
 #'
 #' @return A `quant_gen` object with `nv` (for N and V output) and `fs` (for fitness
@@ -57,22 +57,28 @@ quant_gen <- function(eta, d, q,
                       add_var = rep(0.5, n), perturb_sd = 1,
                       n_reps = 100, start_t = 0, max_t = 1e6L,
                       min_N = 1e-4, save_every = 1e4L,
-                      show_progress = TRUE, n_cores = 1) {
+                      show_progress = TRUE, n_threads = 1) {
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
     stopifnot(sapply(list(eta, d, q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
-                          n_cores, N0), is.numeric))
+                          n_threads, N0), is.numeric))
     stopifnot(sapply(list(q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
-                          n_cores), length) == 1)
+                          n_threads), length) == 1)
     stopifnot(sapply(V0, function(x) all(x >= 0)))
     stopifnot(n >= 1 && q >= 1)
     stopifnot(N0 >= 0)
-    stopifnot(c(n_reps, max_t, n_cores) >= 1)
+    stopifnot(c(n_reps, max_t, n_threads) >= 1)
     stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
 
     stopifnot(length(eta) %in% c(1, q^2))
     stopifnot(length(d) %in% c(1, q))
+
+    if (n_threads > 1 && !using_openmp()) {
+        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
+        n_threads <- 1
+    }
+
 
     C <- matrix(eta[1], q, q)
     if (length(eta) == q^2) {
@@ -110,7 +116,7 @@ quant_gen <- function(eta, d, q,
                         min_N = min_N,
                         save_every = save_every,
                         show_progress = show_progress,
-                        n_cores = n_cores)
+                        n_threads = n_threads)
 
 
     if (save_every > 0) {

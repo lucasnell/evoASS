@@ -90,13 +90,13 @@ for (e in -1:1) {
 
 
 qg <- quant_gen(q = 2, eta = -0.6, d = 1e-04, max_t = 10e3L, n_reps = 4,
-                save_every = 1L, n = 2, perturb_sd = 0, n_cores = 4,
+                save_every = 1L, n = 2, perturb_sd = 0, n_threads = 4,
                 V0 = list(as.matrix(stable_points(-0.6)[1,]),
                           as.matrix(stable_points(-0.6)[1,])))
 
 
 qg <- quant_gen(q = 2, eta = -0.6, d = 0, max_t = 2e6L, n_reps = 4,
-                save_every = 1e3L, n = 1, perturb_sd = 0, n_cores = 4,
+                save_every = 1e3L, n = 1, perturb_sd = 0, n_threads = 4,
                 V0 = list(as.matrix(stable_points(-0.6)[1,])))
 
 

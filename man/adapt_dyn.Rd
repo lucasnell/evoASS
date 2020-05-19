@@ -23,7 +23,7 @@ adapt_dyn(
   mut_prob = 0.01,
   max_clones = 10000,
   show_progress = FALSE,
-  n_cores = 1
+  n_threads = 1
 )
 
 \method{perturb}{adapt_dyn}(

@@ -12,7 +12,7 @@ adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
     stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
     stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
     # List for all parameters:
-    args <- list(n_cores = 4, q = q)
+    args <- list(n_threads = 4, q = q)
     # the non-additive effects of traits on `r`:
     args$eta <- 0.01 * sign(eta_sign)
     # changes how the focal line's traits affect other lines' effects of competition:
@@ -85,23 +85,28 @@ adapt_dyn <- function(
     mut_prob = 0.01,
     max_clones = 1e4,
     show_progress = FALSE,
-    n_cores = 1) {
+    n_threads = 1) {
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
     stopifnot(all(sapply(V0, function(x) all(x >= 0))))
     stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, a0, r0, max_t, min_N, save_every,
-                          mut_sd, mut_prob, max_clones, n_cores), is.numeric))
+                          mut_sd, mut_prob, max_clones, n_threads), is.numeric))
     stopifnot(inherits(show_progress, "logical"))
     stopifnot(sapply(list(q, n_reps, n, f, a0, r0, max_t, min_N, save_every,
-                          mut_sd, mut_prob, max_clones, show_progress, n_cores),
+                          mut_sd, mut_prob, max_clones, show_progress, n_threads),
                      length) == 1)
     stopifnot(c(N0, min_N, mut_sd) > 0)
     stopifnot(mut_prob >= 0 && mut_prob <= 1)
-    stopifnot(c(q, n_reps, n, max_t, save_every, n_cores) >= 1)
+    stopifnot(c(q, n_reps, n, max_t, save_every, n_threads) >= 1)
 
     stopifnot(length(eta) %in% c(1, q^2))
     stopifnot(length(d) %in% c(1, q))
+
+    if (n_threads > 1 && !using_openmp()) {
+        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
+        n_threads <- 1
+    }
 
     C <- matrix(eta[1], q, q)
     if (length(eta) == q^2) {
@@ -127,7 +132,7 @@ adapt_dyn <- function(
 
     sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N,
                                 mut_sd, mut_prob, show_progress, max_clones,
-                                save_every, n_cores)
+                                save_every, n_threads)
 
     colnames(sim_output) <- c("rep", "time", "clone", "N", sprintf("V%i", 1:q))
 

@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores) {
-    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_cores)
+adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads) {
+    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.
@@ -101,8 +101,8 @@ group_spp_cpp <- function(V, precision) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores) {
-    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_cores)
+quant_gen_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_threads) {
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_threads)
 }
 
 #' Normal distribution truncated above zero.

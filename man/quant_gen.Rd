@@ -22,7 +22,7 @@ quant_gen(
   min_N = 1e-04,
   save_every = 10000L,
   show_progress = TRUE,
-  n_cores = 1
+  n_threads = 1
 )
 }
 \arguments{
@@ -68,7 +68,7 @@ matrix row or column.}
 
 \item{show_progress}{Boolean for whether to show a progress bar.}
 
-\item{n_cores}{Number of cores to use. Defaults to 1.}
+\item{n_threads}{Number of cores to use. Defaults to 1.}
 }
 \value{
 A \code{quant_gen} object with \code{nv} (for N and V output) and \code{fs} (for fitness

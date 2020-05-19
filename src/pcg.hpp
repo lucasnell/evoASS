@@ -32,12 +32,12 @@ namespace pcg {
 
 
 
-// To sample for seeds before multi-core operations
-inline std::vector<std::vector<uint64_t>> mc_seeds(const uint32_t& n_cores) {
+// To sample for seeds before multi-core operations - one set of seeds per thread
+inline std::vector<std::vector<uint64_t>> mc_seeds(const uint32_t& n_threads) {
 
-    std::vector<std::vector<uint64_t>> sub_seeds(n_cores, std::vector<uint64_t>(8));
+    std::vector<std::vector<uint64_t>> sub_seeds(n_threads, std::vector<uint64_t>(8));
 
-    for (uint32_t i = 0; i < n_cores; i++) {
+    for (uint32_t i = 0; i < n_threads; i++) {
         sub_seeds[i] = as<std::vector<uint64_t>>(Rcpp::runif(8,0,4294967296));
     }
 
@@ -58,6 +58,28 @@ inline void fill_seeds(const std::vector<uint64_t>& sub_seeds,
 
     return;
 }
+
+
+
+// To sample for seeds before multi-core operations - one set of seeds per rep
+inline std::vector<std::vector<uint128_t>> mc_seeds_rep(const uint32_t& n_reps) {
+
+    std::vector<std::vector<uint128_t>> sub_seeds(n_reps, std::vector<uint128_t>(2));
+
+    std::vector<uint64_t> tmp(8);
+
+    for (uint32_t i = 0; i < n_reps; i++) {
+
+        for (uint32_t j = 0; j < 8; j++) {
+            tmp[j] = static_cast<uint64_t>(R::runif(0,4294967296));
+        }
+        fill_seeds(tmp, sub_seeds[i][0], sub_seeds[i][1]);
+    }
+
+    return sub_seeds;
+}
+
+
 
 
 /*

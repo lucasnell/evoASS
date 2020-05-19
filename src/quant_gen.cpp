@@ -452,7 +452,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const double& min_N,
                   const uint32_t& save_every,
                   const bool& show_progress,
-                  const uint32_t& n_cores) {
+                  const uint32_t& n_threads) {
 
     if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
     if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
@@ -465,31 +465,30 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
     std::vector<OneRepInfo> rep_infos(n_reps);
 
-    const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
+    const std::vector<std::vector<uint128_t>> seeds = mc_seeds_rep(n_reps);
+
     Progress prog_bar(n_reps * (max_t + start_t), show_progress);
     bool interrupted = false;
 
     #ifdef _OPENMP
-    #pragma omp parallel default(shared) num_threads(n_cores) if (n_cores > 1)
+    #pragma omp parallel default(shared) num_threads(n_threads) if (n_threads > 1)
     {
     #endif
 
-    std::vector<uint64_t> active_seeds;
 
-    // Write the active seed per core or just write one of the seeds.
     #ifdef _OPENMP
     uint32_t active_thread = omp_get_thread_num();
     #else
     uint32_t active_thread = 0;
     #endif
-    active_seeds = seeds[active_thread];
 
-    pcg64 eng = seeded_pcg(active_seeds);
+    pcg64 eng;
 
     #ifdef _OPENMP
     #pragma omp for schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
+        eng.seed(seeds[i][0], seeds[i][1]);
         int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D, add_var,
                                      perturb_sd, start_t, max_t, min_N, save_every,
                                      eng, prog_bar);

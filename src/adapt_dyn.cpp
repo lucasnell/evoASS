@@ -34,7 +34,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
                         const bool& show_progress,
                         const uint32_t& max_clones,
                         const uint32_t& save_every,
-                        const uint32_t& n_cores) {
+                        const uint32_t& n_threads) {
 
     if (V0.size() == 0) stop("empty V0 vector");
     if (V0[0].n_elem == 0) stop("empty V0[0] vector");
@@ -54,31 +54,30 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
 
     std::vector<OneRepInfoAD> rep_infos(n_reps);
 
-    const std::vector<std::vector<uint64_t>> seeds = mc_seeds(n_cores);
+    const std::vector<std::vector<uint128_t>> seeds = mc_seeds_rep(n_reps);
+
     Progress prog_bar(n_reps, show_progress);
     bool interrupted = false;
 
     #ifdef _OPENMP
-    #pragma omp parallel default(shared) num_threads(n_cores) if (n_cores > 1)
+    #pragma omp parallel default(shared) num_threads(n_threads) if (n_threads > 1)
     {
     #endif
 
-    std::vector<uint64_t> active_seeds;
-
-    // Write the active seed per core or just write one of the seeds.
     #ifdef _OPENMP
     uint32_t active_thread = omp_get_thread_num();
     #else
     uint32_t active_thread = 0;
     #endif
-    active_seeds = seeds[active_thread];
 
-    pcg64 eng = seeded_pcg(active_seeds);
+    pcg64 eng;
 
     #ifdef _OPENMP
     #pragma omp for schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
+
+        eng.seed(seeds[i][0], seeds[i][1]);
 
         if (!Progress::check_abort()) {
 
@@ -120,7 +119,7 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
     arma::mat output(n_rows, 4 + q);
     // Fill output matrix:
     #ifdef _OPENMP
-    #pragma omp parallel for default(shared) num_threads(n_cores) schedule(static)
+    #pragma omp parallel for default(shared) num_threads(n_threads) schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         uint32_t start = 0;
