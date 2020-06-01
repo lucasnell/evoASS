@@ -1,5 +1,4 @@
 
-// #define ARMA_NO_DEBUG
 
 #include <RcppArmadillo.h>
 #include <progress.hpp>

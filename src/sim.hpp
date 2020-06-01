@@ -1,5 +1,9 @@
-#ifndef __EASS_SIM_H
-#define __EASS_SIM_H
+#ifndef __SAURON_SIM_H
+#define __SAURON_SIM_H
+
+
+#define ARMA_NO_DEBUG
+
 
 
 #include <RcppArmadillo.h>

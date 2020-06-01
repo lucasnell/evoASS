@@ -288,3 +288,95 @@ unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALS
 }
 
 
+
+#'
+#' @importFrom magrittr %>%
+#'
+#' @noRd
+#'
+one_jacobian <- function(one_rep, qg_obj) {
+
+
+    if (!is.null(one_rep[["time"]])) one_rep <- dplyr::filter(one_rep, time == max(time))
+    one_rep
+
+    N <- dplyr::filter(one_rep, trait == 1)[["N"]]
+    spp <- as.integer(paste(dplyr::filter(one_rep, trait == 1)[["spp"]]))
+    V <- one_rep %>%
+        mutate(trait = paste0("V", trait)) %>%
+        spread(trait, value) %>%
+        select(starts_with("V", ignore.case = FALSE)) %>%
+        as.matrix() %>%
+        split(1:nrow(.))
+
+
+    if (is.null(qg_obj$call[["n"]])) {
+        n <- eval(formals(quant_gen)[["n"]])
+    } else n <- eval(qg_obj$call[["n"]])
+    if (is.null(qg_obj$call[["q"]])) {
+        q <- eval(formals(quant_gen)[["q"]])
+    } else q <- eval(qg_obj$call[["q"]])
+
+    if (is.null(qg_obj$call[["f"]])) {
+        f <- eval(formals(quant_gen)[["f"]])
+    } else f <- eval(qg_obj$call[["f"]])
+    if (is.null(qg_obj$call[["a0"]])) {
+        a0 <- eval(formals(quant_gen)[["a0"]])
+    } else a0 <- eval(qg_obj$call[["a0"]])
+    if (is.null(qg_obj$call[["d"]])) {
+        d <- eval(formals(quant_gen)[["d"]])
+    } else d <- eval(qg_obj$call[["d"]])
+    if (is.null(qg_obj$call[["eta"]])) {
+        eta <- eval(formals(quant_gen)[["eta"]])
+    } else eta <- eval(qg_obj$call[["eta"]])
+    if (is.null(qg_obj$call[["add_var"]])) {
+        add_var <- eval(formals(quant_gen)[["add_var"]])
+    } else add_var <- eval(qg_obj$call[["add_var"]])
+    add_var <- add_var[spp]
+
+
+    C <- matrix(eta[1], q, q)
+    if (length(eta) == q^2) {
+        stopifnot(inherits(eta, "matrix") && identical(dim(eta), as.integer(c(q,q))) &&
+                      isSymmetric(eta))
+        C <- eta
+    }
+    diag(C) <- 1
+
+    D <- matrix(0, q, q)
+    if (length(d) == 1) {
+        diag(D) <- rep(d, q)
+    } else if (length(d) == q) {
+        diag(D) <- d
+    }
+
+
+    jac <- sauron:::jacobian_cpp(V, N, f, a0, D, C, add_var)
+
+    return(jac)
+
+}
+
+
+#' Jacobian matrices, one per rep.
+#'
+#' @param qg_obj A `quant_gen` object from `quant_gen` function.
+#'
+#' @export
+#'
+#' @importFrom magrittr %>%
+jacobians <- function(qg_obj) {
+
+    if (!inherits(qg_obj, "quant_gen")) {
+        stop(paste("\nArgument `qg_obj` for function `jacobians` must",
+                   "be of class \"quant_gen\"\n"))
+    }
+
+
+    jacs <- qg_obj$nv %>%
+        split(.$rep) %>%
+        map(one_jacobian, qg_obj = qg_obj)
+
+    return(jacs)
+
+}
