@@ -62,8 +62,9 @@ save_plot <- function(plot_obj, .width, .height, .prefix = NULL, .suffix = NULL)
     if (!is.null(.suffix)) fn <- paste0(fn, .suffix)
     fn <- sprintf("_simulations/__rough-results/%s.pdf", fn)
     cat(fn, "\n")
+    plot_fun <- ifelse(inherits(plot_obj, "egg"), print, plot)
     cairo_pdf(fn, width = .width, height = .height)
-    plot(plot_obj)
+    plot_fun(plot_obj)
     dev.off()
     invisible(NULL)
 }
@@ -102,13 +103,13 @@ one_eta_combo <- function(sign1, sign2, sign3) {
     # sign1 = 1; sign2 = 1; sign3 = 1
     # rm(sign1, sign2, sign3)
 
-    eta <- matrix(0, .q, .q)
-    eta[lower.tri(eta)] <- abs(etas) * c(sign1, sign2, sign3)
+    C <- matrix(0, .q, .q)
+    C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)
     # sample(c(-1, 1), .q, TRUE)
-    eta <- eta + t(eta)
-    diag(eta) <- 1
+    C <- C + t(C)
+    diag(C) <- 1
 
-    trait_to <- quant_gen(q = .q, eta = eta, d = 0.1, max_t = 20e3L, n_reps = 24,
+    trait_to <- quant_gen(q = .q, eta = C, d = 0.1, max_t = 20e3L, n_reps = 24,
                           save_every = 0L, n = 100, N0 = rep(1, 100),
                           start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                           show_progress = FALSE)
@@ -119,7 +120,7 @@ one_eta_combo <- function(sign1, sign2, sign3) {
                        spread(trait, value) %>%
                        filter(unq_spp_filter(V1, V2, V3)) %>%
                        select(starts_with("V")) %>%
-                       mutate(eta1 = eta[2,1], eta2 = eta[3,1], eta3 = eta[3,2]))
+                       mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]))
     return(output)
 }
 
@@ -169,10 +170,27 @@ We recorded the trait values of the surviving species.
 
 
 This resulted in a number of outcomes (Figure 1).
-In most cases, only one set of trait values were present in surviving species.
+When at least one combination was sub-additive, only one set of trait 
+values were present in surviving species.
+What those trait values were depended on the exact combination.
+With all sub-additive combinations, all three traits were maximized.
+The six other permutations of $\ge 2$ sub-additive combinations varied but 
+all had high values of $\eta_2$ and usually had high values of $\eta_3$.
+With only one sub-additive combination, the combination that was sub-additive
+determined which of the three trait states the surviving species possessed.
 
 
-We observed alternative trait states only when no traits were sub-additive.
+We observed alternative trait states only when no trait combinations 
+were sub-additive.
+When all combinations were super-additive, there were three alternative 
+trait states: one for each trait being maximized while the others 
+equaled zero.
+With two super-additive and one neutral combinations, species traits were 
+along a neutrally stable quarter-ring along one axis.
+With one super-additive and two neutral combinations, species traits were 
+along a neutrally stable half-ring along two axes.
+Traits existed along a neutrally stable three-dimensional shell when all 
+traits were neutral.
 
 
 
@@ -196,41 +214,21 @@ to_cap <- "Figure 1.
            sub-additive ($\\eta < 0$ or \"$-$\"), neutral ($\\eta = 0$), 
            or super-additive ($\\eta > 0$ or \"$+$\").
            The size of points indicates the value for trait 3.
-           Sub-panels separate the number of pairwise combinations that
-           are sub-additive, neutral, or super-additive.
-           All but the first three sub-panels contain multiple pairwise 
-           combinations, so they are separated by color;
-           each specific combination is indicated by the colored label.
-           In the \"1 of each\" panel, each of the three points represents
-           the resulting trait values for two combinations (i.e., two 
-           combinations led to the same outcome).
+           Sub-panels separate the number of pairwise combinations (out of 3)
+           that are sub-additive, neutral, or super-additive.
+           All but the \"all super\" and \"all neutral\" sub-panels 
+           contain multiple pairwise combinations, so each specific combination 
+           is separated by color and indicated by the colored label.
+           The symbol $0^{+}$ inside labels indicates when that $\\eta$ can be
+           $\\ge 0$.
+           Therefore, all 3 points in the \"1 sub\" sub-panel represent 
+           4 combinations each.
            When one sub-panel contains multiple points of the same color, 
            this indicates that multiple alternative states are possible
-           for that combination"
+           for that combination."
 ```
 
-```{r trait-outcomes-results, fig.cap = cc(to_cap), fig.width=6.5, fig.height=5.0}
-p_group_levels <- c("all super", "all sub", "all neutral", "1 of each",
-                    "2 super, 1 sub", "2 super, 1 neutral",
-                    "2 sub, 1 super", "2 sub, 1 neutral",
-                    "2 neutral, 1 super", "2 neutral, 1 sub")
-
-# Because the "1 of each" category has 6 levels but only 3 of which have unique
-# trait end points, I'm creating this function to deal with this:
-one_each_fun <- function(.x) {
-
-    if (.x$p_groups[1] != "1 of each") return(mutate_at(.x, vars(id), paste))
-
-    .x %>%
-        mutate(color_group = group_spp(V1, V2, V3) + 1L) %>%
-        group_by(p_groups, color_group) %>%
-        summarize(V1 = V1[1],
-                  V2 = V2[1],
-                  V3 = V3[1],
-                  id = paste(id, collapse = "\n")) %>%
-        ungroup()
-
-}
+```{r trait-outcomes-results, fig.cap = cc(to_cap), fig.width=6, fig.height=5}
 
 
 ### The code below explores what happens when d >= 0.9
@@ -248,13 +246,13 @@ one_each_fun <- function(.x) {
 # 
 # 
 # sign1 = -1; sign2 = -1; sign3 = 1
-# eta <- matrix(0, .q, .q)
-# eta[lower.tri(eta)] <- abs(etas) * c(sign1, sign2, sign3)
+# C <- matrix(0, .q, .q)
+# C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)
 # # sample(c(-1, 1), .q, TRUE)
-# eta <- eta + t(eta)
-# diag(eta) <- 1
+# C <- C + t(C)
+# diag(C) <- 1
 # 
-# trait_to <- quant_gen(q = .q, eta = eta, d = 0.9, max_t = 20e3L, n_reps = 24,
+# trait_to <- quant_gen(q = .q, eta = C, d = 0.9, max_t = 20e3L, n_reps = 24,
 #                       save_every = 100L, n = 100, N0 = rep(1, 100),
 #                       start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
 #                       show_progress = TRUE)
@@ -265,7 +263,7 @@ one_each_fun <- function(.x) {
 #     spread(trait, value) %>%
 #     filter(unq_spp_filter(V1, V2, V3)) %>%
 #     select(starts_with("V")) %>%
-#     mutate(eta1 = eta[2,1], eta2 = eta[3,1], eta3 = eta[3,2])
+#     mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2])
 # 
 # trait_to$nv %>%
 #     filter(time == max(time)) %>% 
@@ -296,71 +294,159 @@ one_each_fun <- function(.x) {
 # 
 # 
 
+
+
+
+
+# This function combines id labels for all combinations that have the exact 
+# same outcomes. Only used for "1 sub".
+# It also processes all id columns to be parsed.
+process_ids <- function(z) {
+    
+    parseable <- function(.id) {
+        .id = paste(.id)
+        IDD1 = str_sub(.id, 1, 1) %>% 
+            {case_when(. == "+" ~ paste0("{}", .),
+                       . == "-" ~ paste0(., "''"),
+                       . == "0" ~ "0",
+                       . == "X" ~ "0^{'+'}",
+                       TRUE ~ NA_character_)}
+        IDD2 = str_sub(.id, 2, 2) %>% 
+            {case_when(. == "-" ~ paste0(., "''"), 
+                       . == "X" ~ "0^{'+'}",
+                       TRUE ~ .)}
+        IDD3 = str_sub(.id, 3, 3) %>% 
+            {case_when(. == "+" ~ paste0(., "{}"),
+                      . == "-" ~ paste0(., "''"),
+                      . == "0" ~ "0",
+                      . == "X" ~ "0^{'+'}",
+                      TRUE ~ NA_character_)}
+        if(any(is.na(IDD1)) || any(is.na(IDD3))) {
+            print(.id[is.na(IDD1) | is.na(IDD3)])
+            stop("Non-programmed option in `parseable`")
+        }
+        paste0(IDD1, IDD2, IDD3) %>% 
+            str_replace_all("''0", "0") %>% 
+            str_replace_all("\\{\\}0", "0") %>% 
+            str_replace_all("\\}0", "\\} * 0") %>% 
+            str_replace_all("00", "0 * 0") %>% 
+            str_replace_all("00", "0 * 0")
+    }
+    
+
+    if (z$p_groups[1] != "'1 sub'") return(mutate(z, id = parseable(id)))
+    
+    one_chr <- function(.x) {
+        .xx <- .x %>% 
+            str_split("") %>% 
+            {lapply(1:length(.[[1]]), function(i) map_chr(., ~ .x[[i]]))} %>% 
+            map_chr(function(x) {
+                xx <- unique(x)
+                if (length(xx) == 1) return(xx)
+                if (all(xx %in% c("0", "+"))) return("X")
+                return(NA_character_)
+            })
+        if (any(is.na(.xx))) stop("Non-programmed input to `one_chr`")
+        return(paste(.xx, collapse = ""))
+    }
+
+    z %>%
+        mutate(color_group = group_spp(V1, V2, V3) + 1L) %>%
+        mutate_at(vars(id), paste) %>% 
+        arrange(p_groups, color_group) %>%
+        group_by(p_groups, color_group) %>%
+        summarize(V1 = mean(V1),
+                  V2 = mean(V2),
+                  V3 = mean(V3),
+                  id = one_chr(id)) %>%
+        ungroup() %>%
+        mutate(id = parseable(id))
+
+}
+
+p_group_levels <- c("{} >= '2 sub'", "'1 sub'",
+                    "'all super'",
+                    "'2 super, 1 neutral'", "'2 neutral, 1 super'", 
+                    "'all neutral'")
+
+
 trait_outcomes_p_df <- eta_sim_df %>%
     mutate_at(vars(starts_with("eta")),
-              ~ factor(sign(.x), levels = -1:1, labels = c("−", "0", "+"))) %>%
+              ~ factor(sign(.x), levels = -1:1, labels = c("-", "0", "+"))) %>%
     mutate(id = interaction(eta1, eta2, eta3, sep = "")) %>%
     group_by(id) %>%
     filter(unq_spp_filter(V1, V2, V3, .prec = 0.1)) %>%
     ungroup() %>%
     mutate(n_p = str_count(id, "\\+"),
-           n_n = str_count(id, "\\−"),
+           n_n = str_count(id, "\\-"),
            n_z = str_count(id, "0"),
-           p_groups = case_when(n_p == 3 ~ p_group_levels[1],
-                                n_n == 3 ~ p_group_levels[2],
-                                n_z == 3 ~ p_group_levels[3],
-                                n_p == 1 & n_z == 1 & n_n == 1 ~ p_group_levels[4],
-                                n_p == 2 & n_n == 1 ~ p_group_levels[5],
-                                n_p == 2 & n_z == 1 ~ p_group_levels[6],
-                                n_n == 2 & n_p == 1 ~ p_group_levels[7],
-                                n_n == 2 & n_z == 1 ~ p_group_levels[8],
-                                n_z == 2 & n_p == 1 ~ p_group_levels[9],
-                                n_z == 2 & n_n == 1 ~ p_group_levels[10],
+           p_groups = case_when(n_n >= 2 ~ p_group_levels[1],
+                                n_n == 1  ~ p_group_levels[2],
+                                n_p == 3 ~ p_group_levels[3],
+                                n_p == 2 & n_z == 1 ~ p_group_levels[4],
+                                n_z == 2 & n_p == 1 ~ p_group_levels[5],
+                                n_z == 3 ~ p_group_levels[6],
                                 TRUE ~ NA_character_)) %>%
     select(-starts_with("n", ignore.case = FALSE)) %>%
     # filter(is.na(p_groups))  ## <-- check that this yields no rows
     mutate(p_groups = factor(p_groups, levels = p_group_levels)) %>%
+    arrange(p_groups) %>% 
     split(.$p_groups) %>%
     map(~ mutate(.x, color_group = id %>% droplevels() %>% as.integer())) %>%
-    map_dfr(one_each_fun) %>%
+    map_dfr(process_ids) %>%
     mutate_at(vars(color_group, id), factor) %>%
     arrange(desc(V3))
 
 
-trait_outcomes_p_df %>% 
-    filter(p_groups %in% c("1 of each", "2 super, 1 sub", "2 neutral, 1 sub")) %>% 
-    filter(unq_spp_filter(V1, V2, V3))
 
-
+.pal <- function(.a = 1) viridisLite::plasma(7, end = 0.85, 
+                                             alpha = .a)[c(6,4,1,3,5,7,2)]
 
 
 trait_outcomes_p <- trait_outcomes_p_df %>%
     ggplot(aes(V1, V2, size = V3, color = color_group)) +
     geom_point(aes(fill = color_group), shape = 21) +
     geom_text(data = trait_outcomes_p_df %>%
-                  filter(!grepl("^all", p_groups)) %>%
+                  filter(!grepl("^\\'all", p_groups)) %>%
                   group_by(p_groups, color_group, id) %>%
                   summarize_at(vars(V1, V2), median) %>%
-                  ungroup() %>%
-                  mutate(V1 = ifelse(id == "00+", V1 - 0.2, V1),
-                         V2 = ifelse(id == "0+0", V2 - 0.2, V2)),
-              aes(label = id), size = 9 / 2.835, hjust = 0, vjust = 0,
+                  ungroup() %>% 
+                  mutate(V1 = case_when(id == "{}+0+{}" ~ V1 - 0.3,
+                                        id == "0 * 0+{}" ~ V1 - 0.3,
+                                        id == "{}+0 * 0" ~ V1 - 0.1,
+                                        id == "0-''-''" ~ V1 - 0.4,
+                                        id == "-''-''+{}" ~ V1 - 0.1,
+                                        id == "{}+-''-''" ~ V1 - 0.3,
+                                        id == "-''+-''" ~ V1 - 0.3,
+                                        id == "-0-''" ~ V1 - 0.4,
+                                        TRUE ~ V1),
+                         V2 = case_when(id == "{}+0+{}" ~ V2 + 0.05,
+                                        id == "0 * 0+{}" ~ V2 + 0.05,
+                                        id == "{}+0 * 0" ~ V2 + 0.05,
+                                        id == "0+0" ~ V2 - 0.05,
+                                        id == "0-''-''" ~ V2 - 0.6,
+                                        id == "-''-0" ~ V2 - 0.4,
+                                        id == "-''-''+{}" ~ V2 - 0.3,
+                                        id == "-''-''-''" ~ V2 - 0.1,
+                                        id == "{}+-''-''" ~ V2 - 0.6,
+                                        id == "-0-''" ~ V2 + 0.05,
+                                        TRUE ~ V2)) %>%
+                  identity(),
+              aes(label = id), size = 9 / 2.835, hjust = 0, vjust = 0, parse = TRUE,
               fontface = "bold", lineheight = 0.75, nudge_x = 0.2, nudge_y = 0.2) +
     scale_size_continuous("Trait 3", range = c(2, 6), breaks = 0.5 * 1:3) +
     scale_x_continuous("Trait 1", breaks = 0:2) +
     scale_y_continuous("Trait 2", breaks = 0:2) +
     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    facet_wrap(~ p_groups, nrow = 3) +
-    theme(strip.text = element_text(size = 8),
+    facet_wrap(~ p_groups, nrow = 3, labeller = label_parsed) +
+    theme(strip.text = element_text(size = 10),
           panel.border = element_rect(size = 0.5, fill = NA)) +
-    scale_color_manual(values = viridisLite::plasma(6, end = 0.85)[c(1,3,6,2,4,5)],
-                       guide = FALSE) +
-    scale_fill_manual(values = viridisLite::plasma(6, end = 0.85, alpha = 0.25)[c(1,3,6,2,4,5)],
-                       guide = FALSE) +
+    scale_color_manual(values = .pal(), guide = FALSE) +
+    scale_fill_manual(values = .pal(0.25), guide = FALSE) +
     NULL
 
 
-if (.RESAVE_PLOTS) save_plot(trait_outcomes_p, 6.5, 5.0, "1-")
+if (.RESAVE_PLOTS) save_plot(trait_outcomes_p, 6, 5, "1-")
 
 trait_outcomes_p
 
@@ -376,10 +462,18 @@ trait_outcomes_p
 
 
 
+
+
 ```{r coexistence-caption}
 coex_cap <- "Figure 2.
-             XX.
-"
+             Number of surviving species for
+             (A) all permutations of three traits being conflicting (\"-\") 
+             or non-conflicting (\"+\") and
+             (B) varying values of $d_3$ when $d_1$ and $d_2$ are kept positive
+             (i.e., traits 1 and 2 are kept non-conflicting).
+             (A) Numbers above segments indicate the number of traits that are 
+             non-conflicting.
+             For these simulations, $\\eta_1 = \\eta_2 = \\eta_3 = 0.2$"
 ```
 
 ```{r coexistence-results, fig.cap = cc(coex_cap), fig.width=6.5, fig.height=5.0}
@@ -396,10 +490,9 @@ coex_cap <- "Figure 2.
 set.seed(532052696)
 ds <- exp(runif(.q, -6, -2))
 
-eta <- matrix(0, .q, .q)
-eta[lower.tri(eta)] <- abs(etas)
-eta <- eta + t(eta)
-diag(eta) <- 1
+
+C <- matrix(0.2, .q, .q)
+diag(C) <- 1
 
 
 
@@ -413,7 +506,7 @@ one_d_combo <- function(sign1, sign2, sign3) {
 
     .d <- ds * c(sign1, sign2, sign3)
 
-    Z <- quant_gen(q = .q, eta = eta, d = .d, max_t = 20e3L, n_reps = 24,
+    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
               save_every = 0L, n = 100, N0 = rep(1, 100),
               start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
               show_progress = FALSE)
@@ -426,7 +519,7 @@ one_d_combo <- function(sign1, sign2, sign3) {
 
 }
 
-# Takes ~11 sec
+# Takes ~45 sec w/ 2 threads
 set.seed(751678518)
 d_sim_df <- crossing(sign1 = c(-1,1), sign2 = c(-1,1), sign3 = c(-1,1)) %>%
     pmap_dfr(one_d_combo)
@@ -450,12 +543,14 @@ coexist_all_d_p <- d_sim_df %>%
            idd = factor(idd, levels = levels(idd),
                         labels = gsub("0|1|2|3", "", levels(idd)))) %>%
     ggplot(aes(idd, N)) +
-    geom_jitter(aes(color = id), width = 0.25, alpha = 0.5, height = 0) +
+    geom_jitter(width = 0.25, alpha = 0.5, height = 0, 
+                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
     geom_segment(data = lab_df, aes(xend = idd_e, yend = N)) +
     geom_text(data = lab_df, aes(x = (idd + idd_e) / 2, y = N + 2, label = lab),
               hjust = 0.5, vjust = 0) +
     # facet_wrap(~ n_p, scales = "free_x") +
-    scale_y_continuous("Number of surviving species", limits = c(0, 55)) +
+    scale_y_continuous("Number of surviving species", limits = c(0, 55),
+                       breaks = c(0, 25, 50)) +
     scale_x_discrete(expression("Sign of" ~ d[1] * "," ~ d[2] * "," ~ d[3]),
                      labels = rlang::parse_exprs) +
     scale_color_viridis_d(guide = FALSE, end = 0.8, option = "B") +
@@ -476,7 +571,7 @@ one_d_combo_vary_one <- function(.d3, .max_t) {
 
     .d <- c(0.1, 0.1, .d3)
 
-    Z <- quant_gen(q = .q, eta = eta, d = .d, max_t = .max_t, n_reps = 24,
+    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = .max_t, n_reps = 24,
                    save_every = 0L, n = 100, N0 = rep(1, 100),
                    start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                    show_progress = FALSE)
@@ -493,7 +588,7 @@ one_d_combo_vary_one <- function(.d3, .max_t) {
 
 
 if (.REDO_SIMS) {
-    # Takes ~5 min
+    # Takes ~30 min
     set.seed(807582316)
     one_d_sim_df <- tibble(.d3 = c(-10^(c(-2, -3, -4)), 0, 10^(c(-4, -3, -2))),
                         .max_t = 200e3L) %>%
@@ -519,10 +614,12 @@ coexist_one_d_p <- one_d_sim_df %>%
     mutate(d3 = factor(d3, levels = d3 %>% sort() %>% unique(),
                        labels = d3 %>% sort() %>% unique() %>% lab_fun())) %>%
     ggplot(aes(d3, n_spp)) +
-    geom_jitter(aes(color = rep), height = 0, width = 0.2, alpha = 0.75) +
+    geom_jitter(width = 0.2, alpha = 0.5, height = 0, 
+                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
     scale_color_viridis_d(guide = FALSE, end = 0.95, option = "D") +
     scale_x_discrete(expression("Value of" ~ d[3]), labels = rlang::parse_exprs) +
-    scale_y_continuous("Number of surviving species") +
+    scale_y_continuous("Number of surviving species", breaks = c(0, 25, 50),
+                       limits = c(0, 55)) +
     NULL
 
 
@@ -533,21 +630,17 @@ coexist_one_d_p <- one_d_sim_df %>%
 # ------------------------------*
 
 
-coexist_p <- plot_grid(NULL, coexist_all_d_p + theme(axis.title.y = element_blank()),
-                       NULL, coexist_one_d_p + theme(axis.title.y = element_blank()),
-                       align = "vh", ncol = 2, rel_widths = c(0.07, 1),
-                       labels = c("A", "", "B", "")) +
-    draw_label("Number of surviving species", x = 0.05, y = 0.5,
-               vjust = 0.5, angle = 90, hjust = 0.5, size = 12)
 
+coexist_p <- ggarrange(coexist_all_d_p + theme(axis.title.y = element_blank()), 
+                       coexist_one_d_p + theme(axis.title.y = element_blank()), 
+                       left = "Number of surviving species",
+                       ncol = 1, labels = LETTERS[1:2],
+                       label.args = list(gp = gpar(fontsize = 14, 
+                                                   fontface =  "plain"),
+                                         vjust = 2, hjust = -3))
 
 
 if (.RESAVE_PLOTS) save_plot(coexist_p, 6.5, 6, "2-")
-
-
-
-coexist_p
-
 
 ```
 
@@ -569,7 +662,7 @@ inv_cap <- "Figure 3.
 
 
 invade_test <- function(r, .V1, .V2, .dsigns, .V3 = 0) {
-    Z <- quant_gen(q = .q, eta = eta, d = ds*.dsigns, max_t = 20e3L, n_reps = 1,
+    Z <- quant_gen(q = .q, eta = C, d = ds*.dsigns, max_t = 20e3L, n_reps = 1,
                    save_every = 100L, n = 2, N0 = c(10.9196300066, 10.9196300066 * 0.1),
                    V0 = list(cbind(2, 0, 0), cbind(.V1, .V2, .V3)),
                    start_t = 0, perturb_sd = 0,
@@ -673,7 +766,7 @@ V0_exclude <- lapply(1:100,
 
 
 cond_coexist_test <- function(.V0, .lab) {
-    Z <- quant_gen(q = .q, eta = eta, d = ds*c(-1,1,1), max_t = 20e3L, n_reps = 1,
+    Z <- quant_gen(q = .q, eta = C, d = ds*c(-1,1,1), max_t = 20e3L, n_reps = 1,
                    save_every = 10L, n = 100, N0 = rep(1, 100),
                    V0 = .V0,
                    start_t = 0, perturb_sd = 0,
