@@ -463,17 +463,17 @@ trait_outcomes_p
 
 
 
-
 ```{r coexistence-caption}
 coex_cap <- "Figure 2.
              Number of surviving species for
              (A) all permutations of three traits being conflicting (\"-\") 
-             or non-conflicting (\"+\") and
+             or non-conflicting (\"+\"),
              (B) varying values of $d_3$ when $d_1$ and $d_2$ are kept positive
-             (i.e., traits 1 and 2 are kept non-conflicting).
+             (i.e., traits 1 and 2 are kept non-conflicting), and
+             (C) surviving species through time with $d_3 = -10^{-2}$ and 
+             $d_3 = -10^{-4}$.
              (A) Numbers above segments indicate the number of traits that are 
-             non-conflicting.
-             For these simulations, $\\eta_1 = \\eta_2 = \\eta_3 = 0.2$"
+             non-conflicting."
 ```
 
 ```{r coexistence-results, fig.cap = cc(coex_cap), fig.width=6.5, fig.height=5.0}
@@ -491,8 +491,6 @@ set.seed(532052696)
 ds <- exp(runif(.q, -6, -2))
 
 
-C <- matrix(0.2, .q, .q)
-diag(C) <- 1
 
 
 
@@ -505,6 +503,9 @@ diag(C) <- 1
 one_d_combo <- function(sign1, sign2, sign3) {
 
     .d <- ds * c(sign1, sign2, sign3)
+    
+    C <- matrix(0.2, .q, .q)
+    diag(C) <- 1
 
     Z <- quant_gen(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
               save_every = 0L, n = 100, N0 = rep(1, 100),
@@ -519,10 +520,22 @@ one_d_combo <- function(sign1, sign2, sign3) {
 
 }
 
-# Takes ~45 sec w/ 2 threads
-set.seed(751678518)
-d_sim_df <- crossing(sign1 = c(-1,1), sign2 = c(-1,1), sign3 = c(-1,1)) %>%
-    pmap_dfr(one_d_combo)
+
+
+
+if (.REDO_SIMS) {
+    # Takes ~45 sec w/ 2 threads
+    set.seed(751678518)
+    d_sim_df <- crossing(sign1 = c(-1,1), sign2 = c(-1,1), sign3 = c(-1,1)) %>%
+        pmap_dfr(one_d_combo)
+    saveRDS(d_sim_df, rds("all_d_sim"))
+} else {
+    d_sim_df <- readRDS(rds("all_d_sim"))
+}
+
+
+
+
 
 
 lab_df <- tibble(idd = c(1, 2, 5, 8) - 0.25, idd_e = c(1, 4, 7, 8) + 0.25,
@@ -570,6 +583,10 @@ coexist_all_d_p <- d_sim_df %>%
 one_d_combo_vary_one <- function(.d3, .max_t) {
 
     .d <- c(0.1, 0.1, .d3)
+    
+    C <- matrix(0.2, .q, .q)
+    diag(C) <- 1
+
 
     Z <- quant_gen(q = .q, eta = C, d = .d, max_t = .max_t, n_reps = 24,
                    save_every = 0L, n = 100, N0 = rep(1, 100),
@@ -625,6 +642,74 @@ coexist_one_d_p <- one_d_sim_df %>%
 
 
 
+
+# ------------------------------*
+# __ Time series of d3 = -0.01 and d3 = -1e-4 ----
+# ------------------------------*
+
+# Same as above, but returns a time series
+one_d_combo_vary_one_TS <- function(.d3, .max_t) {
+    
+    # .d3 = -1e-4; .max_t = 2e6
+    # rm(.d3, .max_t, C, Z, .d)
+  
+    .max_t <- as.integer(.max_t)
+    
+    C <- matrix(0.2, .q, .q)
+    diag(C) <- 1
+
+    .d <- c(0.1, 0.1, .d3)
+
+    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = .max_t, n_reps = 24,
+                   save_every = .max_t %/% 100L, n = 100, N0 = rep(1, 100),
+                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   show_progress = TRUE)
+
+    Z$nv %>%
+        filter(trait == 1) %>%
+        group_by(rep, time) %>% 
+        summarize(N = n()) %>% 
+        ungroup() %>% 
+        mutate(d3 = .d3) %>% 
+        identity()
+
+}
+
+
+
+if (.REDO_SIMS) {
+    # Takes ~7 min
+    set.seed(1821003492)
+    one_d_TS_sim_df <- tibble(.d = c(-1e-2, -1e-4), .max_t = c(10e3L, 2e6L)) %>% 
+        pmap_dfr(one_d_combo_vary_one_TS)
+    saveRDS(one_d_TS_sim_df, rds("one_d_TS_sim"))
+} else {
+    one_d_TS_sim_df <- readRDS(rds("one_d_TS_sim"))
+}
+
+
+
+
+one_d_TS_p <- one_d_TS_sim_df %>%
+    mutate(d3 = factor(d3, levels = c(-0.01, -1e-4),
+                      labels = sprintf("d[3] == %s", c("-10^{-2}", "-10^{-4}")))) %>% 
+    filter(time < 750e3) %>%
+    mutate(time = time / 1000L) %>% 
+    ggplot(aes(time, N)) +
+    geom_line(aes(group = rep), alpha = 0.5, size = 0.5, color = "dodgerblue") +
+    facet_wrap(~ d3, nrow = 1, label = label_parsed, scales = "free_x") +
+    scale_y_continuous("Number of species", breaks = c(0, 50, 100)) +
+    scale_x_continuous("Time (1,000 generations)", 
+                       breaks = scales::breaks_extended(n = 4)) +
+    NULL
+
+
+
+
+
+
+
+
 # ------------------------------*
 # __ combine them ----
 # ------------------------------*
@@ -633,8 +718,10 @@ coexist_one_d_p <- one_d_sim_df %>%
 
 coexist_p <- ggarrange(coexist_all_d_p + theme(axis.title.y = element_blank()), 
                        coexist_one_d_p + theme(axis.title.y = element_blank()), 
+                       one_d_TS_p + theme(axis.title.y = element_blank()), 
+                       heights = c(1, 1, 0.75),
                        left = "Number of surviving species",
-                       ncol = 1, labels = LETTERS[1:2],
+                       ncol = 1, labels = LETTERS[1:3],
                        label.args = list(gp = gpar(fontsize = 14, 
                                                    fontface =  "plain"),
                                          vjust = 2, hjust = -3))
@@ -642,7 +729,37 @@ coexist_p <- ggarrange(coexist_all_d_p + theme(axis.title.y = element_blank()),
 
 if (.RESAVE_PLOTS) save_plot(coexist_p, 6.5, 6, "2-")
 
+
+
 ```
+
+
+
+
+To assess how conflicting and non-conflicting evolution leads to coexistence,
+we conducted similar simulations to the previous section, for each of the 
+8 permutations of the three traits' evolution being conflicting or 
+non-conflicting (i.e., $d < 0$ or $d > 0$, respectively).
+The magnitudes of the $d$ values used for these simulations were generated as 
+$\log(d) \sim \text{U}(-6, -2)$.
+The values we ended up with were $d_1 = `r sprintf("%#.3g", ds[1])`$,
+$d_2 = `r sprintf("%#.3f", ds[2])`$, and
+$d_3 = `r sprintf("%#.3g", ds[3])`$.
+We recorded the number of species coexisting at the end of each repetition.
+We also did another set of simulations where the first two traits were kept
+non-conflicting ($d_1 = d_2 = 0.1$), while the value of $d_3$ varied 
+from $-10^{-2}$ to $10^{-2}$.
+We used $\eta_1 = \eta_2 = \eta_3 = 0.2$ for all simulations here.
+
+The first set of simulations shows that
+coexistence occurs only when evolution for all traits is non-conflicting 
+(Figure 2A).
+From the second set of simulations, we see that a value of 0 for $d_3$ 
+appears to represent a bifurcation with respect to whether 
+coexistence can occur (Figure 2B).
+Even slightly negative values of $d_3$ cause exclusion to occur, although
+a less-negative $d_3$ causes the exclusions to happen much more slowly
+(Figure 2C).
 
 
 
