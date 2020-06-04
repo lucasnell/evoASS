@@ -122,7 +122,7 @@ quant_gen <- function(eta, d, q,
     if (save_every > 0) {
         colnames(qg$NV) <- c("rep", "time", "spp", "N", paste0("trait_", 1:q))
         NV_ <- as_tibble(qg$NV) %>%
-            mutate_at(vars(rep, time, spp), ~ as.integer(.x + 1)) %>%
+            mutate_at(vars(rep, time, spp), as.integer) %>%
             gather("trait", "value", starts_with("trait_"), factor_key = TRUE) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
             mutate(rep = factor(rep, levels = 1:n_reps),
@@ -133,7 +133,7 @@ quant_gen <- function(eta, d, q,
     } else {
         colnames(qg$NV) <- c("rep", "spp", "N", paste0("trait_", 1:q))
         NV_ <- as_tibble(qg$NV) %>%
-            mutate_at(vars(rep, spp), ~ as.integer(.x + 1)) %>%
+            mutate_at(vars(rep, spp), as.integer) %>%
             gather("trait", "value", starts_with("trait_")) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
             mutate(rep = factor(rep, levels = 1:n_reps),

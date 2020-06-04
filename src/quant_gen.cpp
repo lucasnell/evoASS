@@ -401,6 +401,9 @@ int one_quant_gen__(OneRepInfo& info,
     if (perturb_sd > 0) info.perturb(eng);
 
     t = 0;
+    // Save starting info:
+    if (save_every > 0) info.save_time(t);
+
     uint32_t n_incr = 0;
     while (!all_gone && t < max_t) {
 
@@ -410,7 +413,7 @@ int one_quant_gen__(OneRepInfo& info,
         all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
-            info.save_time(t);
+            info.save_time(t + 1);
             prog_bar.increment(n_incr);
             n_incr = 0;
         }
@@ -538,7 +541,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
                 const double& t_(info.t[t]);
                 for (uint32_t k = 0; k < N_t.size(); k++) {
 
-                    nv(j+k,0) = i;          // rep
+                    nv(j+k,0) = i + 1;      // rep
                     nv(j+k,1) = t_;         // time
                     nv(j+k,2) = spp_t[k];   // species
                     nv(j+k,3) = N_t[k];     // N
@@ -567,7 +570,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
             Rcpp::checkUserInterrupt();
             const OneRepInfo& info(rep_infos[i]);
             for (uint32_t k = 0; k < info.N.size(); k++) {
-                nv(j+k,0) = i;          // rep
+                nv(j+k,0) = i + 1;      // rep
                 nv(j+k,1) = k;          // species
                 nv(j+k,2) = info.N[k];  // N
                 // V:

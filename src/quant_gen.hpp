@@ -47,13 +47,13 @@ public:
           n(N_.size()), q(V_[0].n_elem),
           norm_distr(0.0, perturb_sd) {
 
-        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i;
+        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
 
         if (save_every > 0) {
 
             uint32_t n_saves = static_cast<uint32_t>(
                 std::ceil(static_cast<double>(max_t - 1) /
-                    static_cast<double>(save_every))) + 1U;
+                    static_cast<double>(save_every))) + 2U;
             t.reserve(n_saves);
             N_t.reserve(n_saves);
             V_t.reserve(n_saves);
@@ -142,22 +142,22 @@ public:
     }
 
     // save info for output
-    void save_time(const uint32_t& t) {
-        this->t.push_back(t);
+    void save_time(const uint32_t& t_) {
+        t.push_back(t_);
         // If everything's extinct...
         if (N.size() == 0) {
             // Fill last set of N's with a zero:
-            this->N_t.push_back(std::vector<double>(1, 0.0));
+            N_t.push_back(std::vector<double>(1, 0.0));
             // Fill last V with a `NaN` (closest to NA I know of):
             std::vector<arma::rowvec> V__(1, arma::rowvec(q));
             V__[0].fill(arma::datum::nan);
-            this->V_t.push_back(V__);
+            V_t.push_back(V__);
             // Fill last set of spp's with a zero:
-            this->spp_t.push_back(std::vector<uint32_t>(1, 0U));
+            spp_t.push_back(std::vector<uint32_t>(1, 0U));
         } else {
-            this->N_t.push_back(N);
-            this->V_t.push_back(V);
-            this->spp_t.push_back(spp);
+            N_t.push_back(N);
+            V_t.push_back(V);
+            spp_t.push_back(spp);
         }
         return;
     }
