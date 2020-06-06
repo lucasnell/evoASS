@@ -44,7 +44,7 @@ cc <- function(.x) {
 # whether to re-save plots
 .RESAVE_PLOTS <- FALSE
 # number of threads to use for simulations
-.N_THREADS <- 2
+.N_THREADS <- 3
 
 
 
@@ -61,7 +61,7 @@ save_plot <- function(plot_obj, .width, .height, .prefix = NULL, .suffix = NULL)
     if (!is.null(.prefix)) fn <- paste0(.prefix, fn)
     if (!is.null(.suffix)) fn <- paste0(fn, .suffix)
     fn <- sprintf("_simulations/__rough-results/%s.pdf", fn)
-    cat(fn, "\n")
+    message(fn)
     plot_fun <- ifelse(inherits(plot_obj, "egg"), print, plot)
     cairo_pdf(fn, width = .width, height = .height)
     plot_fun(plot_obj)
@@ -768,37 +768,131 @@ a less-negative $d_3$ causes the exclusions to happen much more slowly
 ## 3. Invasibility
 
 
+To estimate the invasibility of these equilibrium communities, we started
+simulations with the equilibrium abundances and trait values for communities
+with $\eta$ values and $d$ magnitudes from the previous section, and 
+with all traits except for the first being non-conflicting.
+The first trait was either conflicting or non-conflicting.
+We then added a single invader to the community and simulated the outcomes.
+We did this for invaders with starting trait 1 and 2 values that varied
+from 0 to 4.
+Trait 3 always started at zero for these simulations.
+We did this to ease visualization and because two of the three
+possible equilibrium trait states had trait 3 equal zero.
+Invaders' starting abundances 0.01.
+For those simulations that yielded successful invasions, 
+we also calculated how much the abundances and traits changed across 
+the time series for both invaders and native species:
+
+\begin{align}
+\Delta N = \sum_{t=2}^{t_{max}}{ | N_{t} - N_{t-1} | } \\
+\Delta V = \sum_{t=2}^{t_{max}}{\sqrt{\sum_{i = 1}^{q}{(v_{i,t} - v_{i,t-1})^2}}}
+\end{align}
+
+\noindent We did this in relation to the distance in trait space from 
+the nearest equilibrium trait state to the starting trait value for the invader:
+$\sqrt{\sum_{i = 1}^{q}{(v_{i} - \hat{v}_{i})^2}}$ at $t = 0$.
+
+
+When the first trait was conflicting, invaders were never successful, 
+whereas they were successful across much of the trait space surrounding the
+equilibrium states when it was non-conflicting (Figure 3A).
+The total change in abundance was almost always greater when the invader 
+started  with traits near state i (Figure 3B).
+This is because state i has high trait 2 and low trait 1, whereas
+state ii is the opposite.
+Because $d_1$ is much lower than $d_2$, species that maximize trait 1
+but minimize trait 2 (state ii) greatly reduce competition experienced by 
+others but receive little benefit themselves.
+Therefore, successful invaders that evolve to state ii will coexist at lower
+equilibrium abundances.
+Trait change had a linear relationship with starting distance for both 
+native species and invaders (Figure 3C).
+
+
+
+
 ```{r invasibility-caption}
 inv_cap <- "Figure 3.
-             XX.
-"
+            Invasibility analysis.
+            (A) Invasibility of equilibrium communities for invaders of 
+            varying starting trait values and when the first trait has 
+            conflicting or non-conflicting evolution.
+            Circles represent trait value combinations that were present 
+            in the equilibrium population,
+            and the two possible states for the non-conflicting case 
+            are labelled with the small Roman numerals nearby.
+            (B,C) For the invasion-successful, non-conflicting cases, how the
+            distance from the nearest equilibrium trait state
+            to the invader's starting trait values relates to the
+            total change in (B) abundance and (C) traits.
+            See text for the equations used to calculate these.
+            Invader points are in blue.
+            (B) Points representing $\\Delta N$ for the native community 
+            (i.e., all non-invader species) are black.
+            The sub-panels separate which state the invader started 
+            nearest to.
+            (C) Each native species is represented by a line with a color 
+            indicating that species starting abundance;
+            this abundance is also the species' equilibrium abundance.
+            "
+
 ```
 
-```{r invasibility-results, fig.cap = cc(inv_cap), fig.width=6.5, fig.height=3}
+
+```{r invasibility-results, fig.cap = cc(inv_cap), fig.width=6, fig.height=6}
 
 
-
-invade_test <- function(r, .V1, .V2, .dsigns, .V3 = 0) {
-    Z <- quant_gen(q = .q, eta = C, d = ds*.dsigns, max_t = 20e3L, n_reps = 1,
-                   save_every = 100L, n = 2, N0 = c(10.9196300066, 10.9196300066 * 0.1),
-                   V0 = list(cbind(2, 0, 0), cbind(.V1, .V2, .V3)),
+invade_test <- function(r, .V1, .V2, .dsigns, .comm_N, .comm_V,
+                        .V3 = 0, .max_t = 20e3L) {
+    
+    # .V1 = 1; .V2 = 1; .dsigns = c(1,1,1); .V3 = 0; .max_t = 20e3L
+    # rm(.V1, .V2, .dsigns, .V3, .max_t, S, comm_N, comm_V, .n, Z)
+    
+    .n <- length(.comm_N) + 1
+    
+    Z <- quant_gen(q = .q, eta = 0.2, d = ds*.dsigns, max_t = .max_t, n_reps = 1,
+                   save_every = 100L, n = .n, 
+                   N0 = c(.comm_N, 0.01),
+                   V0 = c(.comm_V, list(cbind(.V1, .V2, .V3))),
                    start_t = 0, perturb_sd = 0,
-                   show_progress = FALSE) %>%
+                   n_threads = .N_THREADS, show_progress = FALSE) %>%
         .[["nv"]] %>%
         mutate(trait = paste0("V", trait)) %>%
         spread(trait, value) %>%
-        mutate(spp = factor(spp, levels = 1:2, labels = c("native", "invader")),
+        mutate(spp = factor(spp, levels = 1:.n, 
+                            labels = c(paste0("native_", 1:(.n-1)), "invader")),
                rep = paste(.V1, .V2, .V3, sep = "__"),
                dsigns = paste(.dsigns, collapse = "__"))
     return(Z)
 }
 
 
+
+
 if (.REDO_SIMS) {
-    # Takes ~2 min
+    # Takes ~18 min w/ 3 threads
     invade_df <- crossing(.V1 = seq(0, 4, 0.1),
                           .V2 = seq(0, 4, 0.1),
                           .dsigns = list(c(-1,1,1), c(1,1,1))) %>%
+        mutate(.comm_N = map(.dsigns, function(.ds) {
+            d_sim_df %>% 
+                filter(sign(d1) == .ds[1],
+                       sign(d2) == .ds[2],
+                       sign(d3) == .ds[3],
+                       rep == 1) %>% 
+                .[["N"]]
+        }),
+        .comm_V = map(.dsigns, function(.ds) {
+            d_sim_df %>% 
+                filter(sign(d1) == .ds[1],
+                       sign(d2) == .ds[2],
+                       sign(d3) == .ds[3],
+                       rep == 1) %>%
+                select(starts_with("V", FALSE)) %>% 
+                as.matrix() %>% 
+                split(1:nrow(.))
+        })) %>% 
         mutate(r = 1:n()) %>%
         pmap_dfr(invade_test)
     saveRDS(invade_df, rds("invade"))
@@ -810,11 +904,12 @@ if (.REDO_SIMS) {
 
 
 
-invasion_p_df <- invade_df %>%
+invasion_hm_p_df <- invade_df %>%
+    filter(time == max(time)) %>% 
     mutate(dsigns = factor(dsigns, levels = c("-1__1__1", "1__1__1"),
-                           labels = c("-{}+{}+{}", "+{}+{}+{}"))) %>%
+                           labels = c("conflicting", "non-conflicting"))) %>%
     group_by(dsigns, rep) %>%
-    summarize(invaded = factor(sum(time == max(time) & spp == "invader"),
+    summarize(invaded = factor(sum(spp == "invader"),
                                levels = 0:1, labels = c("no", "yes")),
               V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
               V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
@@ -822,12 +917,18 @@ invasion_p_df <- invade_df %>%
     select(-rep)
 
 
-invasion_p <- invasion_p_df %>%
+
+invasion_hm_p <- invasion_hm_p_df %>%
     ggplot(aes(V1, V2)) +
     geom_tile(aes(fill = invaded)) +
     geom_point(data = tibble(V1 = c(0, 2, 2), V2 = c(2, 0, 0),
-                             dsigns = c("+{}+{}+{}", "+{}+{}+{}", "-{}+{}+{}")),
-               size = 4, color = "black", shape = 4) +
+                             dsigns = c(rep("non-conflicting", 2), "conflicting")),
+               size = 4, color = "black", shape = 1) +
+    geom_text(data = tibble(V1 = c(0 + 0.4, 2), V2 = c(2, 0 + 0.4),
+                             dsigns = rep("non-conflicting", 2),
+                            lab = c("i", "ii")),
+               aes(label = lab), size = 12 / 2.835, 
+              color = "black", fontface = "bold") +
     facet_wrap(~ dsigns, labeller = label_parsed, nrow = 1) +
     xlab("Invader trait 1") +
     ylab("Invader trait 2") +
@@ -835,11 +936,143 @@ invasion_p <- invasion_p_df %>%
     coord_equal()
 
 
+# Takes ~20 sec
+invasion_move_p_df <- invade_df %>%
+    filter(dsigns == "1__1__1") %>% 
+    group_by(rep) %>%
+    mutate(invaded = sum(time == max(time) & spp == "invader")) %>% 
+    ungroup() %>% 
+    filter(invaded == 1) %>% 
+    select(-dsigns, -invaded) %>% 
+    group_by(rep, spp) %>%
+    summarize(N0 = N[1],
+              mvmt_N = sum(abs(diff(N))),
+              mvmt_V1 = sum(abs(diff(V1))),
+              mvmt_V2 = sum(abs(diff(V2))),
+              mvmt_V = sum(sqrt((V1 - lag(V1))^2 + (V2 - lag(V2))^2 + 
+                                    (V3 - lag(V3))^2), na.rm = TRUE), 
+              V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
+              V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
+    ungroup() %>%
+    select(-rep) %>%
+    mutate(distance = ifelse(V1 > V2, sqrt((V1 - 2)^2 + (V2 - 0)^2), 
+                             sqrt((V1 - 0)^2 + (V2 - 2)^2)),
+           which_pt = ifelse(V1 > V2, "state i", "state ii"))
 
-if (.RESAVE_PLOTS) save_plot(invasion_p, 6.5, 3, "3-")
+invasion_move_p_df2 <- invade_df %>%
+    filter(dsigns == "1__1__1") %>% 
+    group_by(rep) %>%
+    mutate(invaded = sum(time == max(time) & spp == "invader")) %>% 
+    ungroup() %>% 
+    filter(invaded == 1, spp != "invader") %>% 
+    select(-dsigns, -invaded) %>% 
+    group_by(rep, time) %>%
+    summarize(N = sum(N)) %>% 
+    group_by(rep) %>%
+    summarize(N0 = N[1],
+              mvmt_N = sum(abs(diff(N))), 
+              V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
+              V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
+    ungroup() %>%
+    select(-rep) %>%
+    mutate(distance = ifelse(V1 > V2, sqrt((V1 - 2)^2 + (V2 - 0)^2), 
+                             sqrt((V1 - 0)^2 + (V2 - 2)^2)),
+           which_pt = ifelse(V1 > V2, "state i", "state ii"))
 
 
-invasion_p
+
+invasion_moveN_p <- invasion_move_p_df %>%
+    filter(spp == "invader") %>% 
+    ggplot(aes(distance, mvmt_N)) +
+    geom_point(data = invasion_move_p_df2, shape = 1) +
+    geom_point(shape = 1, color = "dodgerblue") +
+    facet_wrap(~ which_pt, nrow = 1) +
+    scale_y_continuous(expression(italic(Delta * "N")),
+                       breaks = c(0, 0.2, 0.4)) +
+        scale_x_continuous("Starting distance from equilibrium trait state",
+                       breaks = c(0, 0.4, 0.8, 1.2)) +
+    scale_color_viridis_c(expression(N[0]), begin = 0.1, end = 0.9, 
+                          option = "D") +
+    theme(strip.text = element_text(margin = margin(0,0,0,b=6)))
+
+# invasion_moveN_p <- invasion_move_p_df %>%
+#     filter(spp == "invader") %>% 
+#     ggplot(aes(distance, mvmt_N)) +
+#     geom_line(data = invasion_move_p_df %>% 
+#                    filter(spp != "invader"),
+#                aes(group = spp, color = N0),  alpha = 0.5, size = 0.5) +
+#     geom_point(shape = 1, color = "dodgerblue") +
+#     facet_wrap(~ which_pt, nrow = 1) +
+#     scale_y_continuous(expression(italic(Delta * "N")),
+#                        breaks = c(0, 0.2, 0.4)) +
+#         scale_x_continuous("Starting distance from equilibrium trait state",
+#                        breaks = c(0, 0.4, 0.8, 1.2)) +
+#     scale_color_viridis_c(expression(N[0]), begin = 0.1, end = 0.9, option = "D")
+
+invasion_moveV_p <- invasion_move_p_df %>%
+    mutate(id = ifelse(spp == "invader", spp, "native")) %>% 
+    filter(id == "invader") %>% 
+    ggplot(aes(distance, mvmt_V)) +
+    geom_line(data = invasion_move_p_df %>% 
+                  mutate(id = ifelse(spp == "invader", spp, "native"),
+                         grp = interaction(spp, which_pt)) %>% 
+                  filter(spp != "invader"),
+              aes(group = grp, color = N0),  alpha = 0.5, size = 0.5) +
+    geom_point(shape = 1, color = "dodgerblue") +
+    facet_wrap(~ id, nrow = 1, scales =  "free_y") +
+    scale_y_continuous(expression(italic(Delta * "V")),
+                       breaks = scales::breaks_extended(4)) +
+    scale_x_continuous("Starting distance from equilibrium trait state",
+                       breaks = c(0, 0.4, 0.8, 1.2)) +
+    scale_color_viridis_c(expression(N[0]), 
+                          begin = 0.1, end = 0.9, option = "D") +
+    theme(axis.title.x = element_text(margin = margin(0,0,0,t=12)),
+          strip.text = element_text(margin = margin(0,0,0,b=6)))
+
+
+
+
+invasion_p <- ggarrange(invasion_hm_p, 
+                        invasion_moveN_p + theme(axis.title.x = element_blank()), 
+                        invasion_moveV_p,
+                        heights = c(0.5, 0.25, 0.25), 
+                        ncol = 1, labels = LETTERS[1:3],
+                        label.args = list(gp = gpar(fontsize = 14, 
+                                                    fontface =  "plain"),
+                                          vjust = 2, hjust = -4))
+
+
+if (.RESAVE_PLOTS) save_plot(invasion_p, 6, 6, "3-")
+
+
+
+# C <- matrix(0.2, .q, .q)
+# diag(C) <- 1
+# .p <- 0.1
+# .max_t <- 5e3L
+# .V1 <- 0
+# .V2 <- 1.5
+# .V3 <- 0
+# 
+# Z <- quant_gen(q = .q, eta = C, d = ds, max_t = .max_t, n_reps = 1,
+#           save_every = 1L, n = 2, 
+#           N0 = c(10.9196300066, 10.9196300066 * .p),
+#           V0 = list(cbind(0, 0, 2), cbind(.V1, .V2, .V3)),
+#           start_t = 0, perturb_sd = 0,
+#           show_progress = FALSE) %>%
+#     .[["nv"]] %>%
+#     mutate(trait = paste0("V", trait)) %>%
+#     spread(trait, value) %>%
+#     mutate(spp = factor(spp, levels = 1:2, labels = c("native", "invader")))
+# 
+# Z %>% filter(time == max(time))
+# 
+# Z %>% 
+#     ggplot(aes(time, N, color = spp)) +
+#     geom_line() +
+#     scale_y_continuous("N", limits = c(0, 11))
+
+
 
 ```
 
@@ -850,9 +1083,50 @@ invasion_p
 
 ## 4. Conditional coexistence
 
+In the simulations above, we found that with random starting trait values,
+only one trait being conflicting causes total exclusion to occur.
+In this section, I show that non-random patterns of starting trait values
+can result in coexistence.
+Specifically, coexistence will occur despite a conflicting trait if all 
+species start outside the basin of attraction for the state at which 
+the conflicting trait is maximized.
+In these simulations, the first trait is conflicting and the others 
+are non-conflicting.
+We start the communities with 100 species.
+One simulation gives these species random trait values
+($\mathbf{V} \sim |\text{N}(0,2)|$).
+In the other simulation, we forced starting trait 1 to be less than trait 2 
+for all species ($\mathbf{v}_1 \sim |\text{N}(0,2)|$ and 
+$\mathbf{v}_2 \sim \text{U}(0, \mathbf{v}_2)$).
+This kept all species outside the basin of attraction for the conflicting trait.
+We kept trait 3 at zero for all simulations, for the reasons outlined in 
+the last section.
+We kept track of abundances and trait values through time for all species.
+
+
+
+When simulations started with a population whose trait values were all in the 
+basin of attraction for a non-conflicting trait, species evolve towards the 
+adaptive peak for the non-conflicting trait---and can coexist with one another
+(Figure 4). 
+When the population starts with some species in the basin of attraction for 
+the conflicting trait, those species evolve towards that adaptive peak, and 
+the one that reaches the peak first excludes all other species.
+
+
+
+
 ```{r cond_coex-caption}
 cc_cap <- "Figure 4.
-             XX.
+           Two simulations illustrating conditional coexistence for a mix of both conflicting and non-conflicting traits. 
+           The left panels show exclusion, whereas the right two show 
+           conditional coexistence. 
+           In the top two panels, each line is for a particular species. 
+           In the bottom two panels, circles show starting trait values, 
+           and lines show trajectories through trait space through time.
+           Xs show the trait values for surviving species. 
+           The gray area is the basin of attraction for the 
+           non-conflicting trait.
 "
 ```
 
@@ -860,10 +1134,6 @@ cc_cap <- "Figure 4.
 
 # d_sim_df %>% distinct(d1, d2, d3)
 
-d_sim_df %>%
-    filter(d1 < 0, d2 > 0, d3 > 0, rep == 1) %>%
-    select(-starts_with("d"), -rep) %>%
-    .[["N"]]
 
 
 set.seed(1245262468)
@@ -883,7 +1153,7 @@ V0_exclude <- lapply(1:100,
 
 
 cond_coexist_test <- function(.V0, .lab) {
-    Z <- quant_gen(q = .q, eta = C, d = ds*c(-1,1,1), max_t = 20e3L, n_reps = 1,
+    Z <- quant_gen(q = .q, eta = 0.2, d = ds*c(-1,1,1), max_t = 20e3L, n_reps = 1,
                    save_every = 10L, n = 100, N0 = rep(1, 100),
                    V0 = .V0,
                    start_t = 0, perturb_sd = 0,
@@ -900,8 +1170,9 @@ cond_coexist_test <- function(.V0, .lab) {
 
 # Just takes a few seconds
 cond_coexist_df <- tibble(.V0 = list(V0_coexist, V0_exclude),
-                          .lab = c("coexistence", "exclusion")) %>%
-    pmap_dfr(cond_coexist_test)
+                          .lab = c("exclusion", "coexistence")) %>%
+    pmap_dfr(cond_coexist_test) %>% 
+    mutate(V0 = factor(V0, levels = c("exclusion", "coexistence")))
 
 
 
@@ -944,13 +1215,16 @@ cond_coexist_sp_p <- cond_coexist_df %>%
 
 
 
-cond_coexist_p <- plot_grid(cond_coexist_ts_p, cond_coexist_sp_p, ncol = 1,
-                            rel_heights = c(0.85, 1), labels = LETTERS[1:2],
-                            label_y = c(0.83,1))
+cond_coexist_p <- ggarrange(cond_coexist_ts_p, 
+                            cond_coexist_sp_p, 
+                            heights = c(0.5, 0.5),
+                            ncol = 1, labels = LETTERS[1:2],
+                            label.args = list(gp = gpar(fontsize = 14,
+                                                        fontface =  "plain"),
+                                              vjust = 2, hjust = -5))
 
 
 if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 5, 5, "4-")
 
-cond_coexist_p
 
 ```
