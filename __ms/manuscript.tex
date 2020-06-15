@@ -88,62 +88,6 @@ eco-evolutionary dynamics}
 \linenumbers{}
 \modulolinenumbers[3]
 
-\newpage{}
-
-
-\section*{NOTE FOR TONY}
-
-The current version of the manuscript contains no real results or discussion, as I'm
-not done with the analytical solutions.
-The introduction is crappy and needs to be re-written.
-Feel free to skip this section, too.
-
-I'm currently working on the 2-trait analytical solutions.
-My current progress on these solutions is in Appendix B.
-The trait solutions are pretty straightforward, but
-I'm having some trouble with the ``ecological'' side of the equilibria.
-
-Extending from the 2-species case, it's pretty clear that if $n$ species coexist and
-they're all either generalists or all specialists, then their equilibrium abundances
-should be the same.
-But for $n$ species where some are generalists and some are specialists, I feel like
-I could get into the weeds really quickly trying to solve for those situations.
-So I'm not sure how much further I should go after the last part of appendix B.
-
-I think I should probably stop looking for the equilibrium solutions for abundance size
-(at least for now) and focus on using the \citet{Geritz:1998es} definitions of stability.
-The solutions for equilibrium abundances aren't that useful in terms of expected
-outcomes because they assume that all species reach the equilibrium trait values.
-This never happens in the simulations for conflicting evolution.
-Would you agree with this?
-
-This leads me to another potential change.
-In the methods, I only include traits in the Jacobian.
-Given that I'm interested in coexistence, I should include the abundances, too, right?
-Would that look something like this?
-
-\begin{equation*}
-\begin{split}
-    \begin{pmatrix}
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots &
-            \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{1,t}} &
-            \frac{\partial \mathbf{N}_{t+1}}{\partial \mathbf{V}_{1,t}} \\
-        \vdots & \ddots & \vdots & \vdots \\
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} & \cdots &
-            \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{n,t}} &
-            \frac{\partial \mathbf{N}_{t+1}}{\partial \mathbf{V}_{n,t}} \\
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{N}_{t}} & \cdots &
-            \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{N}_{t}} &
-            \frac{\partial \mathbf{N}_{t+1}}{\partial \mathbf{N}_{t}}
-    \end{pmatrix}
-    \text{,}
-\end{split}
-\end{equation*}
-
-where $\mathbf{V}_{i,t}$ is a vector of traits for species $i$ at time $t$, and
-$\mathbf{N}_t$ is a vector of all species' abundances at time $t$.
-
-
 
 
 \clearpage
