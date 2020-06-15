@@ -75,28 +75,6 @@ inline void sel_str__(arma::mat& ss_mat,
 }
 
 
-inline void sel_str__(arma::mat& ss_mat,
-                      const arma::mat& V,
-                      const std::vector<double>& N,
-                      const double& f,
-                      const double& a0,
-                      const arma::mat& C,
-                      const double& r0,
-                      const arma::mat& D) {
-
-    uint32_t n = V.n_rows;
-
-    std::vector<arma::rowvec> VV;
-    VV.reserve(n);
-    for (uint32_t i = 0; i < n; i++) VV.push_back(V.row(i));
-
-    sel_str__(ss_mat, VV, N, f, a0, C, r0, D);
-
-    return;
-
-}
-
-
 
 //' R-exported version of above, so it can be tested in R for accuracy.
 //'
@@ -120,43 +98,6 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 
 
 
-
-
-
-// Make a copy of `V0` that has new trait values (at time t+1):
-arma::mat new_traits_(const arma::mat& V0,
-                      const std::vector<double>& N,
-                      const double& f,
-                      const double& a0,
-                      const arma::mat& C,
-                      const double& r0,
-                      const arma::mat& D,
-                      const arma::vec& add_var) {
-
-    arma::mat V = V0;
-
-    arma::mat ss_mat;
-
-    uint32_t q = V.n_cols;
-
-    // Fill in selection-strength matrix:
-    sel_str__(ss_mat, V, N, f, a0, C, r0, D);
-    // Then include additive genetic variance when adding to trait values:
-    for (uint32_t i = 0; i < V.size(); i++) {
-        V.row(i) += (add_var(i) * ss_mat.row(i));
-        for (uint32_t j = 0; j < q; j++) {
-            if (V(i,j) < 0) V(i,j) *= -1; // <-- keeping traits >= 0
-            // if (V(i,j) < 0) V(i,j) = 0; // <-- keeping traits >= 0
-        }
-    }
-
-    return V;
-
-}
-
-
-
-
 //' Partial derivative of species i traits at time t+1 with respect to species i traits
 //' at time t.
 //'
@@ -167,7 +108,6 @@ inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
                      const arma::rowvec& Vi,
-                     const arma::rowvec& new_Vi,
                      const double& Z,
                      const arma::mat& C,
                      const double& f,
@@ -196,29 +136,8 @@ inline void dVi_dVi_(arma::mat& dVhat,
 arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
                       const arma::mat& C, const double& f, const double& a0,
                       const double& add_var) {
-
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
-
-    uint32_t n = N.size();
-
-    if (V.n_rows != n) stop("V has # rows != # species");
-    if (add_var.n_elem != n) stop("add_var.n_elem != # species");
-
-    arma::mat jcb_mat(n*q, n*q);
-
-    arma::vec Z_vec(n);
-    for (uint32_t j = 0; j < n; j++) {
-        if (j == i) {
-            Z_vec(j) = 0;
-            continue;
-        }
-        double X = arma::as_scalar(-1 * V.row(j) * D * V.row(j).t());
-        Z_vec(j) = (N[j] * std::exp(X));
-    }
-    double Z = arma::accu(Z_vec);
-
-    arma::mat newV = new_traits_(V, N, f, a0, C, r0, D, add_var);
 
     // Fill dVhat:
     dVi_dVi_(dVhat, 0, 0, V.row(i), Z, C, f, a0, add_var);
