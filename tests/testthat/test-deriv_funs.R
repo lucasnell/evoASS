@@ -34,7 +34,6 @@ get_sim_info <- function(sim_i) {
         V_ = split(V, row(V))
         C = matrix(eta, ncol(V), ncol(V))
         diag(C) = 1
-        CCC = C + t(C)
         add_var = 0.01
         D <- matrix(0, ncol(V), ncol(V))
         diag(D) <- d
@@ -68,7 +67,7 @@ calc_dVi_dVi <- function(sim_info) {
                               }))
         })
         with(sim_info, {
-            sauron:::dVi_dVi_cpp(i - 1, V, Z, CCC, f, a0, add_var)
+            sauron:::dVi_dVi_cpp(i - 1, V, Z, C, f, a0, add_var)
         })
     })
 }

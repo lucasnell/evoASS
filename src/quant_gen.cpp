@@ -109,7 +109,7 @@ inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& col_start,
                      const arma::rowvec& Vi,
                      const double& Z,
-                     const arma::mat& CCC,
+                     const arma::mat& C,
                      const double& f,
                      const double& a0,
                      const double& add_var) {
@@ -118,11 +118,11 @@ inline void dVi_dVi_(arma::mat& dVhat,
     uint32_t row_end = row_start + q - 1;
     uint32_t col_end = col_start + q - 1;
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I +
-        add_var * (
+        2 * add_var * (
                 (
-                        2 * a0 * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
+                        a0 * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
                             (I - 2 * (Vi.t() * Vi))
-                ) - (f * CCC)
+                ) - (f * C)
         );
     return;
 }
@@ -134,13 +134,13 @@ inline void dVi_dVi_(arma::mat& dVhat,
 //'
 //[[Rcpp::export]]
 arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
-                      const arma::mat& CCC, const double& f, const double& a0,
+                      const arma::mat& C, const double& f, const double& a0,
                       const double& add_var) {
     uint32_t q = V.n_cols;
     arma::mat dVhat(q, q);
 
     // Fill dVhat:
-    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, CCC, f, a0, add_var);
+    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, C, f, a0, add_var);
 
     return dVhat;
 }
@@ -227,8 +227,6 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
         Z_vec[j] = (N[j] * std::exp(arma::as_scalar(-1 * V[j] * D * V[j].t())));
     }
 
-    arma::mat CCC = C + C.t();
-
     for (uint32_t i = 0; i < n; i++) {
 
         const arma::rowvec& Vi(V[i]);
@@ -246,7 +244,7 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                     if (j != i) Z += Z_vec[j];
                 }
                 // Fill Jacobian:
-                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, CCC, f, a0, add_var_i);
+                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, C, f, a0, add_var_i);
 
             } else {
 
