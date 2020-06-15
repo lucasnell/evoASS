@@ -2,6 +2,7 @@
 % Please edit documentation in R/quant_gen.R
 \name{quant_gen}
 \alias{quant_gen}
+\alias{perturb.quant_gen}
 \title{Quantitative genetics.}
 \usage{
 quant_gen(
@@ -23,6 +24,17 @@ quant_gen(
   save_every = 10000L,
   show_progress = TRUE,
   n_threads = 1
+)
+
+\method{perturb}{quant_gen}(
+  obj,
+  max_t,
+  save_every,
+  start_t = 0,
+  perturb_sd = 0,
+  new_V = NULL,
+  new_N = NULL,
+  ...
 )
 }
 \arguments{
@@ -69,6 +81,16 @@ matrix row or column.}
 \item{show_progress}{Boolean for whether to show a progress bar.}
 
 \item{n_threads}{Number of cores to use. Defaults to 1.}
+
+\item{obj}{A \code{quant_gen} object.}
+
+\item{new_V}{List of trait values for the new species being added.
+Defaults to \code{NULL}, which causes no new species to be add.}
+
+\item{new_N}{Numeric vector of new species to add. Defaults to \code{NULL}, which
+causes no new species to be add.}
+
+\item{...}{Not used here.}
 }
 \value{
 A \code{quant_gen} object with \code{nv} (for N and V output) and \code{fs} (for fitness
@@ -77,3 +99,8 @@ and selection output) fields.
 \description{
 Quantitative genetics.
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{perturb}: Add a perturbation to a \code{quant_gen} object.
+}}
+

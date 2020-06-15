@@ -380,3 +380,123 @@ jacobians <- function(qg_obj) {
     return(jacs)
 
 }
+
+
+
+
+
+#' @describeIn quant_gen Add a perturbation to a `quant_gen` object.
+#'
+#' @param obj A `quant_gen` object.
+#' @inheritParams quant_gen
+#' @param new_V List of trait values for the new species being added.
+#'     Defaults to `NULL`, which causes no new species to be add.
+#' @param new_N Numeric vector of new species to add. Defaults to `NULL`, which
+#'     causes no new species to be add.
+#' @param ... Other parameters to pass to `quant_gen`.
+#'
+#'
+#' @export
+#'
+#' @importFrom magrittr %>%
+#' @importFrom dplyr filter
+#'
+perturb.quant_gen <- function(obj,
+                              max_t,
+                              save_every,
+                              start_t = 0,
+                              perturb_sd = 0,
+                              new_V = NULL,
+                              new_N = NULL,
+                              ...) {
+
+    if (!is.null(new_V)) {
+        stopifnot(inherits(new_V, "list"))
+        stopifnot(sapply(new_V, inherits, what = c("numeric", "matrix", "array")))
+        stopifnot(sapply(new_V, function(x) all(x >= 0)))
+        V <- new_V
+    } else V <- list()
+
+    if (!is.null(new_N)) {
+        stopifnot(is.numeric(new_N))
+        stopifnot(new_N >= 0)
+        N <- new_N
+    } else N <- numeric(0)
+
+    stopifnot(sapply(list(start_t, max_t, save_every, perturb_sd), is.numeric))
+    stopifnot(sapply(list(start_t, max_t, save_every, perturb_sd), length) == 1)
+    stopifnot(max_t >= 1)
+    stopifnot(c(start_t, save_every, perturb_sd) >= 0)
+
+    obj$nv <- filter(obj$nv, rep == rep[1])
+    if ("time" %in% colnames(obj$nv)) {
+        obj$nv <- filter(obj$nv, time == max(time))
+    }
+
+    N0 <- obj$nv %>%
+        filter(trait == 1) %>%
+        .[["N"]]
+    N0 <- c(N0, N)
+
+    V0 <- obj$nv %>%
+        mutate(trait = paste0("V", trait)) %>%
+        spread(trait, value) %>%
+        select(starts_with("V", ignore.case = TRUE)) %>%
+        as.matrix() %>%
+        split(1:nrow(.)) %>%
+        lapply(rbind)
+    V0 <- c(V0, V)
+
+    args <- obj$call %>%
+        as.list() %>%
+        .[-1]
+
+    args[["max_t"]] <- max_t
+    args[["save_every"]] <- save_every
+    args[["start_t"]] <- start_t
+    args[["perturb_sd"]] <- perturb_sd
+    args[["V0"]] <- V0
+    args[["N0"]] <- N0
+    args[["n"]] <- length(N0)
+
+    args[["n_reps"]] <- 1
+    args[["n_threads"]] <- 1
+
+    if (!is.null(args[["add_var"]])) {
+        if (length(unique(args[["add_var"]])) > 1) {
+            stop(paste("perturb.quant_gen not programmed for species with",
+                       "differing additive genetic variations"))
+        }
+        args[["add_var"]] <- rep(unique(args[["add_var"]]), length(N0))
+    }
+
+    new_args <- list(...)
+    for (n in names(new_args)) args[[n]] <- new_args[[n]]
+
+    qg <- do.call(quant_gen, args)
+
+    NV <- qg$nv
+    if ("time" %in% colnames(NV)) {
+        NV <- filter(NV, time == max(time))
+    }
+    Nt <- NV %>%
+        filter(trait == 1) %>%
+        .[["N"]]
+    Vt <- NV %>%
+        mutate(trait = paste0("V", trait)) %>%
+        spread(trait, value) %>%
+        select(starts_with("V", ignore.case = TRUE)) %>%
+        as.matrix() %>%
+        split(1:nrow(.)) %>%
+        lapply(rbind)
+
+
+    out <- list(start = list(N = N0, V = do.call(rbind, V0)),
+                end = list(N = Nt, V = do.call(rbind, Vt)),
+                end_obj = qg)
+
+
+    return(out)
+
+
+}
