@@ -297,8 +297,9 @@ unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALS
 one_jacobian <- function(one_rep, qg_obj) {
 
 
-    if (!is.null(one_rep[["time"]])) one_rep <- dplyr::filter(one_rep, time == max(time))
-    one_rep
+    if (!is.null(one_rep[["time"]])) {
+        one_rep <- dplyr::filter(one_rep, time == max(time))
+    }
 
     N <- dplyr::filter(one_rep, trait == 1)[["N"]]
     spp <- as.integer(paste(dplyr::filter(one_rep, trait == 1)[["spp"]]))
@@ -323,6 +324,9 @@ one_jacobian <- function(one_rep, qg_obj) {
     if (is.null(qg_obj$call[["a0"]])) {
         a0 <- eval(formals(quant_gen)[["a0"]])
     } else a0 <- eval(qg_obj$call[["a0"]], parent.frame(2L))
+    if (is.null(qg_obj$call[["r0"]])) {
+        r0 <- eval(formals(quant_gen)[["r0"]])
+    } else r0 <- eval(qg_obj$call[["r0"]], parent.frame(2L))
     if (is.null(qg_obj$call[["d"]])) {
         stop("arg `d` is NULL in quant_gen object call")# should never be NULL
     } else d <- eval(qg_obj$call[["d"]], parent.frame(2L))
@@ -353,8 +357,15 @@ one_jacobian <- function(one_rep, qg_obj) {
         diag(D) <- d
     }
 
+    jac <- jacobian_cpp(V, N, f, a0, D, C, add_var)
 
-    jac <- sauron:::jacobian_cpp(V, N, f, a0, D, C, add_var)
+    # Now dealing with it being an absolute value
+    deltaV <- diag(add_var) %*%
+        sel_str_cpp(V = V, N = N, f = f, a0 = a0, C = C, r0 = r0, D = D)
+    newV <- as.numeric(do.call(rbind, V) + deltaV)
+    newV <- ifelse(newV == 0, NA_real_, ifelse(newV < 0, -1, 1))
+
+    jac <- diag(newV) %*% jac
 
     return(jac)
 
