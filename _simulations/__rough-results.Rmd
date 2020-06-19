@@ -114,6 +114,7 @@ one_eta_combo <- function(sign1, sign2, sign3) {
                           start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                           show_progress = FALSE)
     
+    trait_to$call[["eta"]] <- eval(trait_to$call[["eta"]])
     output <- list(jacs = jacobians(trait_to),
                    ts = trait_to$nv %>%
                        mutate(trait = paste0("V", trait)) %>%
@@ -126,7 +127,7 @@ one_eta_combo <- function(sign1, sign2, sign3) {
 
 
 if (.REDO_SIMS) {
-    # Takes ~6 min with 2 threads
+    # Takes ~2 min with 3 threads
     set.seed(145746935)
     eta_sims <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1) %>%
         pmap(one_eta_combo)
