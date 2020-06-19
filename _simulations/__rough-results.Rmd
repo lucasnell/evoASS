@@ -114,43 +114,10 @@ one_eta_combo <- function(sign1, sign2, sign3) {
                           show_progress = FALSE)
     
     trait_to$call[["eta"]] <- eval(trait_to$call[["eta"]])
-    
-    TS <- trait_to$nv %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value)
-    
-    D <- matrix(0, .q, .q)
-    diag(D) <- 0.1
-    
-    get_new_Vs <- function(.rep) {
-        
-        .df <- TS %>% 
-            filter(rep == .rep)
-        
-        V <- .df %>%
-            select(starts_with("V", FALSE)) %>% 
-            split(1:nrow(.)) %>% 
-            map(as.matrix)
-        N <- .df$N
-        
-        sigma2 <- with(list(n = 1), eval(formals(quant_gen)[["add_var"]]))^2
-        deltaV <- sigma2 * sauron:::sel_str_cpp(V = V,
-                                                N = N,
-                                                f = formals(quant_gen)[["f"]],
-                                                a0 = formals(quant_gen)[["a0"]],
-                                                C = C,
-                                                r0 = formals(quant_gen)[["r0"]],
-                                                D = D)
-        V <- do.call(rbind, V) + deltaV
-        
-        return(V)
-    }
-    
-    Vs <- lapply(1:24, get_new_Vs)
-    
     output <- list(jacs = jacobians(trait_to),
-                   new_traits = Vs,
-                   ts = TS %>%
+                   ts = trait_to$nv %>%
+                       mutate(trait = paste0("V", trait)) %>%
+                       spread(trait, value) %>%
                        filter(unq_spp_filter(V1, V2, V3)) %>%
                        select(starts_with("V")) %>%
                        mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]))
@@ -163,13 +130,12 @@ if (.REDO_SIMS) {
     set.seed(145746935)
     eta_sims <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1) %>%
         pmap(one_eta_combo)
-    # saveRDS(eta_sims, rds("eta_sim"))
-    saveRDS(eta_sims, rds("eta_sim_absolute_values"))
+    saveRDS(eta_sims, rds("eta_sim"))
 } else {
     eta_sims <- readRDS(rds("eta_sim"))
 }
 eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
- 
+# eta_sim_jacs <- do.call(c, map(eta_sims, ~.x$jacs))
 
 #'
 #' Based on these eigenvalues...
@@ -204,38 +170,6 @@ eta_sim_df %>%
 eta_sim_df %>%
     filter(eta1 < 0, eta2 > 0, eta3 > 0)
 
-
-
-
-#'
-#' Based on these eigenvalues...
-#'   * 
-#'
-eta_sim_eigs2 <- map_dfr(eta_sims,
-                         function(.x) {
-                             get_eigs <- function(j) {
-                                 V <- as.numeric(.x[["new_traits"]][[j]])
-                                 V <- ifelse(V < 0, -1, 1)
-                                 J <- diag(V) %*% .x[["jacs"]][[j]]
-                                 E <- max(eigen(J, only.values = TRUE)$values)
-                                 return(E)
-                             }
-                             eigs <- map_dbl(1:length(.x[["new_traits"]]),
-                                             get_eigs)
-                             .x$ts %>%
-                                 distinct(eta1, eta2, eta3) %>%
-                                 mutate_all(sign) %>%
-                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
-                                 mutate(e_min = min(eigs),
-                                        e_max = max(eigs))
-                         })
-
-eta_sim_eigs %>%
-    filter(e_min < 1)
-eta_sim_eigs %>%
-    filter(e_min == 1)
-eta_sim_eigs %>%
-    filter(e_min > 1)
 
 
 
