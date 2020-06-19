@@ -244,12 +244,14 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                     if (j != i) Z += Z_vec[j];
                 }
                 // Fill Jacobian:
-                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, C, f, a0, add_var_i);
+                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, C, f, a0,
+                         add_var_i);
 
             } else {
 
                 // Fill Jacobian:
-                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], D, a0, add_var_i);
+                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], D, a0,
+                         add_var_i);
 
             }
 
