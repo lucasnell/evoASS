@@ -62,8 +62,8 @@ sel_str_cpp <- function(V, N, f, a0, C, r0, D) {
 #'
 #' @noRd
 #'
-dVi_dVi_cpp <- function(i, V, Z, CCC, f, a0, add_var) {
-    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, CCC, f, a0, add_var)
+dVi_dVi_cpp <- function(i, V, Z, C, f, a0, add_var) {
+    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, C, f, a0, add_var)
 }
 
 #' R-exported version of above, to be used in R for testing.

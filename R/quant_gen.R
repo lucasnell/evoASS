@@ -184,7 +184,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
         unq_nspp <- x$nv %>%
             filter(time == max(time), trait == levels(trait)[1]) %>%
             group_by(rep) %>%
-            summarize(n_ = n()) %>%
+            summarize(n_ = dplyr::n()) %>%
             ungroup() %>%
             .[["n_"]] %>%
             unique()
@@ -192,7 +192,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
         unq_nspp <- x$nv %>%
             filter(trait == levels(trait)[1]) %>%
             group_by(rep) %>%
-            summarize(n_ = n()) %>%
+            summarize(n_ = dplyr::n()) %>%
             ungroup() %>%
             .[["n_"]] %>%
             unique()
@@ -312,32 +312,35 @@ one_jacobian <- function(one_rep, qg_obj) {
 
     if (is.null(qg_obj$call[["n"]])) {
         n <- eval(formals(quant_gen)[["n"]])
-    } else n <- eval(qg_obj$call[["n"]])
+    } else n <- eval(qg_obj$call[["n"]], parent.frame(2L))
     if (is.null(qg_obj$call[["q"]])) {
-        q <- eval(formals(quant_gen)[["q"]])
-    } else q <- eval(qg_obj$call[["q"]])
+        stop("arg `q` is NULL in quant_gen object call")# should never be NULL
+    } else q <- eval(qg_obj$call[["q"]], parent.frame(2L))
 
     if (is.null(qg_obj$call[["f"]])) {
         f <- eval(formals(quant_gen)[["f"]])
-    } else f <- eval(qg_obj$call[["f"]])
+    } else f <- eval(qg_obj$call[["f"]], parent.frame(2L))
     if (is.null(qg_obj$call[["a0"]])) {
         a0 <- eval(formals(quant_gen)[["a0"]])
-    } else a0 <- eval(qg_obj$call[["a0"]])
+    } else a0 <- eval(qg_obj$call[["a0"]], parent.frame(2L))
     if (is.null(qg_obj$call[["d"]])) {
-        d <- eval(formals(quant_gen)[["d"]])
-    } else d <- eval(qg_obj$call[["d"]])
+        stop("arg `d` is NULL in quant_gen object call")# should never be NULL
+    } else d <- eval(qg_obj$call[["d"]], parent.frame(2L))
     if (is.null(qg_obj$call[["eta"]])) {
-        eta <- eval(formals(quant_gen)[["eta"]])
-    } else eta <- eval(qg_obj$call[["eta"]])
+        stop("arg `eta` is NULL in quant_gen object call")# should never be NULL
+    } else eta <- eval(qg_obj$call[["eta"]], parent.frame(2L))
     if (is.null(qg_obj$call[["add_var"]])) {
         add_var <- eval(formals(quant_gen)[["add_var"]])
-    } else add_var <- eval(qg_obj$call[["add_var"]])
+    } else add_var <- eval(qg_obj$call[["add_var"]], parent.frame(2L))
     add_var <- add_var[spp]
 
 
+    stopifnot(is.numeric(eta))
+
     C <- matrix(eta[1], q, q)
     if (length(eta) == q^2) {
-        stopifnot(inherits(eta, "matrix") && identical(dim(eta), as.integer(c(q,q))) &&
+        stopifnot(inherits(eta, "matrix") &&
+                      identical(dim(eta), as.integer(c(q,q))) &&
                       isSymmetric(eta))
         C <- eta
     }

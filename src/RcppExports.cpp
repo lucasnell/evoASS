@@ -50,19 +50,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // dVi_dVi_cpp
-arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& CCC, const double& f, const double& a0, const double& add_var);
-RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CCCSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
+arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& C, const double& f, const double& a0, const double& add_var);
+RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
     Rcpp::traits::input_parameter< const double& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type CCC(CCCSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
-    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Z, CCC, f, a0, add_var));
+    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Z, C, f, a0, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
