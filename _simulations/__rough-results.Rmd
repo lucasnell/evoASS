@@ -105,7 +105,6 @@ one_eta_combo <- function(sign1, sign2, sign3) {
 
     C <- matrix(0, .q, .q)
     C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)
-    # sample(c(-1, 1), .q, TRUE)
     C <- C + t(C)
     diag(C) <- 1
 
@@ -137,21 +136,42 @@ if (.REDO_SIMS) {
 }
 eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 # eta_sim_jacs <- do.call(c, map(eta_sims, ~.x$jacs))
-# 
-# 
-# # These eigenvalues show that any points with a trait equal to zero aren't 
-# # stable. This is because we're forcing them to be >= 0, not doing it
-# # mathematically in the equations themselves.
-# eta_sim_eigs <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1, 
-#                          rep = 1L:24L) %>%
-#     mutate(eigen = map_dbl(eta_sim_jacs, ~ max(eigen(.x)$values)))
-# 
-# eta_sim_eigs %>% 
-#     group_by(sign1, sign2, sign3) %>% 
-#     summarize(e_min = min(eigen),
-#               e_max = max(eigen)) %>% 
-#     ungroup() %>% 
-#     as.data.frame()
+
+#'
+#' Based on these eigenvalues...
+#'   * All of the permutations with no sub-additive tradeoffs are stable
+#'   * --+ is also stable
+#'   * Everything else is unstable
+#'
+#' The state at - - + is the same as that for - 0/+ 0/+, but that one is
+#' unstable
+#'
+eta_sim_eigs <- map_dfr(1:length(eta_sims),
+                         function(i) {
+                             eigs <- map_dbl(eta_sims[[i]][["jacs"]],
+                                             ~ max(eigen(.x)$values))
+                             eta_sims[[i]]$ts %>%
+                                 distinct(eta1, eta2, eta3) %>%
+                                 mutate_all(sign) %>%
+                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
+                                 mutate(e_min = min(eigs),
+                                        e_max = max(eigs))
+                         })
+
+eta_sim_eigs %>%
+    filter(e_min < 1)
+eta_sim_eigs %>%
+    filter(e_min == 1)
+eta_sim_eigs %>%
+    filter(e_min > 1)
+
+eta_sim_df %>%
+    filter(eta1 < 0, eta2 < 0, eta3 > 0)
+eta_sim_df %>%
+    filter(eta1 < 0, eta2 > 0, eta3 > 0)
+
+
+
 
 ```
 
