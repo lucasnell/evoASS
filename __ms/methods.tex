@@ -4,8 +4,8 @@
 
 \subsection*{Model overview}
 
-We used a simple model of competition to evaluate how competition affects outcomes of
-community assembly and trait evolution.
+We used a simple model of competition to evaluate how competition affects
+outcomes of community assembly and trait evolution.
 Each of $n$ species has $q$ traits that affect competition.
 All traits and species are symmetrical.
 Increases in traits benefit the species via reduced
@@ -13,21 +13,20 @@ effects of both interspecific and intraspecific competition;
 they also incur a cost by decreasing the species' population growth rate.
 In both the costs and benefits, trait effects are concave functions that,
 combined, ensure that one fitness peak exists for each trait.
-Traits can also have non-additive trade-offs that either increase or decrease the cost
-associated with increasing multiple traits compared to increasing just one.
+Traits can also have non-additive trade-offs that either increase or decrease
+the cost associated with increasing multiple traits compared to increasing
+just one.
 Trait evolution in one species also affects competition experienced by others.
 This can be either conflicting or non-conflicting:
-When conflicting, increasing traits in one species increase the effects of competition
-for all other species.
-When non-conflicting, all competitors' competition is reduced when traits increase in
-one species.
+When conflicting, increasing traits in one species increase the effects of
+competition for all other species.
+When non-conflicting, all competitors' competition is reduced when traits
+increase in one species.
 
-We analyzed the model for 2--4 traits.
-Below, we use matrix notation that applies to any number of traits.
-Matrices (indicated by bold face) are multiplied using matrix---not
-element-wise---multiplication,
-and ${}^{\textrm{T}}$ represents matrix transposition.
-
+% Below, we use matrix notation that applies to any number of traits.
+% Matrices (indicated by bold face) are multiplied using matrix---not
+% element-wise---multiplication,
+% and ${}^{\textrm{T}}$ represents matrix transposition.
 We used a discrete-time, modified Lotka--Volterra competition model similar to
 that by \citet{Northfield:2013if}.
 In it, species $i$ has a $1 \times q$ matrix of traits ($\mathbf{V}_i$), and
@@ -39,7 +38,8 @@ its per-capita growth---equivalent to fitness---is
 \end{equation}
 
 \noindent where $N_i$ is the population density of  species $i$.
-The parameter $r(\mathbf{V}_i)$ describes how a trait increase decreases the growth rate:
+The parameter $r(\mathbf{V}_i)$ describes how a trait increase
+decreases the growth rate:
 
 \begin{equation} \label{eq:growth-rate}
 \begin{split}
@@ -63,44 +63,17 @@ $l$ and $k$), and all values on the diagonal of $\mathbf{C}$ are 1.
 The relationships between trait values and other components of fitness
 (growth rates and effects of competition) are of the form
 $v^2 \propto X$ for parameter $X$, so $v = z$ is equivalent to $v = -z$.
-To avoid alternative outcomes due to artifacts of this relationship, traits are not
-allowed to be $< 0$.
+To avoid alternative outcomes due to artifacts of this relationship,
+traits are not allowed to be $< 0$.
+We did this by passing the equation for $\mathbf{V}_{t+1}$ through a
+Heaviside step function \citep{Abramowitz:1948ha}.
+This implementation and its consequences on resulting derivatives are in
+Appendix A.
 
 
-%The term $\alpha(\mathbf{V}, \mathbf{N}, i)$ in
-%equation \ref{eq:fitness} represents how traits affect
-%intraspecific and interspecific competition.
-%The overall effect of competition is given by
-%
-%\begin{equation} \label{eq:competition}
-%\begin{split}
-%    \alpha(\mathbf{V}, \mathbf{N}, i) &=
-%        \alpha_0 ~ \textrm{e}^{- \mathbf{V}_i
-%            \mathbf{V}_i^{\textrm{T}} }
-%        \left[ N_i ~ +
-%        \sum_{j \ne i}^{n}{
-%            N_j ~
-%            \textrm{e}^{- d ~ \mathbf{V}_j \mathbf{V}_j^{\textrm{T}} } }
-%        \right]
-%    \textrm{.}
-%\end{split}
-%\end{equation}
-%
-%where
-%$\alpha_0$ is the base density dependence and
-%$N_i$ is the abundance of species $i$.
-%Parameter $d$ determines how the evolution of traits in one species affects
-%competition experienced by others:
-%When $d < 0$, increase of $\mathbf{V}_i$ increases the effects of competition in
-%all other species.
-%Alternatively, when $d > 0$, $\mathbf{V}_i$ increase decreases the effects of
-%competition on all other species.
-%Thus $d < 0$ causes conflicting and $d > 0$ causes non-conflicting
-%evolution \citep{Northfield:2013if}.
-
-
-The terms $\alpha_{ii}(\mathbf{V}_i)$ and $\alpha_{ij}(\mathbf{V}_i, \mathbf{V}_j)$
-in equation \ref{eq:fitness} represent how trait increases decrease the effects
+The terms $\alpha_{ii}(\mathbf{V}_i)$ and
+$\alpha_{ij}(\mathbf{V}_i, \mathbf{V}_j)$
+in equation \ref{eq:fitness} represent how a trait decreases the effects
 of intraspecific and interspecific competition, respectively.
 Competition effects are given by
 
@@ -129,6 +102,11 @@ Alternatively, when $d_k > 0$, increases in $v_{i,k}$ decrease the effect of
 competition on all species including itself.
 Thus $d_k < 0$ causes conflicting and $d_k > 0$ causes non-conflicting evolution
 for trait $k$ \citep{Northfield:2013if}.
+We could expect conflicting evolution to occur when contest competition
+leads to arms races among competitors
+\citep{Abrams:1994th}.
+Competitor evolution might be non-conflicting when they evolve
+dissimilar traits to reduce competition for resources \citep{Roughgarden:1976eh}.
 
 
 If we combine the above equations and simplify them, we get
@@ -165,11 +143,10 @@ Hereafter we will refer to $\mathbf{\Omega}_i$ as the scaled community size.
 
 \subsection*{Quantitative genetics}
 
-We used quantitative genetics to explore the geometry of the fitness landscapes for
-competing species.
-We assume that all traits in $\mathbf{V}_i$ represent species means and that their
-among-individual distributions are symmetrical with additive genetic variance
-of $\sigma^2_i$.
+We used a quantitative genetics framework for trait evolution.
+We assumed that all traits in $\mathbf{V}_i$ represent means for species $i$
+and that their among-individual distributions are symmetrical with additive
+genetic variance $\sigma^2_i$.
 Assuming also that $\sigma^2_i$ is relatively small
 \citep{Iwasa:1991eo,Abrams:2001va,Abrams:1993cr}, traits at time $t+1$ are
 
@@ -179,22 +156,16 @@ Assuming also that $\sigma^2_i$ is relatively small
     \textrm{.}
 \end{equation}
 
-% We started these simulations with 100 species.
-% Each had starting trait values generated from a standard normal distribution.
-% We tracked densities through time using equation \ref{eq:fitness} and
-% considered a species extinct if its density fell below $10^{-4}$.
-% Equation \ref{eq:trait-change} dictated how traits changed.
-
-To determine the stability of ending points (trait values and abundances of surviving
-competitor(s)), we computed the $nq \times nq$ Jacobian matrices of first derivatives
-for the traits of each species:
+To determine the stability of ending points (trait values and abundances of
+surviving competitor(s)), we computed the $nq \times nq$ Jacobian matrices
+of first derivatives for the traits of each species:
 
 \begin{equation} \label{eq:jacobian}
     \begin{pmatrix}
         \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots &
-            \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{1,t}} \\
+            \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} \\
         \vdots & \ddots & \vdots \\
-        \frac{\partial \mathbf{V}_{1,t+1}}{\partial \mathbf{V}_{n,t}} & \cdots &
+        \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{1,t}} & \cdots &
             \frac{\partial \mathbf{V}_{n,t+1}}{\partial \mathbf{V}_{n,t}}
     \end{pmatrix}
     \textrm{.}
@@ -210,6 +181,18 @@ Jacobian matrices) are found in appendix A.
 
 We also analyzed equilibrium solutions for 2--4 trait cases.
 These are found in appendices B--D.
+
+
+% \subsection*{Simulations}
+%
+% We started these simulations with 100 species.
+% Each had starting trait values generated from a standard normal distribution.
+% We tracked densities through time using equation \ref{eq:fitness} and
+% considered a species extinct if its density fell below $10^{-4}$.
+% Equation \ref{eq:trait-change} dictated how traits changed.
+
+
+
 
 
 \subsection*{Code}
