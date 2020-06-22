@@ -237,3 +237,116 @@ $\mathbf{V}_{k,t}$
 
 
 
+\subsection*{Keeping traits non-negative}
+
+An obvious choice for keeping traits from being $<0$ is using absolute
+values.
+However, using absolute values causes fluctuations near zero
+(because it "bounces off" the zero bound) that persist for a very long time.
+This causes the simulations to take a prohibitively long time to reach
+equilibrium.
+The absolute value doesn't have a better-behaved derivative when traits are
+zero than the method below, so that isn't an advantage.
+Hence, we're not using absolute values.
+
+
+The method we're using changes traits to zero when they would otherwise go
+negative.
+One term for this is a "Heaviside step function" ($H(x)$).
+The derivative of this function is the Dirac delta function
+($\delta(x)$).
+They are defined as follows:
+
+\begin{align}
+    H(x) &= \begin{cases}
+        0 & \text{if}\ x \le 0 \\
+        1 & \text{if}\ x > 0
+        \end{cases} \\
+    \delta(x) &= \begin{cases}
+        0 & \text{if}\ x \ne 0 \\
+        \infty & \text{if}\ x = 0
+        \end{cases} \\
+\end{align}
+
+
+Below, $\mathbf{\ddot{V}}(\mathbf{V}_t)$ can be
+$\mathbf{V}_{i,t+1}(\mathbf{V}_{i,t})$ or
+$\mathbf{V}_{i,t+1}(\mathbf{V}_{k,t})$ as shown above (i.e., without
+any method to keep $\mathbf{V}_{i,t+1}$ from going negative).
+
+\begin{align}
+    \mathbf{\ddot{V}}(\mathbf{V}_t) &= \mathbf{V}_{t} + 2 \, \sigma^2
+    \left(
+        \alpha_0 \, \mathbf{\Omega}_{t} \,
+            \textrm{e}^{- \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}}} \:
+            \mathbf{V}_{t}
+        - f \, \mathbf{V}_{t} \, \mathbf{C}
+    \right) \\
+    \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{
+        \partial \; \mathbf{V}_{t} } &=
+        \mathbf{I} +
+        2 \, \sigma^2
+        \left[
+            \alpha_0 \, \mathbf{\Omega}_{t} \,
+            \textrm{e}^{ - \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}} }
+            \left(
+                \mathbf{I} - 2 \, \mathbf{V}_{t}^{\textrm{T}} \mathbf{V}_{t}
+            \right) -
+            f \, \mathbf{C}
+        \right] \\
+\end{align}
+
+
+
+Here is how the main trait equation and its derivative work when including the
+Heaviside step function:
+
+
+
+\begin{align}
+    \mathbf{V}_{t+1} &= H(\mathbf{\ddot{V}}(\mathbf{V}_t)) \;
+        \mathbf{\ddot{V}}(\mathbf{V}_t) \\
+    \frac{ \partial \, \mathbf{V}_{t+1}}{ \partial \, \mathbf{V}_{t} } &=
+        \frac{ \partial \, H(\mathbf{\ddot{V}}(\mathbf{V}_t))}{
+            \partial \, \mathbf{V}_{t} }
+            \mathbf{\ddot{V}}(\mathbf{V}_t) +
+        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
+            \partial \, \mathbf{V}_{t} } \\
+    &= \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
+            \partial \, \mathbf{V}_{t} }
+        \mathbf{\ddot{V}}(\mathbf{V}_t) +
+        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
+            \partial \, \mathbf{V}_{t} } \\
+    &= \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
+            \partial \, \mathbf{V}_{t} }
+        \left[
+            \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
+            \mathbf{\ddot{V}}(\mathbf{V}_t) +
+            H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \right]
+\end{align}
+
+
+
+So by including the Heaviside step function, we can multiply the "normal"
+derivative (the ones above) by the term
+$\delta(\mathbf{\ddot{V}}(\mathbf{V}_t)) \mathbf{\ddot{V}}(\mathbf{V}_t) +
+H(\mathbf{\ddot{V}}(\mathbf{V}_t))$ to get the updated derivative.
+Based on the definitions of $H(x)$ and $\delta(x)$...
+
+\begin{itemize}
+    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is 0 at equilibrium, then
+        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
+        is undefined (because we're multiplying $\infty$ by zero).
+    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $> 0$ at equilibrium, then
+        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
+        simplifies to $\mathbf{\ddot{V}}(\mathbf{V}_t)$.
+    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $< 0$ at equilibrium, then
+        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
+        simplifies to zero.
+\end{itemize}
+
+
