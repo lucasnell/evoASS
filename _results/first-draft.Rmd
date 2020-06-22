@@ -50,7 +50,7 @@ cc <- function(.x) {
 
 # Where to save rds files
 rds <- function(.x) {
-    sprintf("~/GitHub/Wisconsin/sauron/_simulations/__rough-results/%s.rds",
+    sprintf("~/GitHub/Wisconsin/sauron/_results/first-draft-files/%s.rds",
            gsub("\\.rds$", "", gsub("^\\/", "", .x)))
 }
 
@@ -60,7 +60,7 @@ save_plot <- function(plot_obj, .width, .height, .prefix = NULL, .suffix = NULL)
     fn <- gsub("_p$", "", paste(substitute(plot_obj)))
     if (!is.null(.prefix)) fn <- paste0(.prefix, fn)
     if (!is.null(.suffix)) fn <- paste0(fn, .suffix)
-    fn <- sprintf("_simulations/__rough-results/%s.pdf", fn)
+    fn <- sprintf("_results/first-draft-files/%s.pdf", fn)
     message(fn)
     plot_fun <- ifelse(inherits(plot_obj, "egg"), print, plot)
     cairo_pdf(fn, width = .width, height = .height)
@@ -83,74 +83,341 @@ group_spp <- function(..., .prec = 0.001) {
     return(sauron:::group_spp_cpp(V, precision = .prec))
 }
 
-
-.q <- 3
+set.seed(1898348146)
+etas <- map(1:6, ~ with(list(.q = .x), runif(.q * ((.q - 1) / 2), 0.1, 0.4)))
 
 ```
 
 
-## 1. Trait outcomes
+### NOTE ON KEEPING TRAITS NON-NEGATIVE:
+
+Using absolute values to keep traits >= zero causes fluctuations near zero
+(because it "bounces off" the zero bound) that persist for a very long time.
+This causes the simulations to take a prohibitively long time to reach
+equilibrium.
+The absolute value doesn't have a better-behaved derivative when traits are
+zero than the method below, so that isn't an advantage.
+This is why I'm not using absolute values.
+
+The method I'm using changes traits to zero when they would otherwise go
+negative.
+One term for this is a "Heaviside step function" ($H(x)$ below).
+The derivative of this function is the Dirac delta function ($\delta(x)$ below).
+Below, $\mathbf{\ddot{V}}(\mathbf{V}_t)$ indicates the relationship between
+$\mathbf{V}_{t+1}$ and $\mathbf{V}_t$ as show in the main text (i.e., without
+any method to keep it from going negative).
+Note also that below, I'm removing any indices for species for simplicity.
+Here is a definition of the background equations that I've described:
+
+$$
+\begin{align}
+    \mathbf{\ddot{V}}(\mathbf{V}_t) &= \mathbf{V}_{t} + 2 \, \sigma^2
+    \left(
+        \alpha_0 \, \mathbf{\Omega}_{t} \,
+            \textrm{e}^{- \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}}} \:
+            \mathbf{V}_{t}
+        - f \, \mathbf{V}_{t} \, \mathbf{C}
+    \right) \\
+    \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
+        \partial \; \mathbf{V}_{t} } &= 
+        \mathbf{I} +
+        2 \, \sigma^2
+        \left[
+            \alpha_0 \, \mathbf{\Omega}_{t} \,
+            \textrm{e}^{ - \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}} }
+            \left(
+                \mathbf{I} - 2 \, \mathbf{V}_{t}^{\textrm{T}} \mathbf{V}_{t}
+            \right) -
+            f \, \mathbf{C}
+        \right] \\
+    H(x) &= \begin{cases}
+        0 & \text{if}\ x \le 0 \\
+        1 & \text{if}\ x > 0
+        \end{cases} \\
+    \delta(x) &= \begin{cases}
+        0 & \text{if}\ x \ne 0 \\
+        \infty & \text{if}\ x = 0
+        \end{cases} \\
+\end{align}
+$$
+
+Now here is how the main function and its derivative work when including the
+Heaviside step function:
+
+
+$$
+\begin{align}
+    \mathbf{V}_{t+1} &= H(\mathbf{\ddot{V}}(\mathbf{V}_t)) \;
+        \mathbf{\ddot{V}}(\mathbf{V}_t) \\
+    \frac{ \partial \; \mathbf{V}_{t+1}}{ \partial \; \mathbf{V}_{t} } &= 
+        \frac{ \partial \; H(\mathbf{\ddot{V}}(\mathbf{V}_t))}{ 
+            \partial \; \mathbf{V}_{t} }
+            \mathbf{\ddot{V}}(\mathbf{V}_t) +
+        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
+            \partial \; \mathbf{V}_{t} } \\
+    &= \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
+            \partial \; \mathbf{V}_{t} }
+        \mathbf{\ddot{V}}(\mathbf{V}_t) +
+        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
+            \partial \; \mathbf{V}_{t} } \\
+    &= \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
+            \partial \; \mathbf{V}_{t} }
+        \left[
+            \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
+            \mathbf{\ddot{V}}(\mathbf{V}_t) +
+            H(\mathbf{\ddot{V}}(\mathbf{V}_t))
+        \right] \\
+\end{align}
+$$
+
+
+So by including the Heaviside step function, we can multiply the "normal"
+derivative (the one that allows negatives) by the term
+$\delta(\mathbf{\ddot{V}}(\mathbf{V}_t)) \mathbf{\ddot{V}}(\mathbf{V}_t) + H(\mathbf{\ddot{V}}(\mathbf{V}_t))$ to get the updated derivative.
+Based on the definitions of $H(x)$ and $\delta(x)$...
+
+* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is 0 at equilibrium, then
+$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$ is 
+undefined (because you're multiplying $\infty$ by zero).
+* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $> 0$ at equilibrium, then
+$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$
+simplifies to $\mathbf{\ddot{V}}(\mathbf{V}_t)$.
+* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $< 0$ at equilibrium, then
+$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$
+simplifies to zero.
+
+
+
+
+## 1. Trait outcomes - 2 traits
+
+```{r trait-outcomes-sims-TESTING}
+
+# signs = 0
+# .d = 0.1
+# 
+# .q <- 1/2 * (1 + sqrt(1 + 8 * length(signs)))
+# 
+# .etas <- etas[[.q]]
+# 
+# C <- matrix(0, .q, .q)
+# C[lower.tri(C)] <- abs(.etas) * signs
+# C <- C + t(C)
+# diag(C) <- 1
+# 
+# args <- list(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
+#              save_every = 0L, n = 5, N0 = rep(1, 5),
+#              start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+#              show_progress = FALSE)
+# 
+# set.seed(743582)
+# trait_to <- do.call(quant_gen, args)
+# 
+# jacs = jacobians(trait_to)
+# 
+# i = 1
+# for (j in jacs) {
+#     if (any(is.nan(j))) print(i)
+#     i = i+1
+# }
+# 
+# 
+# jacs = trait_to$nv %>%
+#         split(.$rep) %>%
+#         .[1] %>%
+#         map(one_jacobian, qg_obj = trait_to)
+# 
+# heavistep <- function(x) ifelse(x > 0, 1, 0)
+# dirac_delta <- function(x) ifelse(x == 0, Inf, 0)
+# 
+# V0 <- trait_to$nv %>%
+#     filter(rep == 1) %>%
+#     .[["value"]]
+# N <- trait_to$nv %>%
+#     filter(rep == 1, trait == 1) %>%
+#     .[["N"]]
+# VV <- split(V0, rep(1:2, each = length(V0) / 2))
+# 
+# S <- diag(rep(0.1, length(V0) / 2))
+# deltaV <- S %*%
+#     sauron:::sel_str_cpp(V = VV,
+#                          N = N,
+#                          f = formals(quant_gen)[["f"]],
+#                          a0 = formals(quant_gen)[["a0"]],
+#                          C = C,
+#                          r0 = formals(quant_gen)[["r0"]],
+#                          D = diag(rep(.d, length(V0) / 2)))
+# newV <- as.numeric(t(do.call(rbind, VV) + deltaV))
+# 
+# 
+# JJ <- sauron:::jacobian_cpp(VV, N,
+#                             f = formals(quant_gen)[["f"]],
+#                             a0 = formals(quant_gen)[["a0"]],
+#                             D = diag(rep(.d, length(V0) / 2)),
+#                             C = C,
+#                             add_var = rep(0.1, length(V0) / 2))
+# 
+# multiplier <- dirac_delta(newV) * newV + heavistep(newV)
+# multiplier <- ifelse(is.nan(multiplier) & newV == 0 & do.call(c, VV) == 0,
+#                      0, multiplier)
+# 
+# diag(multiplier) %*% JJ
+# 
+#     
+#     diag(dirac_delta(newV) * newV + heavistep(newV)) %*% JJ
+# 
+# J = jacs[[1]]
+# 
+# J
+# do.call(c, VV)
+# newV
+# 
+# 
+# 
+# J2 <- J
+# J2[which(V0 == 0),] <- pmax(J2[which(V0 == 0),], 0)
+# 
+# J3 <- diag(ifelse(V == 0, NA_real_, ifelse(V < 0, -1, 1))) %*% J
+# 
+# J4 <- diag(delta(V) * V + heavistep(V)) %*% J
+# 
+# 
+# 
+# max(eigen(J, only.values = TRUE)[["values"]])
+# max(eigen(J2, only.values = TRUE)[["values"]])
+# max(eigen(J3, only.values = TRUE)[["values"]])
+# max(eigen(J4, only.values = TRUE)[["values"]])
+```
+
 
 ```{r trait-outcomes-sims}
 
-set.seed(1652339501)
-etas <- runif(.q * ((.q - 1) / 2), 0.1, 0.4)
-
-
-
-one_eta_combo <- function(sign1, sign2, sign3) {
+one_eta_combo <- function(signs, .d = 0.1, ...) {
+    
   
-    # sign1 = 1; sign2 = 1; sign3 = 1
-    # rm(sign1, sign2, sign3)
+    # signs = 0; .d = 0.1
+    # rm(signs, .d)
+    
+    .q <- 1/2 * (1 + sqrt(1 + 8 * length(signs)))
+
+    stopifnot(is.numeric(signs))
+    stopifnot(sum(is.na(signs)) == 0)
+    stopifnot(all(signs %in% c(-1, 0, 1)))
+    stopifnot(.q %in% 1:length(etas))
+
+    .etas <- etas[[.q]]
+
+    stopifnot(length(signs) == length(.etas))
+
+    stopifnot(is.numeric(.d))
+    stopifnot(sum(is.na(.d)) == 0)
+    stopifnot(length(.d) %in% c(1L, .q))
 
     C <- matrix(0, .q, .q)
-    C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)
-    # sample(c(-1, 1), .q, TRUE)
+    C[lower.tri(C)] <- abs(.etas) * signs
     C <- C + t(C)
     diag(C) <- 1
 
-    trait_to <- quant_gen(q = .q, eta = C, d = 0.1, max_t = 20e3L, n_reps = 24,
-                          save_every = 0L, n = 100, N0 = rep(1, 100),
-                          start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
-                          show_progress = FALSE)
-    
+    args <- list(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
+                 save_every = 0L, n = 100, N0 = rep(1, 100),
+                 start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                 show_progress = FALSE)
+
+    other_args <- list(...)
+    if (length(other_args) > 0) {
+        stopifnot(!is.null(names(other_args)))
+        stopifnot(all(names(other_args) != ""))
+        for (n in names(other_args)) args[[n]] <- other_args[[n]]
+    }
+
+    trait_to <- do.call(quant_gen, args)
+
+
+    NV <- trait_to$nv %>%
+        mutate(trait = paste0("V", trait)) %>%
+        spread(trait, value)
+    cn <- colnames(NV)[grepl("^V", colnames(NV))]
+
+    NV <- NV %>%
+        mutate(unq = do.call(unq_spp_filter, !!rlang::syms(cn))) %>%
+        filter(unq) %>%
+        select(!!!cn) %>%
+        identity()
+
+    for (i in 1:length(.etas)) {
+        NV[,paste0("eta",i)] <- abs(.etas[i]) * signs[i]
+    }
+
     output <- list(jacs = jacobians(trait_to),
-                   ts = trait_to$nv %>%
-                       mutate(trait = paste0("V", trait)) %>%
-                       spread(trait, value) %>%
-                       filter(unq_spp_filter(V1, V2, V3)) %>%
-                       select(starts_with("V")) %>%
-                       mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]))
+                   ts = NV)
+
+
     return(output)
 }
 
 
+
 if (.REDO_SIMS) {
-    # Takes ~6 min with 2 threads
+    # Takes ~1 min with q=2 and 3 threads
     set.seed(145746935)
-    eta_sims <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1) %>%
-        pmap(one_eta_combo)
-    saveRDS(eta_sims, rds("eta_sim"))
+    eta_sims <- list(-1, 0, 1) %>% 
+        map(~ one_eta_combo(.))
+    saveRDS(eta_sims, rds("eta_sim2"))
+    eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 } else {
-    eta_sims <- readRDS(rds("eta_sim"))
+    eta_sims <- readRDS(rds("eta_sim2"))
+    eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 }
-eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
-# eta_sim_jacs <- do.call(c, map(eta_sims, ~.x$jacs))
-# 
-# 
-# # These eigenvalues show that any points with a trait equal to zero aren't 
-# # stable. This is because we're forcing them to be >= 0, not doing it
-# # mathematically in the equations themselves.
-# eta_sim_eigs <- crossing(sign1 = -1:1, sign2 = -1:1, sign3 = -1:1, 
-#                          rep = 1L:24L) %>%
-#     mutate(eigen = map_dbl(eta_sim_jacs, ~ max(eigen(.x)$values)))
-# 
-# eta_sim_eigs %>% 
-#     group_by(sign1, sign2, sign3) %>% 
-#     summarize(e_min = min(eigen),
-#               e_max = max(eigen)) %>% 
-#     ungroup() %>% 
-#     as.data.frame()
+
+
+
+
+#'
+#' Based on these eigenvalues...
+#'   * When the tradeoff is sub-additive, the state is unstable
+#'   * Everything else is stable
+#'
+#'
+eta_sim_eigs <- map_dfr(1:length(eta_sims),
+                         function(i) {
+                             eigs <- map_dbl(eta_sims[[i]][["jacs"]],
+                                             function(.x){
+                                                 if (any(is.na(.x))) return(NA)
+                                                 max(eigen(.x)$values)
+                                             })
+                             eta_sims[[i]]$ts %>%
+                                 distinct(eta1) %>%
+                                 mutate_all(sign) %>%
+                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
+                                 mutate(e_min = min(eigs),
+                                        e_max = max(eigs))
+                         })
+
+
+{
+    options(pillar.sigfig = 10)
+    print(eta_sim_eigs)
+    options(pillar.sigfig = NULL)
+}
+
+
+
+eta_sim_df %>% 
+    ggplot(aes(V1, V2)) +
+    geom_point(shape = 21) +
+    # scale_size_continuous("Trait 3", range = c(2, 6), breaks = 0.5 * 1:3) +
+    # scale_x_continuous("Trait 1", breaks = 0:2) +
+    # scale_y_continuous("Trait 2", breaks = 0:2) +
+    coord_equal() + #xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+    facet_wrap(~ eta1, nrow = 3, labeller = label_parsed) +
+    theme(strip.text = element_text(size = 10),
+          panel.border = element_rect(size = 0.5, fill = NA)) +
+    # scale_color_manual(values = .pal(), guide = FALSE) +
+    # scale_fill_manual(values = .pal(0.25), guide = FALSE) +
+    NULL
 
 ```
 
@@ -233,25 +500,28 @@ to_cap <- "Figure 1.
 
 ## The code below explores what happens when d >= 0.9
 
-eta_sim_df %>%
-    filter((eta1 < 0 & eta2 == 0 & eta3 > 0) |
-               (eta1 < 0 & eta2 > 0 & eta3 == 0) |
-               (eta1 == 0 & eta2 < 0 & eta3 > 0) |
-               (eta1 == 0 & eta2 > 0 & eta3 < 0) |
-               (eta1 > 0 & eta2 == 0 & eta3 < 0) |
-               (eta1 > 0 & eta2 < 0 & eta3 == 0)) %>%
-    group_by(eta1, eta2, eta3) %>%
-    summarize(N = n()) %>%
-    ungroup()
+# eta_sim_df %>%
+#     filter((eta1 < 0 & eta2 == 0 & eta3 > 0) |
+#                (eta1 < 0 & eta2 > 0 & eta3 == 0) |
+#                (eta1 == 0 & eta2 < 0 & eta3 > 0) |
+#                (eta1 == 0 & eta2 > 0 & eta3 < 0) |
+#                (eta1 > 0 & eta2 == 0 & eta3 < 0) |
+#                (eta1 > 0 & eta2 < 0 & eta3 == 0)) %>%
+#     group_by(eta1, eta2, eta3) %>%
+#     summarize(N = n()) %>%
+#     ungroup()
+
+eta_sim_df %>% 
+    filter(eta1 > 0)
 
 
-sign1 = -1; sign2 = -1; sign3 = 1
+sign1 = 1; sign2 = -1; sign3 = 1
 C <- matrix(0, .q, .q)
-C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)
+C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)[1:length(etas)]
 C <- C + t(C)
 diag(C) <- 1
 
-trait_to <- quant_gen(q = .q, eta = C, d = 0.9, max_t = 20e3L, n_reps = 24,
+trait_to <- quant_gen(q = .q, eta = C, d = 10, max_t = 20e3L, n_reps = 24,
                       save_every = 100L, n = 100, N0 = rep(1, 100),
                       start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
                       show_progress = TRUE)
@@ -260,7 +530,7 @@ trait_to$nv %>%
     filter(time == max(time)) %>%
     mutate(trait = paste0("V", trait)) %>%
     spread(trait, value) %>%
-    filter(unq_spp_filter(V1, V2, V3)) %>%
+    filter(unq_spp_filter(V1, V2)) %>%
     select(starts_with("V")) %>%
     # mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]) %>% 
     identity()
