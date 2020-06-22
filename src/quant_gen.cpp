@@ -142,6 +142,8 @@ arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
     // Fill dVhat:
     dVi_dVi_(dVhat, 0, 0, V.row(i), Z, C, f, a0, add_var);
 
+    dVhat = dVhat.t();
+
     return dVhat;
 }
 
@@ -186,6 +188,8 @@ arma::mat dVi_dVk_cpp(const uint32_t& i,
     arma::mat dVhat(q, q);
     // Fill dVhat:
     dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), D, a0, add_var);
+
+    dVhat = dVhat.t();
 
     return dVhat;
 }
@@ -258,6 +262,8 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
         }
 
     }
+
+    jcb_mat = jcb_mat.t();
 
 
     return jcb_mat;
