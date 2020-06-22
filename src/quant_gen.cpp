@@ -130,6 +130,8 @@ inline void dVi_dVi_(arma::mat& dVhat,
 
 //' R-exported version of above, to be used in R for testing.
 //'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
 //' @noRd
 //'
 //[[Rcpp::export]]
@@ -174,6 +176,8 @@ inline void dVi_dVk_(arma::mat& dVhat,
 
 //' R-exported version of above, to be used in R for testing.
 //'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
 //' @noRd
 //'
 //[[Rcpp::export]]
@@ -203,6 +207,8 @@ arma::mat dVi_dVk_cpp(const uint32_t& i,
 //' Calculate the Jacobian of first derivatives.
 //'
 //' Cell [i,j] contains the partial derivative of j with respect to i.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
 //'
 //' @noRd
 //'

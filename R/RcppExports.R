@@ -60,6 +60,8 @@ sel_str_cpp <- function(V, N, f, a0, C, r0, D) {
 
 #' R-exported version of above, to be used in R for testing.
 #'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
 #' @noRd
 #'
 dVi_dVi_cpp <- function(i, V, Z, C, f, a0, add_var) {
@@ -67,6 +69,8 @@ dVi_dVi_cpp <- function(i, V, Z, C, f, a0, add_var) {
 }
 
 #' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
 #'
 #' @noRd
 #'
@@ -77,6 +81,8 @@ dVi_dVk_cpp <- function(i, k, N, V, D, a0, add_var) {
 #' Calculate the Jacobian of first derivatives.
 #'
 #' Cell [i,j] contains the partial derivative of j with respect to i.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
 #'
 #' @noRd
 #'

@@ -339,6 +339,7 @@ one_jacobian <- function(one_rep, qg_obj) {
     add_var <- add_var[spp]
 
 
+    if (length(add_var) == 0) return(matrix(NA_real_, 0, 0))
     stopifnot(is.numeric(eta))
 
     C <- matrix(eta[1], q, q)
@@ -359,13 +360,26 @@ one_jacobian <- function(one_rep, qg_obj) {
 
     jac <- jacobian_cpp(V, N, f, a0, D, C, add_var)
 
-    # Now dealing with it being an absolute value
-    deltaV <- diag(add_var) %*%
+    # Now dealing with the step function that keeps traits >= 0
+    if (length(add_var) == 1) {
+        S <- matrix(add_var)
+    } else S <- diag(add_var)
+    deltaV <- S %*%
         sel_str_cpp(V = V, N = N, f = f, a0 = a0, C = C, r0 = r0, D = D)
-    newV <- as.numeric(do.call(rbind, V) + deltaV)
-    newV <- ifelse(newV == 0, NA_real_, ifelse(newV < 0, -1, 1))
+    newV <- as.numeric(t(do.call(rbind, V) + deltaV))
 
-    jac <- diag(newV) %*% jac
+    # The Heaviside step function is how we made traits >= 0, and the
+    # Dirac delta function is the derivative of the Heaviside
+    heaviside <- function(x) ifelse(x > 0, 1, 0)
+    dirac_delta <- function(x) ifelse(x == 0, Inf, 0)
+
+    multiplier <- dirac_delta(newV) * newV + heaviside(newV)
+    # If both V_t and V_t+1 are zero, then we say that the derivative is
+    # also zero. If we didn't do this, then the derivative is undefined.
+    multiplier <- ifelse(is.nan(multiplier) & newV == 0 & do.call(c, V) == 0,
+                         0, multiplier)
+
+    jac <- diag(multiplier) %*% jac
 
     return(jac)
 
