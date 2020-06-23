@@ -239,114 +239,110 @@ $\mathbf{V}_{k,t}$
 
 \subsection*{Keeping traits non-negative}
 
+
+The previous section in this appendix shows the equations for the
+partial derivatives when traits are allowed to be $<0$.
+This section shows how those derivatives are altered to account for
+the fact that traits are kept $\ge 0$.
+
+
 An obvious choice for keeping traits from being $<0$ is using absolute
 values.
-However, using absolute values causes fluctuations near zero
-(because it "bounces off" the zero bound) that persist for a very long time.
+However, during simulations, using absolute values causes fluctuations
+in the trait values when they approach zero (they ``bounce off''
+the zero bound) that persist for a very long time.
 This causes the simulations to take a prohibitively long time to reach
 equilibrium.
-The absolute value doesn't have a better-behaved derivative when traits are
-zero than the method below, so that isn't an advantage.
-Hence, we're not using absolute values.
+A more important disadvantage is that $d \lvert x \rvert / dx$ is
+undefined when $x = 0$.
 
 
-The method we're using changes traits to zero when they would otherwise go
-negative.
-One term for this is a "Heaviside step function" ($H(x)$).
-The derivative of this function is the Dirac delta function
-($\delta(x)$).
-They are defined as follows:
+Instead we are using the ramp function, $R(x)$, which is defined as
 
-\begin{align}
-    H(x) &= \begin{cases}
+\begin{equation*}
+    R(x) = \begin{cases}
+        x & \text{if}\ x \ge 0 \\
+        0 & \text{if}\ x < 0
+        \end{cases}
+    \text{.}
+\end{equation*}
+
+
+\noindent Its derivative is
+
+\begin{equation*}
+    R'(x) = H(x).
+\end{equation*}
+
+\noindent $H(x)$ is called the ``Heaviside step function'' (Weisstein n.d.):
+
+\begin{equation*}
+    H(x) = \begin{cases}
         0 & \text{if}\ x \le 0 \\
         1 & \text{if}\ x > 0
-        \end{cases} \\
-    \delta(x) &= \begin{cases}
-        0 & \text{if}\ x \ne 0 \\
-        \infty & \text{if}\ x = 0
-        \end{cases} \\
-\end{align}
+        \end{cases}
+    \text{.}
+\end{equation*}
+
+% Also see https://see.stanford.edu/materials/lsoftaee261/book-fall-07.pdf
 
 
-Below, $\mathbf{\ddot{V}}(\mathbf{V}_t)$ can be
-$\mathbf{V}_{i,t+1}(\mathbf{V}_{i,t})$ or
-$\mathbf{V}_{i,t+1}(\mathbf{V}_{k,t})$ as shown above (i.e., without
-any method to keep $\mathbf{V}_{i,t+1}$ from going negative).
+To show how we altered the equations for the partial derivatives
+in the previous section, it's useful to define a general form of how
+the equations for trait change through time are altered to keep traits $\ge 0$.
+Any one trait value at time $t+1$,
+$v_{ij,t+1}$ (for species $i$ and trait $j$),
+is a function of any trait value at time $t$, v_{\zeta\xi,t}
+(where $\zeta \in \{ 1, \: \ldots \, , \: n \}$,
+$\xi \in \{ 1, \: \ldots \, , \: q \}$)
+as follows:
 
-\begin{align}
-    \mathbf{\ddot{V}}(\mathbf{V}_t) &= \mathbf{V}_{t} + 2 \, \sigma^2
-    \left(
-        \alpha_0 \, \mathbf{\Omega}_{t} \,
-            \textrm{e}^{- \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}}} \:
-            \mathbf{V}_{t}
-        - f \, \mathbf{V}_{t} \, \mathbf{C}
-    \right) \\
-    \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{
-        \partial \; \mathbf{V}_{t} } &=
-        \mathbf{I} +
-        2 \, \sigma^2
-        \left[
-            \alpha_0 \, \mathbf{\Omega}_{t} \,
-            \textrm{e}^{ - \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}} }
-            \left(
-                \mathbf{I} - 2 \, \mathbf{V}_{t}^{\textrm{T}} \mathbf{V}_{t}
-            \right) -
-            f \, \mathbf{C}
-        \right] \\
-\end{align}
+\begin{equation*}
+    v_{ij,t+1}(v_{\zeta\xi,t}) = R(\ddot{v}_{ij,t+1}(v_{\zeta\xi,t}))
+\end{equation*}
+
+\noindent where $\ddot{v}_{ij,t+1}(v_{\zeta\xi,t})$ is the form of the equation that
+allows negative values (i.e., those in the section above).
+For the partial derivative in relation to $v_{\zeta\xi,t}$, we get
 
 
+\begin{equation*}
+    \frac{\partial \, v_{ij,t+1}(v_{\zeta\xi,t})}{\partial \, v_{\zeta\xi,t}} =
+        H(\ddot{v}_{ij,t+1}(v_{\zeta\xi,t}))
+        \frac{\partial \, \ddot{v}_{ij,t+1}(v_{\zeta\xi,t})}{
+            \partial \, v_{\zeta\xi,t} }
+\text{.}
+\end{equation*}
 
-Here is how the main trait equation and its derivative work when including the
-Heaviside step function:
-
-
-
-\begin{align}
-    \mathbf{V}_{t+1} &= H(\mathbf{\ddot{V}}(\mathbf{V}_t)) \;
-        \mathbf{\ddot{V}}(\mathbf{V}_t) \\
-    \frac{ \partial \, \mathbf{V}_{t+1}}{ \partial \, \mathbf{V}_{t} } &=
-        \frac{ \partial \, H(\mathbf{\ddot{V}}(\mathbf{V}_t))}{
-            \partial \, \mathbf{V}_{t} }
-            \mathbf{\ddot{V}}(\mathbf{V}_t) +
-        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
-            \partial \, \mathbf{V}_{t} } \\
-    &= \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
-            \partial \, \mathbf{V}_{t} }
-        \mathbf{\ddot{V}}(\mathbf{V}_t) +
-        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
-            \partial \, \mathbf{V}_{t} } \\
-    &= \frac{ \partial \, \mathbf{\ddot{V}}(\mathbf{V}_t) }{
-            \partial \, \mathbf{V}_{t} }
-        \left[
-            \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
-            \mathbf{\ddot{V}}(\mathbf{V}_t) +
-            H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \right]
-\end{align}
+\noindent where
+$\frac{\partial \, \ddot{v}_{ij,t+1}(v_{\zeta\xi,t})}{
+\partial \, v_{\zeta\xi,t}}$
+is one of the partial derivatives described in the previous section
+(which one depends on whether $i = \zeta$).
 
 
-
-So by including the Heaviside step function, we can multiply the "normal"
-derivative (the ones above) by the term
-$\delta(\mathbf{\ddot{V}}(\mathbf{V}_t)) \mathbf{\ddot{V}}(\mathbf{V}_t) +
-H(\mathbf{\ddot{V}}(\mathbf{V}_t))$ to get the updated derivative.
-Based on the definitions of $H(x)$ and $\delta(x)$...
+Thus, by including the ramp function, we must multiply the derivatives
+calculated using the equations in the previous section by the term
+$H(\ddot{v}_{ij,t+1}(v_{\zeta\xi,t}))$ to get the updated derivative.
+Based on the definition of $H(x)$...
 
 \begin{itemize}
-    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is 0 at equilibrium, then
-        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
-        is undefined (because we're multiplying $\infty$ by zero).
-    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $> 0$ at equilibrium, then
-        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
-        simplifies to $\mathbf{\ddot{V}}(\mathbf{V}_t)$.
-    \item If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $< 0$ at equilibrium, then
-        $\partial \mathbf{V}_{t+1} / \partial \mathbf{V}_{t}$
+    \item If $\ddot{v}_{ij,t+1}(v_{\zeta\xi,t})$ is $> 0$ at equilibrium, then
+        $\frac{\partial \, v_{ij,t+1}(v_{\zeta\xi,t})}{
+            \partial \, v_{\zeta\xi,t}}$
+        simplifies to $\frac{\partial \, \ddot{v}_{ij,t+1}(v_{\zeta\xi,t})}{
+            \partial \, v_{\zeta\xi,t}}$.
+    \item If $\ddot{v}_{ij,t+1}(v_{\zeta\xi,t})$ is $\le 0$ at equilibrium, then
+        $\frac{\partial \, v_{ij,t+1}(v_{\zeta\xi,t})}{
+            \partial \, v_{\zeta\xi,t}}$
         simplifies to zero.
 \end{itemize}
 
 
+
+
+\subsection*{Reference}
+
+Weisstein, Eric W. n.d. Ramp Function.
+From MathWorld--A Wolfram Web Resource.
+https://mathworld.wolfram.com/RampFunction.html
