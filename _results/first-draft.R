@@ -9,12 +9,6 @@ editor_options:
 
 ```{r setup, include=FALSE, eval = TRUE}
 
-# RUN THIS INSTEAD OF USING CMD-SHIFT-K IN RSTUDIO:
-# rmarkdown::render("_simulations/__rough-results.Rmd")
-
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, 
-                      eval = TRUE)
-knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # load packages
 suppressPackageStartupMessages({
@@ -27,9 +21,7 @@ suppressPackageStartupMessages({
 })
 
 # This sets plotting device on LAN computer:
-if (!isTRUE(getOption('knitr.in.progress')) && file.exists(".Rprofile")) {
-  source(".Rprofile")
-}
+if (file.exists(".Rprofile")) source(".Rprofile")
 
 
 # Clean captions
