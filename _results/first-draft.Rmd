@@ -89,107 +89,6 @@ etas <- map(1:6, ~ with(list(.q = .x), runif(.q * ((.q - 1) / 2), 0.1, 0.4)))
 ```
 
 
-### NOTE ON KEEPING TRAITS NON-NEGATIVE:
-
-Using absolute values to keep traits >= zero causes fluctuations near zero
-(because it "bounces off" the zero bound) that persist for a very long time.
-This causes the simulations to take a prohibitively long time to reach
-equilibrium.
-The absolute value doesn't have a better-behaved derivative when traits are
-zero than the method below, so that isn't an advantage.
-This is why I'm not using absolute values.
-
-The method I'm using changes traits to zero when they would otherwise go
-negative.
-One term for this is a "Heaviside step function" ($H(x)$ below).
-The derivative of this function is the Dirac delta function ($\delta(x)$ below).
-Below, $\mathbf{\ddot{V}}(\mathbf{V}_t)$ indicates the relationship between
-$\mathbf{V}_{t+1}$ and $\mathbf{V}_t$ as show in the main text (i.e., without
-any method to keep it from going negative).
-Note also that below, I'm removing any indices for species for simplicity.
-Here is a definition of the background equations that I've described:
-
-$$
-\begin{align}
-    \mathbf{\ddot{V}}(\mathbf{V}_t) &= \mathbf{V}_{t} + 2 \, \sigma^2
-    \left(
-        \alpha_0 \, \mathbf{\Omega}_{t} \,
-            \textrm{e}^{- \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}}} \:
-            \mathbf{V}_{t}
-        - f \, \mathbf{V}_{t} \, \mathbf{C}
-    \right) \\
-    \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
-        \partial \; \mathbf{V}_{t} } &= 
-        \mathbf{I} +
-        2 \, \sigma^2
-        \left[
-            \alpha_0 \, \mathbf{\Omega}_{t} \,
-            \textrm{e}^{ - \mathbf{V}_{t} \mathbf{V}_{t}^{\textrm{T}} }
-            \left(
-                \mathbf{I} - 2 \, \mathbf{V}_{t}^{\textrm{T}} \mathbf{V}_{t}
-            \right) -
-            f \, \mathbf{C}
-        \right] \\
-    H(x) &= \begin{cases}
-        0 & \text{if}\ x \le 0 \\
-        1 & \text{if}\ x > 0
-        \end{cases} \\
-    \delta(x) &= \begin{cases}
-        0 & \text{if}\ x \ne 0 \\
-        \infty & \text{if}\ x = 0
-        \end{cases} \\
-\end{align}
-$$
-
-Now here is how the main function and its derivative work when including the
-Heaviside step function:
-
-
-$$
-\begin{align}
-    \mathbf{V}_{t+1} &= H(\mathbf{\ddot{V}}(\mathbf{V}_t)) \;
-        \mathbf{\ddot{V}}(\mathbf{V}_t) \\
-    \frac{ \partial \; \mathbf{V}_{t+1}}{ \partial \; \mathbf{V}_{t} } &= 
-        \frac{ \partial \; H(\mathbf{\ddot{V}}(\mathbf{V}_t))}{ 
-            \partial \; \mathbf{V}_{t} }
-            \mathbf{\ddot{V}}(\mathbf{V}_t) +
-        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
-            \partial \; \mathbf{V}_{t} } \\
-    &= \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
-            \partial \; \mathbf{V}_{t} }
-        \mathbf{\ddot{V}}(\mathbf{V}_t) +
-        H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
-            \partial \; \mathbf{V}_{t} } \\
-    &= \frac{ \partial \; \mathbf{\ddot{V}}(\mathbf{V}_t) }{ 
-            \partial \; \mathbf{V}_{t} }
-        \left[
-            \delta(\mathbf{\ddot{V}}(\mathbf{V}_t))
-            \mathbf{\ddot{V}}(\mathbf{V}_t) +
-            H(\mathbf{\ddot{V}}(\mathbf{V}_t))
-        \right] \\
-\end{align}
-$$
-
-
-So by including the Heaviside step function, we can multiply the "normal"
-derivative (the one that allows negatives) by the term
-$\delta(\mathbf{\ddot{V}}(\mathbf{V}_t)) \mathbf{\ddot{V}}(\mathbf{V}_t) + H(\mathbf{\ddot{V}}(\mathbf{V}_t))$ to get the updated derivative.
-Based on the definitions of $H(x)$ and $\delta(x)$...
-
-* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is 0 at equilibrium, then
-$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$ is 
-undefined (because you're multiplying $\infty$ by zero).
-* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $> 0$ at equilibrium, then
-$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$
-simplifies to $\mathbf{\ddot{V}}(\mathbf{V}_t)$.
-* If $\mathbf{\ddot{V}}(\mathbf{V}_t)$ is $< 0$ at equilibrium, then
-$ \partial \mathbf{V}_{t+1} /  \partial \mathbf{V}_{t}$
-simplifies to zero.
-
-
 
 
 ## 1. Trait outcomes - 2 traits
@@ -421,57 +320,6 @@ eta_sim_df %>%
 
 ```
 
-
-With three traits, we first generated the 3 $\eta$ magnitudes from a
-uniform distribution from 0.1 to 0.4.
-The values we ended up with were 
-$\eta_1 = 0.207$, $\eta_2 = 0.190$, and $\eta_3 = 0.257$. 
-We then simulated communities of 100 species, each with random starting
-trait values ($\sim \text{N}(0, 2)$, truncated to be $\ge 0$).
-We did this 24 times for each of the 27 permutations of 
-$\eta_1$, $\eta_2$, and $\eta_3$ being negative, zero, or positive.
-Because we were only interested in the possible trait values for surviving
-species, we set $d = 0.1$ (non-conflicting evolution) so that many species 
-survived and surveyed the trait space more effectively.
-We recorded the trait values of the surviving species.
-
-
-This resulted in a number of outcomes (Figure 1).
-When at least one combination was sub-additive, only one set of trait 
-values were present in surviving species.
-What those trait values were depended on the exact combination.
-With all sub-additive combinations, all three traits were maximized.
-The six other permutations of $\ge 2$ sub-additive combinations varied but 
-all had high values of $\eta_2$ and usually had high values of $\eta_3$.
-With only one sub-additive combination, the combination that was sub-additive
-determined which of the three trait states the surviving species possessed.
-
-
-We observed alternative trait states only when no trait combinations 
-were sub-additive.
-When all combinations were super-additive, there were three alternative 
-trait states: one for each trait being maximized while the others 
-equaled zero.
-With two super-additive and one neutral combinations, species traits were 
-along a neutrally stable quarter-ring along one axis.
-With one super-additive and two neutral combinations, species traits were 
-along a neutrally stable half-ring along two axes.
-Traits existed along a neutrally stable three-dimensional shell when all 
-traits were neutral.
-
-
-
-__NOTE:__ When $d$ is large enough ($d = 0.9$ does it for these parameter values),
-you can get additional trait outcomes.
-In some cases, it adds 1 or 2 additional trait state(s), but in the case
-of 1 sub-additive, 1 neutral, and 1 super-additive trait (i.e., "1 of each"),
-it allows for many possibilities:
-anywhere on a sub-section of the neutral ring (like
-the "2 super, 1 neutral" scenario, but even more reduced).
-The species that exist at these additional trait states 
-have at least slightly lower densities than the others at the trait state
-that exists when $d = 0.1$.
-Is this interesting or likely an artifact?
 
 
 ```{r trait-outcomes-caption}
@@ -1017,78 +865,9 @@ if (.RESAVE_PLOTS) save_plot(coexist_p, 6.5, 6, "2-")
 
 
 
-To assess how conflicting and non-conflicting evolution leads to coexistence,
-we conducted similar simulations to the previous section, for each of the 
-8 permutations of the three traits' evolution being conflicting or 
-non-conflicting (i.e., $d < 0$ or $d > 0$, respectively).
-The magnitudes of the $d$ values used for these simulations were generated as 
-$\log(d) \sim \text{U}(-6, -2)$.
-The values we ended up with were $d_1 = `r sprintf("%#.3g", ds[1])`$,
-$d_2 = `r sprintf("%#.3f", ds[2])`$, and
-$d_3 = `r sprintf("%#.3g", ds[3])`$.
-We recorded the number of species coexisting at the end of each repetition.
-We also did another set of simulations where the first two traits were kept
-non-conflicting ($d_1 = d_2 = 0.1$), while the value of $d_3$ varied 
-from $-10^{-2}$ to $10^{-2}$.
-We used $\eta_1 = \eta_2 = \eta_3 = 0.2$ for all simulations here.
-
-The first set of simulations shows that
-coexistence occurs only when evolution for all traits is non-conflicting 
-(Figure 2A).
-From the second set of simulations, we see that a value of 0 for $d_3$ 
-appears to represent a bifurcation with respect to whether 
-coexistence can occur (Figure 2B).
-Even slightly negative values of $d_3$ cause exclusion to occur, although
-a less-negative $d_3$ causes the exclusions to happen much more slowly
-(Figure 2C).
-
-
-
 
 
 ## 3. Invasibility
-
-
-To estimate the invasibility of these equilibrium communities, we started
-simulations with the equilibrium abundances and trait values for communities
-with $\eta$ values and $d$ magnitudes from the previous section, and 
-with all traits except for the first being non-conflicting.
-The first trait was either conflicting or non-conflicting.
-We then added a single invader to the community and simulated the outcomes.
-We did this for invaders with starting trait 1 and 2 values that varied
-from 0 to 4.
-Trait 3 always started at zero for these simulations.
-We did this to ease visualization and because two of the three
-possible equilibrium trait states had trait 3 equal zero.
-Invaders' starting abundances 0.01.
-For those simulations that yielded successful invasions, 
-we also calculated how much the abundances and traits changed across 
-the time series for both invaders and native species:
-
-\begin{align}
-\Delta N = \sum_{t=2}^{t_{max}}{ | N_{t} - N_{t-1} | } \\
-\Delta V = \sum_{t=2}^{t_{max}}{\sqrt{\sum_{i = 1}^{q}{(v_{i,t} - v_{i,t-1})^2}}}
-\end{align}
-
-\noindent We did this in relation to the distance in trait space from 
-the nearest equilibrium trait state to the starting trait value for the invader:
-$\sqrt{\sum_{i = 1}^{q}{(v_{i} - \hat{v}_{i})^2}}$ at $t = 0$.
-
-
-When the first trait was conflicting, invaders were never successful, 
-whereas they were successful across much of the trait space surrounding the
-equilibrium states when it was non-conflicting (Figure 3A).
-The total change in abundance was almost always greater when the invader 
-started  with traits near state i (Figure 3B).
-This is because state i has high trait 2 and low trait 1, whereas
-state ii is the opposite.
-Because $d_1$ is much lower than $d_2$, species that maximize trait 1
-but minimize trait 2 (state ii) greatly reduce competition experienced by 
-others but receive little benefit themselves.
-Therefore, successful invaders that evolve to state ii will coexist at lower
-equilibrium abundances.
-Trait change had a linear relationship with starting distance for both 
-native species and invaders (Figure 3C).
 
 
 
@@ -1363,36 +1142,6 @@ if (.RESAVE_PLOTS) save_plot(invasion_p, 6, 6, "3-")
 
 
 ## 4. Conditional coexistence
-
-In the simulations above, we found that with random starting trait values,
-only one trait being conflicting causes total exclusion to occur.
-In this section, I show that non-random patterns of starting trait values
-can result in coexistence.
-Specifically, coexistence will occur despite a conflicting trait if all 
-species start outside the basin of attraction for the state at which 
-the conflicting trait is maximized.
-In these simulations, the first trait is conflicting and the others 
-are non-conflicting.
-We start the communities with 100 species.
-One simulation gives these species random trait values
-($\mathbf{V} \sim |\text{N}(0,2)|$).
-In the other simulation, we forced starting trait 1 to be less than trait 2 
-for all species ($\mathbf{v}_1 \sim |\text{N}(0,2)|$ and 
-$\mathbf{v}_2 \sim \text{U}(0, \mathbf{v}_2)$).
-This kept all species outside the basin of attraction for the conflicting trait.
-We kept trait 3 at zero for all simulations, for the reasons outlined in 
-the last section.
-We kept track of abundances and trait values through time for all species.
-
-
-
-When simulations started with a population whose trait values were all in the 
-basin of attraction for a non-conflicting trait, species evolve towards the 
-adaptive peak for the non-conflicting trait---and can coexist with one another
-(Figure 4). 
-When the population starts with some species in the basin of attraction for 
-the conflicting trait, those species evolve towards that adaptive peak, and 
-the one that reaches the peak first excludes all other species.
 
 
 
