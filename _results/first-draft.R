@@ -5,9 +5,12 @@ suppressPackageStartupMessages({
     library(sauron)
     library(tidyverse)
     library(grid)
+    library(gridExtra)
     library(parallel)
     library(egg)
 })
+
+options(dplyr.summarise.inform = FALSE)
 
 # This sets plotting device on LAN computer:
 if (file.exists(".Rprofile")) source(".Rprofile")
@@ -21,9 +24,9 @@ cc <- function(.x) {
 }
 
 # whether to re-do simulations (use rds files otherwise)
-.REDO_SIMS <- FALSE
+.REDO_SIMS <- TRUE
 # whether to re-save plots
-.RESAVE_PLOTS <- FALSE
+.RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
 .N_THREADS <- 3
 
@@ -32,7 +35,15 @@ cc <- function(.x) {
 # Where to save rds files
 rds <- function(.x) {
     sprintf("~/GitHub/Wisconsin/sauron/_results/results-rds/%s.rds",
-           gsub("\\.rds$", "", gsub("^\\/", "", .x)))
+            gsub("\\.rds$", "", gsub("^\\/", "", .x)))
+}
+
+print_big_nums <- function(.df) {
+    stopifnot(inherits(.df, "tbl_df"))
+    .opt <- getOption("pillar.sigfig")
+    options(pillar.sigfig = 10)
+    print(.df)
+    options(pillar.sigfig = .opt)
 }
 
 
@@ -66,14 +77,14 @@ group_spp <- function(..., .prec = 0.001) {
 
 set.seed(1898348146)
 etas <- map(1:6, ~ with(list(.q = .x), runif(.q * ((.q - 1) / 2), 0.1, 0.4)))
-
-#
+# With just one eta, it can be a simple number:
+etas[[2]] <- 0.2
 
 
 # =============================================================================*
 # =============================================================================*
 
-# 1. Trait outcomes - 2 traits ----
+# 1. 2-trait outcomes ----
 
 # =============================================================================*
 # =============================================================================*
@@ -150,10 +161,10 @@ if (.REDO_SIMS) {
     set.seed(145746935)
     eta_sims <- list(-1, 0, 1) %>%
         map(~ one_eta_combo(.))
-    saveRDS(eta_sims, rds("eta_sim2"))
+    saveRDS(eta_sims, rds("eta_sim-q2"))
     eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 } else {
-    eta_sims <- readRDS(rds("eta_sim2"))
+    eta_sims <- readRDS(rds("eta_sim-q2"))
     eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 }
 
@@ -162,51 +173,568 @@ if (.REDO_SIMS) {
 
 #'
 #' Based on these eigenvalues...
-#'   * When the tradeoff is sub-additive, the state is unstable
+#'   * When the tradeoff is additive, the state is neutrally stable
 #'   * Everything else is stable
 #'
 #'
 eta_sim_eigs <- map_dfr(1:length(eta_sims),
-                         function(i) {
-                             eigs <- map_dbl(eta_sims[[i]][["jacs"]],
-                                             function(.x){
-                                                 if (any(is.na(.x))) return(NA)
-                                                 max(eigen(.x)$values)
-                                             })
-                             eta_sims[[i]]$ts %>%
-                                 distinct(eta1) %>%
-                                 mutate_all(sign) %>%
-                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
-                                 mutate(e_min = min(eigs),
-                                        e_max = max(eigs))
-                         })
+                        function(i) {
+                            eigs <- map_dbl(eta_sims[[i]][["jacs"]],
+                                            function(.x){
+                                                if (any(is.na(.x))) return(NA)
+                                                max(eigen(.x)$values)
+                                            })
+                            eta_sims[[i]]$ts %>%
+                                distinct(eta1) %>%
+                                mutate_all(sign) %>%
+                                rename_all(~ gsub("^eta", "sign", .x)) %>%
+                                mutate(e_min = min(eigs),
+                                       e_max = max(eigs))
+                        })
 
 
-{
-    options(pillar.sigfig = 10)
-    print(eta_sim_eigs)
-    options(pillar.sigfig = NULL)
+print_big_nums(eta_sim_eigs)
+
+
+to2_cap <- "Unique trait values for surviving species, for tradeoffs
+           being sub-additive, additive, or super-additive."
+
+
+outcomes_q2_p <- eta_sim_df %>%
+    mutate(eta1 = factor(eta1, levels = sort(unique(eta1)),
+                         labels = c("sub-additive", "additive",
+                                    "super-additive"))) %>%
+    group_by(eta1) %>%
+    filter(unq_spp_filter(V1, V2, .prec = 0.05)) %>%
+    ungroup() %>%
+    ggplot(aes(V1, V2)) +
+    geom_point(shape = 21, color = "dodgerblue", fill = "dodgerblue",
+               alpha = 0.5, size = 3) +
+    scale_x_continuous("Trait 1", breaks = 0:2) +
+    scale_y_continuous("Trait 2", breaks = 0:2) +
+    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+    facet_wrap(~ eta1, nrow = 3) +
+    theme(strip.text = element_text(size = 10),
+          panel.border = element_rect(size = 0.5, fill = NA)) +
+    NULL
+
+
+
+if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 2, 5, "1-")
+
+
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# 2. Conditional coexistence ----
+
+# =============================================================================*
+# =============================================================================*
+
+
+
+
+cc_cap <- "Two simulations illustrating conditional coexistence for one
+           conflicting and one non-conflicting trait.
+           The left panels show exclusion, whereas the right two show
+           conditional coexistence.
+           In the top two panels, each line is for a particular species.
+           In the bottom two panels, circles show starting trait values,
+           and lines show trajectories through trait space through time.
+           Xs show the trait values for surviving species.
+           The gray area is the basin of attraction for the
+           non-conflicting trait."
+
+
+
+
+
+set.seed(1245262468)
+V0_coexist <- lapply(1:100,
+                     function(i) {
+                         V0 <- rbind(numeric(2))
+                         V0[,2] <- abs(rnorm(1, 0, 2))
+                         V0[,1] <- runif(1) * V0[,2]
+                         return(V0)
+                     })
+V0_exclude <- lapply(1:100,
+                     function(i) {
+                         V0 <- rbind(abs(rnorm(2, 0, 2)))
+                         return(V0)
+                     })
+
+
+cond_coexist_test <- function(.V0, .lab, .q, .ds) {
+    stopifnot(length(.ds) == .q)
+    .ds <- abs(.ds)*c(-1,rep(1,.q-1))
+    Z <- quant_gen(q = .q, eta = 0.2, d = .ds, max_t = 20e3L, n_reps = 1,
+                   save_every = 10L, n = 100, N0 = rep(1, 100),
+                   V0 = .V0,
+                   start_t = 0, perturb_sd = 0,
+                   show_progress = FALSE) %>%
+        .[["nv"]] %>%
+        mutate(trait = paste0("V", trait)) %>%
+        spread(trait, value) %>%
+        select(-rep) %>%
+        mutate(V0 = .lab)
+    return(Z)
 }
 
 
 
-eta_sim_df %>%
-    ggplot(aes(V1, V2)) +
-    geom_point(shape = 21) +
-    # scale_size_continuous("Trait 3", range = c(2, 6), breaks = 0.5 * 1:3) +
-    # scale_x_continuous("Trait 1", breaks = 0:2) +
-    # scale_y_continuous("Trait 2", breaks = 0:2) +
-    coord_equal() + #xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    facet_wrap(~ eta1, nrow = 3, labeller = label_parsed) +
-    theme(strip.text = element_text(size = 10),
-          panel.border = element_rect(size = 0.5, fill = NA)) +
-    # scale_color_manual(values = .pal(), guide = FALSE) +
-    # scale_fill_manual(values = .pal(0.25), guide = FALSE) +
+
+# Just takes a few seconds
+cond_coexist_df <- tibble(.V0 = list(V0_exclude, V0_coexist),
+                          .lab = c("exclusion", "coexistence"),
+                          .q = 2,
+                          .ds = list(c(0.01, 0.1))) %>%
+    pmap_dfr(cond_coexist_test) %>%
+    mutate(V0 = factor(V0, levels = c("exclusion", "coexistence")))
+
+
+
+
+# Time series for coexistence and exclusion
+cond_coexist_ts_p <- cond_coexist_df %>%
+    filter(time < 4e3) %>%
+    ggplot(aes(time / 1000L, N, color = spp)) +
+    geom_line(alpha = 0.5) +
+    facet_wrap(~ V0, scales = "free") +
+    scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
+    ylab("Abundance") +
+    scale_x_continuous(expression("Time (" %*% "1,000" * ")"), breaks = 0:4) +
+    theme(strip.text = element_blank(), plot.margin = margin(0,0,0,t=20))
+
+
+
+# Movement through trait space for coexistence and exclusion:
+cond_coexist_sp_p <- cond_coexist_df %>%
+    filter(time < 4e3) %>%
+    arrange(time, spp) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    # geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+    geom_polygon(data = tibble(x = c(-1, 5, -1), y = c(-1, 5, 5)), aes(x,y),
+                 color = NA, fill = "gray80") +
+    geom_path(alpha = 0.5) +
+    geom_point(data = cond_coexist_df %>% filter(time == min(time)),
+               shape = 1) +
+    geom_point(data = cond_coexist_df %>% filter(time == max(time)) %>%
+                   group_by(V0) %>%
+                   filter(unq_spp_filter(V1, V2)) %>%
+                   ungroup(),
+               shape = 4, size = 4, color = "black") +
+    scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
+    facet_wrap(~ V0) +
+    coord_equal(xlim = c(0, 4.25), ylim = c(0, 4.25)) +
+    ylab("Trait 2") +
+    xlab("Trait 1") +
+    theme(strip.text = element_blank(), plot.margin = margin(0,0,0,t=20))
+
+
+
+cond_coexist_p_label <-
+    tableGrob(cbind("exclusion", "coexistence"),
+              theme = ttheme_minimal(core = list(fg_params =
+                                                     list(hjust=0.5, x=0.5,
+                                                          vjust=0.5, y=0.5))),
+              widths = unit(rep(1/2,2), "npc"),
+              heights = unit(2,"npc"))
+
+
+cond_coexist_p <- ggarrange(cond_coexist_ts_p,
+                            cond_coexist_sp_p,
+                            heights = c(0.4, 0.6),
+                            ncol = 1, labels = LETTERS[1:2],
+                            top = cond_coexist_p_label,
+                            label.args = list(gp = gpar(fontsize = 14,
+                                                        fontface =  "plain"),
+                                              vjust = 1.7, hjust = -3))
+
+
+if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# 3. Coexistence ----
+
+# =============================================================================*
+# =============================================================================*
+
+
+
+coex_cap <- "Number of surviving species for
+             (A) all permutations of two traits being conflicting (``$-$'')
+             or non-conflicting (``$+$''),
+             (B) varying values of $d_2$ when $d_1$ is kept positive
+             (i.e., trait 1 is kept non-conflicting), and
+             (C) surviving species through time with $d_2 = -10^{-2}$ and
+             $d_2 = -10^{-4}$."
+
+
+
+set.seed(532052696)
+ds <- exp(runif(2, -6, -2))
+
+
+
+
+
+# ------------------------------*
+# __ all combinations ----
+# ------------------------------*
+
+# All combinations of - or + d values
+
+one_d_combo <- function(sign1, sign2) {
+
+    .d <- ds * c(sign1, sign2)
+
+    Z <- quant_gen(q = 2, eta = 0.2, d = .d, max_t = 50e3L, n_reps = 24,
+                   save_every = 0L, n = 100, N0 = rep(1, 100),
+                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   show_progress = FALSE)
+
+    Z$call[["d"]] <- eval(.d)
+
+    jacs <- jacobians(Z)
+
+    return(list(NV = Z$nv %>%
+                    mutate(trait = paste0("V", trait)) %>%
+                    spread(trait, value) %>%
+                    # filter(unq_spp_filter(V1, V2, V3)) %>%
+                    mutate(d1 = .d[1], d2 = .d[2]),
+                J = jacs))
+
+
+}
+
+
+
+
+if (.REDO_SIMS) {
+    # Takes ~10 sec w/ q = 2 and 3 threads
+    set.seed(751678518)
+    all_d_sim <- crossing(sign1 = c(-1,1), sign2 = c(-1,1)) %>%
+        pmap(one_d_combo)
+    saveRDS(all_d_sim, rds("all_d_sim-q2"))
+    d_sim_df <- map_dfr(all_d_sim, ~ .x[["NV"]])
+} else {
+    all_d_sim <- readRDS(rds("all_d_sim-q2"))
+    d_sim_df <- map_dfr(all_d_sim, ~ .x[["NV"]])
+}
+
+
+# #'
+# #' Code below shows that they're all stable:
+# #'
+# d_sim_eigs <- map_dfr(1:length(all_d_sim),
+#                       function(i) {
+#                           eigs <- map_dbl(all_d_sim[[i]][["J"]],
+#                                           function(.x){
+#                                               if (any(is.na(.x))) return(NA)
+#                                               max(eigen(.x)$values)
+#                                           })
+#                           all_d_sim[[i]]$NV %>%
+#                               .[1,] %>%
+#                               select(d1, d2) %>%
+#                               mutate(e_min = min(eigs),
+#                                      e_max = max(eigs))
+#                       })
+#
+#
+# print_big_nums(d_sim_eigs)
+#
+
+
+
+
+
+
+coexist_all_d_p <- d_sim_df %>%
+    group_by(d1, d2, rep) %>%
+    summarize(N = n()) %>%
+    ungroup() %>%
+    mutate_at(vars(starts_with("d")),
+              ~ factor(sign(.x), levels = c(-1,1), labels = c("-", "+"))) %>%
+    mutate(id = interaction(d1, d2, sep = "{}"),
+           id = factor(id, levels = levels(id),
+                       labels = sprintf("%s{}", levels(id))),
+           n_p = str_count(id, "\\+"),
+           idd = interaction(n_p, id, sep = "", lex.order = TRUE, drop = TRUE),
+           idd = factor(idd, levels = levels(idd),
+                        labels = gsub("0|1|2|3", "", levels(idd)))) %>%
+    ggplot(aes(idd, N)) +
+    geom_jitter(width = 0.25, alpha = 0.5, height = 0,
+                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
+    scale_y_continuous("Number of surviving species", limits = c(0, 55),
+                       breaks = c(0, 25, 50)) +
+    scale_x_discrete(expression("Sign of" ~ d[1] ~ "and" ~ d[2]),
+                     labels = rlang::parse_exprs) +
+    scale_color_viridis_d(guide = FALSE, end = 0.8, option = "B") +
+    theme(strip.text = element_text(size = 8),
+          axis.text.x = element_text(size = 11),
+          plot.margin = margin(0,0,0,t=12)) +
     NULL
 
 
-to_cap <- "Figure 1.
-           Unique trait values for surviving species, for all 27 combinations
+
+
+# ------------------------------*
+# __ slowly vary 1 ----
+# ------------------------------*
+
+# Keep one d value positive, make the last one go slowly negative
+
+one_d_combo_vary_one <- function(.d2, .max_t) {
+
+
+    .d <- c(0.1, .d2)
+
+    Z <- quant_gen(q = length(.d), eta = 0.2, d = .d, max_t = .max_t,
+                   n_reps = 24, save_every = 0L, n = 100, N0 = rep(1, 100),
+                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   show_progress = FALSE)
+
+    Z$call[["q"]] <- eval(length(.d))
+    Z$call[["d"]] <- eval(.d)
+
+    jacs <- jacobians(Z)
+
+    return(list(NV = Z$nv %>%
+                    spread(trait, value) %>%
+                    group_by(rep) %>%
+                    summarize(n_spp = n()) %>%
+                    ungroup() %>%
+                    mutate(d2 = .d2) %>%
+                    identity(),
+                J = jacs))
+
+}
+
+
+if (.REDO_SIMS) {
+    # Takes ~2 min w/ q = 2, 3 threads
+    set.seed(807582316)
+    one_d_sim <- tibble(.d2 = c(-10^(c(-2, -3, -4)), 0, 10^(c(-4, -3, -2))),
+                           .max_t = 200e3L) %>%
+        mutate(.max_t = ifelse(.d2 == -1e-4, 2e6L, .max_t)) %>%
+        pmap(one_d_combo_vary_one)
+    saveRDS(one_d_sim, rds("one_d_sim-q2"))
+    one_d_sim_df <- map_dfr(one_d_sim, ~ .x[["NV"]])
+} else {
+    one_d_sim <- readRDS(rds("one_d_sim-q2"))
+    one_d_sim_df <- map_dfr(one_d_sim, ~ .x[["NV"]])
+}
+
+
+# #'
+# #' Code below shows that they're all stable:
+# #'
+# one_d_sim_eigs <- map_dfr(1:length(one_d_sim),
+#                       function(i) {
+#                           eigs <- map_dbl(one_d_sim[[i]][["J"]],
+#                                           function(.x){
+#                                               if (any(is.na(.x))) return(NA)
+#                                               max(eigen(.x)$values)
+#                                           })
+#                           one_d_sim[[i]]$NV %>%
+#                               .[1,] %>%
+#                               select(d2) %>%
+#                               mutate(e_min = min(eigs),
+#                                      e_max = max(eigs))
+#                       })
+#
+#
+#
+# print_big_nums(one_d_sim_eigs)
+#
+
+
+
+
+
+lab_fun <- function(.x) {
+    labs <- paste(.x)
+    labs[.x != 0] <- sprintf("%s10^{%i}",
+                             sign(.x[.x != 0]) %>% paste() %>% str_remove("1"),
+                             abs(.x[.x != 0]) %>% log10())
+    return(labs)
+}
+
+coexist_one_d_p <- one_d_sim_df %>%
+    mutate(d2 = factor(d2, levels = d2 %>% sort() %>% unique(),
+                       labels = d2 %>% sort() %>% unique() %>% lab_fun())) %>%
+    ggplot(aes(d2, n_spp)) +
+    geom_jitter(width = 0.2, alpha = 0.5, height = 0,
+                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
+    scale_color_viridis_d(guide = FALSE, end = 0.95, option = "D") +
+    scale_x_discrete(expression("Value of" ~ d[2]), labels = rlang::parse_exprs) +
+    scale_y_continuous("Number of surviving species", breaks = c(0, 25, 50),
+                       limits = c(0, 55)) +
+    theme(plot.margin = margin(0,0,0,t=12)) +
+    NULL
+
+
+
+
+
+
+# ------------------------------*
+# __ Time series of d2 = -0.01 and d2 = -1e-4 ----
+# ------------------------------*
+
+# Same as above, but returns a time series
+one_d_combo_vary_one_TS <- function(.d2, .max_t) {
+
+    # .d2 = -1e-4; .max_t = 2e6
+    # rm(.d2, .max_t, C, Z, .d)
+
+    stopifnot(is.numeric(.d2) && length(.d2) == 1)
+
+    .max_t <- as.integer(.max_t)
+
+    .d <- c(0.1, .d2)
+
+    Z <- quant_gen(q = 2, eta = 0.2, d = .d, max_t = .max_t, n_reps = 24,
+                   save_every = .max_t %/% 100L, n = 100, N0 = rep(1, 100),
+                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   show_progress = TRUE)
+
+    Z$call[["d"]] <- eval(.d)
+
+    jacs <- jacobians(Z)
+
+    return(list(NV = Z$nv %>%
+                    filter(trait == 1) %>%
+                    group_by(rep, time) %>%
+                    summarize(N = n()) %>%
+                    ungroup() %>%
+                    mutate(d2 = .d2) %>%
+                    identity(),
+                J = jacs))
+
+}
+
+
+
+if (.REDO_SIMS) {
+    # Takes 41 sec
+    set.seed(1821003492)
+    one_d_TS_sim <- tibble(.d = c(-1e-2, -1e-4), .max_t = c(10e3L, 2e6L)) %>%
+        pmap(one_d_combo_vary_one_TS)
+    saveRDS(one_d_TS_sim, rds("one_d_TS_sim"))
+    one_d_TS_sim_df <- map_dfr(one_d_TS_sim, ~ .x[["NV"]]) %>%
+        mutate(d2 = factor(d2, levels = c(-0.01, -1e-4)))
+} else {
+    one_d_TS_sim <- readRDS(rds("one_d_TS_sim"))
+    one_d_TS_sim_df <- map_dfr(one_d_TS_sim, ~ .x[["NV"]]) %>%
+        mutate(d2 = factor(d2, levels = c(-0.01, -1e-4)))
+}
+
+
+# #'
+# #' Code below shows that they're all stable:
+# #'
+# one_d_TS_sim_eigs <- map_dfr(1:length(one_d_TS_sim),
+#                       function(i) {
+#                           eigs <- map_dbl(one_d_TS_sim[[i]][["J"]],
+#                                           function(.x){
+#                                               if (any(is.na(.x))) return(NA)
+#                                               max(eigen(.x)$values)
+#                                           })
+#                           one_d_TS_sim[[i]]$NV %>%
+#                               .[1,] %>%
+#                               select(d2) %>%
+#                               mutate(e_min = min(eigs),
+#                                      e_max = max(eigs))
+#                       })
+#
+#
+# print_big_nums(one_d_TS_sim_eigs)
+#
+
+
+
+one_d_TS_p <- one_d_TS_sim_df %>%
+    filter(time < 1.15e6) %>%
+    mutate(time = time / 1000L) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(group = rep), alpha = 0.5, size = 0.5, color = "dodgerblue") +
+    geom_text(data = tibble(d2 = one_d_TS_sim_df$d2 %>% unique() %>% sort(),
+                            time = c(5, 600),
+                            N = 100,
+                            lab = factor(d2, levels = levels(d2),
+                                         labels = sprintf("d[2] == %s",
+                                                          c("-10^{-2}",
+                                                            "-10^{-4}")))),
+              aes(label = lab), parse = TRUE, hjust = 0.5, vjust = 1) +
+    facet_wrap(~ d2, nrow = 1, label = label_parsed, scales = "free_x") +
+    scale_y_continuous("Number of species", breaks = c(0, 50, 100)) +
+    scale_x_continuous(expression("Time (" %*% "1,000" * ")"),
+                       breaks = scales::breaks_extended(n = 3)) +
+    theme(strip.text = element_blank(),
+          plot.margin = margin(0,0,0,t=12)) +
+    NULL
+
+
+
+
+
+
+
+
+# ------------------------------*
+# __ combine them ----
+# ------------------------------*
+
+
+
+coexist_p <- ggarrange(coexist_all_d_p + theme(axis.title.y = element_blank()),
+                       coexist_one_d_p + theme(axis.title.y = element_blank()),
+                       one_d_TS_p + theme(axis.title.y = element_blank()),
+                       heights = c(1, 1, 0.75),
+                       left = "Number of surviving species",
+                       ncol = 1, labels = LETTERS[1:3],
+                       label.args = list(gp = gpar(fontsize = 14,
+                                                   fontface =  "plain"),
+                                         vjust = 1, hjust = -3))
+
+
+if (.RESAVE_PLOTS) save_plot(coexist_p, 4, 6, "3-")
+
+
+
+
+
+
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# XX. 3 traits, d = 1 ----
+
+# =============================================================================*
+# =============================================================================*
+
+to_cap <- "Unique trait values for surviving species, for all 27 combinations
            of pairwise combinations of traits being
            sub-additive ($\\eta < 0$ or \"$-$\"), neutral ($\\eta = 0$),
            or super-additive ($\\eta > 0$ or \"$+$\").
@@ -223,8 +751,6 @@ to_cap <- "Figure 1.
            When one sub-panel contains multiple points of the same color,
            this indicates that multiple alternative states are possible
            for that combination."
-
-to_cap <- cc(to_cap)
 
 
 ## The code below explores what happens when d >= 0.9
@@ -327,10 +853,10 @@ process_ids <- function(z) {
                        TRUE ~ .)}
         IDD3 = str_sub(.id, 3, 3) %>%
             {case_when(. == "+" ~ paste0(., "{}"),
-                      . == "-" ~ paste0(., "''"),
-                      . == "0" ~ "0",
-                      . == "X" ~ "0^{'+'}",
-                      TRUE ~ NA_character_)}
+                       . == "-" ~ paste0(., "''"),
+                       . == "0" ~ "0",
+                       . == "X" ~ "0^{'+'}",
+                       TRUE ~ NA_character_)}
         if(any(is.na(IDD1)) || any(is.na(IDD3))) {
             print(.id[is.na(IDD1) | is.na(IDD3)])
             stop("Non-programmed option in `parseable`")
@@ -462,666 +988,49 @@ trait_outcomes_p
 
 
 
-# =============================================================================*
-# =============================================================================*
 
-# 2. Coexistence ----
 
-# =============================================================================*
-# =============================================================================*
 
+# =====================*
+# ZZZ. "Filling in" of trait space ----
+# =====================*
 
+#'
+#' This shouldn't be a figure or anything (or at least not one in
+#' the main text), but it quickly shows that there is no tendency for
+#' species to "disperse" throughout the trait space when tradeoffs
+#' are additive.
+#'
 
-coex_cap <- "Figure 2.
-             Number of surviving species for
-             (A) all permutations of three traits being conflicting (\"-\")
-             or non-conflicting (\"+\"),
-             (B) varying values of $d_3$ when $d_1$ and $d_2$ are kept positive
-             (i.e., traits 1 and 2 are kept non-conflicting), and
-             (C) surviving species through time with $d_3 = -10^{-2}$ and
-             $d_3 = -10^{-4}$.
-             (A) Numbers above segments indicate the number of traits that are
-             non-conflicting."
-coex_cap <- cc(coex_cap)
+ring_points <- stable_points(0, line_n = 90)
 
+fill_qg <- quant_gen(q = 2, eta = 0, d = 1e-2, max_t = 20e3L, n_reps = 1,
+                     save_every = 0L, n = 2,
+                     N0 = rep(5.568996746, 2),
+                     V0 = ring_points %>%
+                         .[c(30, 60),] %>%
+                         as.matrix() %>%
+                         split(1:nrow(.)),
+                     start_t = 0, perturb_sd = 0, show_progress = FALSE)
 
+print_big_nums(ring_points[c(30, 60),])
+print_big_nums(fill_qg$nv)
 
-set.seed(532052696)
-ds <- exp(runif(.q, -6, -2))
 
+# Takes ~ 10 sec
+filling_sims <- map(1:nrow(ring_points),
+                    function(i) {
+                        .new_V <- ring_points %>%
+                            .[i,] %>%
+                            as.matrix() %>%
+                            list()
+                        perturb(fill_qg, max_t = 20e3L, save_every = 0L,
+                                new_V = .new_V, new_N = 1) %>%
+                            .[["end"]] %>%
+                            .[["N"]]
+                    })
 
+map_dbl(filling_sims, ~ .x[3]) %>% range()
 
 
-
-# ------------------------------*
-# __ all combinations ----
-# ------------------------------*
-
-# All combinations of - or + d values
-
-one_d_combo <- function(sign1, sign2, sign3) {
-
-    .d <- ds * c(sign1, sign2, sign3)
-
-    C <- matrix(0.2, .q, .q)
-    diag(C) <- 1
-
-    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
-              save_every = 0L, n = 100, N0 = rep(1, 100),
-              start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
-              show_progress = FALSE)
-
-    Z$nv %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
-        # filter(unq_spp_filter(V1, V2, V3)) %>%
-        mutate(d1 = .d[1], d2 = .d[2], d3 = .d[3])
-
-}
-
-
-
-
-if (.REDO_SIMS) {
-    # Takes ~45 sec w/ 2 threads
-    set.seed(751678518)
-    d_sim_df <- crossing(sign1 = c(-1,1), sign2 = c(-1,1), sign3 = c(-1,1)) %>%
-        pmap_dfr(one_d_combo)
-    saveRDS(d_sim_df, rds("all_d_sim"))
-} else {
-    d_sim_df <- readRDS(rds("all_d_sim"))
-}
-
-
-
-
-
-
-lab_df <- tibble(idd = c(1, 2, 5, 8) - 0.25, idd_e = c(1, 4, 7, 8) + 0.25,
-                 N = c(rep(10, 3), 50),
-                 lab = sprintf("%i", 0:3))
-
-coexist_all_d_p <- d_sim_df %>%
-    group_by(d1, d2, d3, rep) %>%
-    summarize(N = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(starts_with("d")),
-              ~ factor(sign(.x), levels = c(-1,1), labels = c("-", "+"))) %>%
-    mutate(id = interaction(d1, d2, d3, sep = "{}"),
-           id = factor(id, levels = levels(id),
-                       labels = sprintf("%s{}", levels(id))),
-           n_p = str_count(id, "\\+"),
-           idd = interaction(n_p, id, sep = "", lex.order = TRUE, drop = TRUE),
-           idd = factor(idd, levels = levels(idd),
-                        labels = gsub("0|1|2|3", "", levels(idd)))) %>%
-    ggplot(aes(idd, N)) +
-    geom_jitter(width = 0.25, alpha = 0.5, height = 0,
-                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
-    geom_segment(data = lab_df, aes(xend = idd_e, yend = N)) +
-    geom_text(data = lab_df, aes(x = (idd + idd_e) / 2, y = N + 2, label = lab),
-              hjust = 0.5, vjust = 0) +
-    # facet_wrap(~ n_p, scales = "free_x") +
-    scale_y_continuous("Number of surviving species", limits = c(0, 55),
-                       breaks = c(0, 25, 50)) +
-    scale_x_discrete(expression("Sign of" ~ d[1] * "," ~ d[2] * "," ~ d[3]),
-                     labels = rlang::parse_exprs) +
-    scale_color_viridis_d(guide = FALSE, end = 0.8, option = "B") +
-    theme(strip.text = element_text(size = 8),
-          axis.text.x = element_text(size = 11)) +
-    NULL
-
-
-
-
-# ------------------------------*
-# __ slowly vary 1 ----
-# ------------------------------*
-
-# Keep 2 d values positive, make the last one go slowly negative
-
-one_d_combo_vary_one <- function(.d3, .max_t) {
-
-    .d <- c(0.1, 0.1, .d3)
-
-    C <- matrix(0.2, .q, .q)
-    diag(C) <- 1
-
-
-    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = .max_t, n_reps = 24,
-                   save_every = 0L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
-                   show_progress = FALSE)
-
-    Z$nv %>%
-        spread(trait, value) %>%
-        group_by(rep) %>%
-        summarize(n_spp = n()) %>%
-        ungroup() %>%
-        mutate(d3 = .d3) %>%
-        identity()
-
-}
-
-
-if (.REDO_SIMS) {
-    # Takes ~30 min
-    set.seed(807582316)
-    one_d_sim_df <- tibble(.d3 = c(-10^(c(-2, -3, -4)), 0, 10^(c(-4, -3, -2))),
-                        .max_t = 200e3L) %>%
-        mutate(.max_t = ifelse(.d3 == -1e-4, 2e6L, .max_t)) %>%
-        pmap_dfr(one_d_combo_vary_one)
-    saveRDS(one_d_sim_df, rds("one_d_sim"))
-} else {
-    one_d_sim_df <- readRDS(rds("one_d_sim"))
-}
-
-
-
-
-lab_fun <- function(.x) {
-    labs <- paste(.x)
-    labs[.x != 0] <- sprintf("%s10^{%i}",
-                             sign(.x[.x != 0]) %>% paste() %>% str_remove("1"),
-                             abs(.x[.x != 0]) %>% log10())
-    return(labs)
-}
-
-coexist_one_d_p <- one_d_sim_df %>%
-    mutate(d3 = factor(d3, levels = d3 %>% sort() %>% unique(),
-                       labels = d3 %>% sort() %>% unique() %>% lab_fun())) %>%
-    ggplot(aes(d3, n_spp)) +
-    geom_jitter(width = 0.2, alpha = 0.5, height = 0,
-                color = "dodgerblue4", fill = "dodgerblue", shape = 21) +
-    scale_color_viridis_d(guide = FALSE, end = 0.95, option = "D") +
-    scale_x_discrete(expression("Value of" ~ d[3]), labels = rlang::parse_exprs) +
-    scale_y_continuous("Number of surviving species", breaks = c(0, 25, 50),
-                       limits = c(0, 55)) +
-    NULL
-
-
-
-
-
-# ------------------------------*
-# __ Time series of d3 = -0.01 and d3 = -1e-4 ----
-# ------------------------------*
-
-# Same as above, but returns a time series
-one_d_combo_vary_one_TS <- function(.d3, .max_t) {
-
-    # .d3 = -1e-4; .max_t = 2e6
-    # rm(.d3, .max_t, C, Z, .d)
-
-    .max_t <- as.integer(.max_t)
-
-    C <- matrix(0.2, .q, .q)
-    diag(C) <- 1
-
-    .d <- c(0.1, 0.1, .d3)
-
-    Z <- quant_gen(q = .q, eta = C, d = .d, max_t = .max_t, n_reps = 24,
-                   save_every = .max_t %/% 100L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
-                   show_progress = TRUE)
-
-    Z$nv %>%
-        filter(trait == 1) %>%
-        group_by(rep, time) %>%
-        summarize(N = n()) %>%
-        ungroup() %>%
-        mutate(d3 = .d3) %>%
-        identity()
-
-}
-
-
-
-if (.REDO_SIMS) {
-    # Takes ~7 min
-    set.seed(1821003492)
-    one_d_TS_sim_df <- tibble(.d = c(-1e-2, -1e-4), .max_t = c(10e3L, 2e6L)) %>%
-        pmap_dfr(one_d_combo_vary_one_TS)
-    saveRDS(one_d_TS_sim_df, rds("one_d_TS_sim"))
-} else {
-    one_d_TS_sim_df <- readRDS(rds("one_d_TS_sim"))
-}
-
-
-
-
-one_d_TS_p <- one_d_TS_sim_df %>%
-    mutate(d3 = factor(d3, levels = c(-0.01, -1e-4),
-                      labels = sprintf("d[3] == %s", c("-10^{-2}", "-10^{-4}")))) %>%
-    filter(time < 750e3) %>%
-    mutate(time = time / 1000L) %>%
-    ggplot(aes(time, N)) +
-    geom_line(aes(group = rep), alpha = 0.5, size = 0.5, color = "dodgerblue") +
-    facet_wrap(~ d3, nrow = 1, label = label_parsed, scales = "free_x") +
-    scale_y_continuous("Number of species", breaks = c(0, 50, 100)) +
-    scale_x_continuous("Time (1,000 generations)",
-                       breaks = scales::breaks_extended(n = 4)) +
-    NULL
-
-
-
-
-
-
-
-
-# ------------------------------*
-# __ combine them ----
-# ------------------------------*
-
-
-
-coexist_p <- ggarrange(coexist_all_d_p + theme(axis.title.y = element_blank()),
-                       coexist_one_d_p + theme(axis.title.y = element_blank()),
-                       one_d_TS_p + theme(axis.title.y = element_blank()),
-                       heights = c(1, 1, 0.75),
-                       left = "Number of surviving species",
-                       ncol = 1, labels = LETTERS[1:3],
-                       label.args = list(gp = gpar(fontsize = 14,
-                                                   fontface =  "plain"),
-                                         vjust = 2, hjust = -3))
-
-
-if (.RESAVE_PLOTS) save_plot(coexist_p, 6.5, 6, "2-")
-
-
-
-
-
-
-
-
-
-# =============================================================================*
-# =============================================================================*
-
-# 3. Invasibility ----
-
-# =============================================================================*
-# =============================================================================*
-
-
-
-inv_cap <- "Figure 3.
-            Invasibility analysis.
-            (A) Invasibility of equilibrium communities for invaders of
-            varying starting trait values and when the first trait has
-            conflicting or non-conflicting evolution.
-            Circles represent trait value combinations that were present
-            in the equilibrium population,
-            and the two possible states for the non-conflicting case
-            are labelled with the small Roman numerals nearby.
-            (B,C) For the invasion-successful, non-conflicting cases, how the
-            distance from the nearest equilibrium trait state
-            to the invader's starting trait values relates to the
-            total change in (B) abundance and (C) traits.
-            See text for the equations used to calculate these.
-            Invader points are in blue.
-            (B) Points representing $\\Delta N$ for the native community
-            (i.e., all non-invader species) are black.
-            The sub-panels separate which state the invader started
-            nearest to.
-            (C) Each native species is represented by a line with a color
-            indicating that species starting abundance;
-            this abundance is also the species' equilibrium abundance.
-            "
-inv_cap <- cc(inv_cap)
-
-
-invade_test <- function(r, .V1, .V2, .dsigns, .comm_N, .comm_V,
-                        .V3 = 0, .max_t = 20e3L) {
-
-    # .V1 = 1; .V2 = 1; .dsigns = c(1,1,1); .V3 = 0; .max_t = 20e3L
-    # rm(.V1, .V2, .dsigns, .V3, .max_t, S, comm_N, comm_V, .n, Z)
-
-    .n <- length(.comm_N) + 1
-
-    Z <- quant_gen(q = .q, eta = 0.2, d = ds*.dsigns, max_t = .max_t, n_reps = 1,
-                   save_every = 100L, n = .n,
-                   N0 = c(.comm_N, 0.01),
-                   V0 = c(.comm_V, list(cbind(.V1, .V2, .V3))),
-                   start_t = 0, perturb_sd = 0,
-                   n_threads = .N_THREADS, show_progress = FALSE) %>%
-        .[["nv"]] %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
-        mutate(spp = factor(spp, levels = 1:.n,
-                            labels = c(paste0("native_", 1:(.n-1)), "invader")),
-               rep = paste(.V1, .V2, .V3, sep = "__"),
-               dsigns = paste(.dsigns, collapse = "__"))
-    return(Z)
-}
-
-
-
-
-if (.REDO_SIMS) {
-    # Takes ~18 min w/ 3 threads
-    invade_df <- crossing(.V1 = seq(0, 4, 0.1),
-                          .V2 = seq(0, 4, 0.1),
-                          .dsigns = list(c(-1,1,1), c(1,1,1))) %>%
-        mutate(.comm_N = map(.dsigns, function(.ds) {
-            d_sim_df %>%
-                filter(sign(d1) == .ds[1],
-                       sign(d2) == .ds[2],
-                       sign(d3) == .ds[3],
-                       rep == 1) %>%
-                .[["N"]]
-        }),
-        .comm_V = map(.dsigns, function(.ds) {
-            d_sim_df %>%
-                filter(sign(d1) == .ds[1],
-                       sign(d2) == .ds[2],
-                       sign(d3) == .ds[3],
-                       rep == 1) %>%
-                select(starts_with("V", FALSE)) %>%
-                as.matrix() %>%
-                split(1:nrow(.))
-        })) %>%
-        mutate(r = 1:n()) %>%
-        pmap_dfr(invade_test)
-    saveRDS(invade_df, rds("invade"))
-} else {
-    invade_df <- readRDS(rds("invade"))
-}
-
-
-
-
-
-invasion_hm_p_df <- invade_df %>%
-    filter(time == max(time)) %>%
-    mutate(dsigns = factor(dsigns, levels = c("-1__1__1", "1__1__1"),
-                           labels = c("conflicting", "non-conflicting"))) %>%
-    group_by(dsigns, rep) %>%
-    summarize(invaded = factor(sum(spp == "invader"),
-                               levels = 0:1, labels = c("no", "yes")),
-              V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
-              V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
-    ungroup() %>%
-    select(-rep)
-
-
-
-invasion_hm_p <- invasion_hm_p_df %>%
-    ggplot(aes(V1, V2)) +
-    geom_tile(aes(fill = invaded)) +
-    geom_point(data = tibble(V1 = c(0, 2, 2), V2 = c(2, 0, 0),
-                             dsigns = c(rep("non-conflicting", 2), "conflicting")),
-               size = 4, color = "black", shape = 1) +
-    geom_text(data = tibble(V1 = c(0 + 0.4, 2), V2 = c(2, 0 + 0.4),
-                             dsigns = rep("non-conflicting", 2),
-                            lab = c("i", "ii")),
-               aes(label = lab), size = 12 / 2.835,
-              color = "black", fontface = "bold") +
-    facet_wrap(~ dsigns, labeller = label_parsed, nrow = 1) +
-    xlab("Invader trait 1") +
-    ylab("Invader trait 2") +
-    scale_fill_viridis_d("successful", begin = 0.3, end = 0.9, option = "C") +
-    coord_equal()
-
-
-# Takes ~20 sec
-invasion_move_p_df <- invade_df %>%
-    filter(dsigns == "1__1__1") %>%
-    group_by(rep) %>%
-    mutate(invaded = sum(time == max(time) & spp == "invader")) %>%
-    ungroup() %>%
-    filter(invaded == 1) %>%
-    select(-dsigns, -invaded) %>%
-    group_by(rep, spp) %>%
-    summarize(N0 = N[1],
-              mvmt_N = sum(abs(diff(N))),
-              mvmt_V1 = sum(abs(diff(V1))),
-              mvmt_V2 = sum(abs(diff(V2))),
-              mvmt_V = sum(sqrt((V1 - lag(V1))^2 + (V2 - lag(V2))^2 +
-                                    (V3 - lag(V3))^2), na.rm = TRUE),
-              V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
-              V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
-    ungroup() %>%
-    select(-rep) %>%
-    mutate(distance = ifelse(V1 > V2, sqrt((V1 - 2)^2 + (V2 - 0)^2),
-                             sqrt((V1 - 0)^2 + (V2 - 2)^2)),
-           which_pt = ifelse(V1 > V2, "state i", "state ii"))
-
-invasion_move_p_df2 <- invade_df %>%
-    filter(dsigns == "1__1__1") %>%
-    group_by(rep) %>%
-    mutate(invaded = sum(time == max(time) & spp == "invader")) %>%
-    ungroup() %>%
-    filter(invaded == 1, spp != "invader") %>%
-    select(-dsigns, -invaded) %>%
-    group_by(rep, time) %>%
-    summarize(N = sum(N)) %>%
-    group_by(rep) %>%
-    summarize(N0 = N[1],
-              mvmt_N = sum(abs(diff(N))),
-              V1 = str_split(rep, "__")[[1]][[1]] %>% as.numeric(),
-              V2 = str_split(rep, "__")[[1]][[2]] %>% as.numeric()) %>%
-    ungroup() %>%
-    select(-rep) %>%
-    mutate(distance = ifelse(V1 > V2, sqrt((V1 - 2)^2 + (V2 - 0)^2),
-                             sqrt((V1 - 0)^2 + (V2 - 2)^2)),
-           which_pt = ifelse(V1 > V2, "state i", "state ii"))
-
-
-
-invasion_moveN_p <- invasion_move_p_df %>%
-    filter(spp == "invader") %>%
-    ggplot(aes(distance, mvmt_N)) +
-    geom_point(data = invasion_move_p_df2, shape = 1) +
-    geom_point(shape = 1, color = "dodgerblue") +
-    facet_wrap(~ which_pt, nrow = 1) +
-    scale_y_continuous(expression(italic(Delta * "N")),
-                       breaks = c(0, 0.2, 0.4)) +
-        scale_x_continuous("Starting distance from equilibrium trait state",
-                       breaks = c(0, 0.4, 0.8, 1.2)) +
-    scale_color_viridis_c(expression(N[0]), begin = 0.1, end = 0.9,
-                          option = "D") +
-    theme(strip.text = element_text(margin = margin(0,0,0,b=6)))
-
-# invasion_moveN_p <- invasion_move_p_df %>%
-#     filter(spp == "invader") %>%
-#     ggplot(aes(distance, mvmt_N)) +
-#     geom_line(data = invasion_move_p_df %>%
-#                    filter(spp != "invader"),
-#                aes(group = spp, color = N0),  alpha = 0.5, size = 0.5) +
-#     geom_point(shape = 1, color = "dodgerblue") +
-#     facet_wrap(~ which_pt, nrow = 1) +
-#     scale_y_continuous(expression(italic(Delta * "N")),
-#                        breaks = c(0, 0.2, 0.4)) +
-#         scale_x_continuous("Starting distance from equilibrium trait state",
-#                        breaks = c(0, 0.4, 0.8, 1.2)) +
-#     scale_color_viridis_c(expression(N[0]), begin = 0.1, end = 0.9, option = "D")
-
-invasion_moveV_p <- invasion_move_p_df %>%
-    mutate(id = ifelse(spp == "invader", spp, "native")) %>%
-    filter(id == "invader") %>%
-    ggplot(aes(distance, mvmt_V)) +
-    geom_line(data = invasion_move_p_df %>%
-                  mutate(id = ifelse(spp == "invader", spp, "native"),
-                         grp = interaction(spp, which_pt)) %>%
-                  filter(spp != "invader"),
-              aes(group = grp, color = N0),  alpha = 0.5, size = 0.5) +
-    geom_point(shape = 1, color = "dodgerblue") +
-    facet_wrap(~ id, nrow = 1, scales =  "free_y") +
-    scale_y_continuous(expression(italic(Delta * "V")),
-                       breaks = scales::breaks_extended(4)) +
-    scale_x_continuous("Starting distance from equilibrium trait state",
-                       breaks = c(0, 0.4, 0.8, 1.2)) +
-    scale_color_viridis_c(expression(N[0]),
-                          begin = 0.1, end = 0.9, option = "D") +
-    theme(axis.title.x = element_text(margin = margin(0,0,0,t=12)),
-          strip.text = element_text(margin = margin(0,0,0,b=6)))
-
-
-
-
-invasion_p <- ggarrange(invasion_hm_p,
-                        invasion_moveN_p + theme(axis.title.x = element_blank()),
-                        invasion_moveV_p,
-                        heights = c(0.5, 0.25, 0.25),
-                        ncol = 1, labels = LETTERS[1:3],
-                        label.args = list(gp = gpar(fontsize = 14,
-                                                    fontface =  "plain"),
-                                          vjust = 2, hjust = -4))
-
-
-if (.RESAVE_PLOTS) save_plot(invasion_p, 6, 6, "3-")
-
-
-
-# C <- matrix(0.2, .q, .q)
-# diag(C) <- 1
-# .p <- 0.1
-# .max_t <- 5e3L
-# .V1 <- 0
-# .V2 <- 1.5
-# .V3 <- 0
-#
-# Z <- quant_gen(q = .q, eta = C, d = ds, max_t = .max_t, n_reps = 1,
-#           save_every = 1L, n = 2,
-#           N0 = c(10.9196300066, 10.9196300066 * .p),
-#           V0 = list(cbind(0, 0, 2), cbind(.V1, .V2, .V3)),
-#           start_t = 0, perturb_sd = 0,
-#           show_progress = FALSE) %>%
-#     .[["nv"]] %>%
-#     mutate(trait = paste0("V", trait)) %>%
-#     spread(trait, value) %>%
-#     mutate(spp = factor(spp, levels = 1:2, labels = c("native", "invader")))
-#
-# Z %>% filter(time == max(time))
-#
-# Z %>%
-#     ggplot(aes(time, N, color = spp)) +
-#     geom_line() +
-#     scale_y_continuous("N", limits = c(0, 11))
-
-
-
-
-
-
-
-# =============================================================================*
-# =============================================================================*
-
-# 4. Conditional coexistence ----
-
-# =============================================================================*
-# =============================================================================*
-
-
-
-
-cc_cap <- "Figure 4.
-           Two simulations illustrating conditional coexistence for a mix of
-           both conflicting and non-conflicting traits.
-           The left panels show exclusion, whereas the right two show
-           conditional coexistence.
-           In the top two panels, each line is for a particular species.
-           In the bottom two panels, circles show starting trait values,
-           and lines show trajectories through trait space through time.
-           Xs show the trait values for surviving species.
-           The gray area is the basin of attraction for the
-           non-conflicting trait."
-cc_cap <- cc(cc_cap)
-
-
-
-
-
-set.seed(1245262468)
-V0_coexist <- lapply(1:100,
-                     function(i) {
-                         V0 <- rbind(numeric(3))
-                         V0[,2] <- abs(rnorm(1, 0, 2))
-                         V0[,1] <- runif(1) * V0[,2]
-                         return(V0)
-                     })
-V0_exclude <- lapply(1:100,
-                     function(i) {
-                         V0 <- rbind(abs(rnorm(3, 0, 2)))
-                         V0[,3] <- 0
-                         return(V0)
-                     })
-
-
-cond_coexist_test <- function(.V0, .lab) {
-    Z <- quant_gen(q = .q, eta = 0.2, d = ds*c(-1,1,1), max_t = 20e3L, n_reps = 1,
-                   save_every = 10L, n = 100, N0 = rep(1, 100),
-                   V0 = .V0,
-                   start_t = 0, perturb_sd = 0,
-                   show_progress = FALSE) %>%
-        .[["nv"]] %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
-        select(-rep) %>%
-        mutate(V0 = .lab)
-    return(Z)
-}
-
-
-
-# Just takes a few seconds
-cond_coexist_df <- tibble(.V0 = list(V0_coexist, V0_exclude),
-                          .lab = c("exclusion", "coexistence")) %>%
-    pmap_dfr(cond_coexist_test) %>%
-    mutate(V0 = factor(V0, levels = c("exclusion", "coexistence")))
-
-
-
-
-# Time series for coexistence and exclusion
-cond_coexist_ts_p <- cond_coexist_df %>%
-    ggplot(aes(time, N, color = spp)) +
-    geom_line(alpha = 0.5) +
-    facet_wrap(~ V0, scales = "free") +
-    scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
-    ylab("Abundance") +
-    scale_x_continuous("Time", breaks = seq(0, 20e3, 5e3),
-                       labels = format(seq(0, 20e3, 5e3), big.mark = ",")) +
-    theme(strip.text = element_text(size = 12, margin = margin(0,0,0,b = 24)))
-
-
-# Movement through trait space for coexistence and exclusion:
-cond_coexist_sp_p <- cond_coexist_df %>%
-    arrange(time, spp) %>%
-    ggplot(aes(V1, V2, color = spp)) +
-    # geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
-    geom_polygon(data = tibble(x = c(-1, 5, -1), y = c(-1, 5, 5)), aes(x,y),
-                 color = NA, fill = "gray80") +
-    geom_path(alpha = 0.5) +
-    geom_point(data = cond_coexist_df %>% filter(time == min(time)),
-               shape = 1) +
-    geom_point(data = cond_coexist_df %>% filter(time == max(time)) %>%
-                   group_by(V0) %>%
-                   filter(unq_spp_filter(V1, V2)) %>%
-                   ungroup(),
-               shape = 4, size = 4, color = "black") +
-    scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
-    facet_wrap(~ V0) +
-    coord_equal(xlim = c(0, 4.25), ylim = c(0, 4.25)) +
-    ylab("Trait 2") +
-    xlab("Trait 1") +
-    theme(strip.text = element_blank())
-
-
-
-
-
-cond_coexist_p <- ggarrange(cond_coexist_ts_p,
-                            cond_coexist_sp_p,
-                            heights = c(0.5, 0.5),
-                            ncol = 1, labels = LETTERS[1:2],
-                            label.args = list(gp = gpar(fontsize = 14,
-                                                        fontface =  "plain"),
-                                              vjust = 2, hjust = -5))
-
-
-if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 5, 5, "4-")
 
