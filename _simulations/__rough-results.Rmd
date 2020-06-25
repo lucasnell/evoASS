@@ -196,7 +196,7 @@ values were present in surviving species.
 What those trait values were depended on the exact combination.
 With all sub-additive combinations, all three traits were maximized.
 The six other permutations of $\ge 2$ sub-additive combinations varied but 
-all had high values of $\eta_2$ and usually had high values of $\eta_3$.
+all had high values of trait 2 and usually had high values of trait 3.
 With only one sub-additive combination, the combination that was sub-additive
 determined which of the three trait states the surviving species possessed.
 
@@ -206,22 +206,22 @@ were sub-additive.
 When all combinations were super-additive, there were three alternative 
 trait states: one for each trait being maximized while the others 
 equaled zero.
-With two super-additive and one neutral combinations, species traits were 
+With two super-additive and one additive combinations, species traits were 
 along a neutrally stable quarter-ring along one axis.
-With one super-additive and two neutral combinations, species traits were 
+With one super-additive and two additive combinations, species traits were 
 along a neutrally stable half-ring along two axes.
 Traits existed along a neutrally stable three-dimensional shell when all 
-traits were neutral.
+traits were additive.
 
 
 
 __NOTE:__ When $d$ is large enough ($d = 0.9$ does it for these parameter values),
 you can get additional trait outcomes.
 In some cases, it adds 1 or 2 additional trait state(s), but in the case
-of 1 sub-additive, 1 neutral, and 1 super-additive trait (i.e., "1 of each"),
+of 1 sub-additive, 1 additive, and 1 super-additive trait (i.e., "1 of each"),
 it allows for many possibilities:
 anywhere on a sub-section of the neutral ring (like
-the "2 super, 1 neutral" scenario, but even more reduced).
+the "2 super, 1 additive" scenario, but even more reduced).
 The species that exist at these additional trait states 
 have at least slightly lower densities than the others at the trait state
 that exists when $d = 0.1$.
@@ -232,12 +232,12 @@ Is this interesting or likely an artifact?
 to_cap <- "Figure 1.
            Unique trait values for surviving species, for all 27 combinations
            of pairwise combinations of traits being 
-           sub-additive ($\\eta < 0$ or \"$-$\"), neutral ($\\eta = 0$), 
+           sub-additive ($\\eta < 0$ or \"$-$\"), additive ($\\eta = 0$), 
            or super-additive ($\\eta > 0$ or \"$+$\").
            The size of points indicates the value for trait 3.
            Sub-panels separate the number of pairwise combinations (out of 3)
-           that are sub-additive, neutral, or super-additive.
-           All but the \"all super\" and \"all neutral\" sub-panels 
+           that are sub-additive, additive, or super-additive.
+           All but the \"all super\" and \"all additive\" sub-panels 
            contain multiple pairwise combinations, so each specific combination 
            is separated by color and indicated by the colored label.
            The symbol $0^{+}$ inside labels indicates when that $\\eta$ can be
@@ -387,8 +387,8 @@ process_ids <- function(z) {
 
 p_group_levels <- c("{} >= '2 sub'", "'1 sub'",
                     "'all super'",
-                    "'2 super, 1 neutral'", "'2 neutral, 1 super'", 
-                    "'all neutral'")
+                    "'2 super, 1 additive'", "'2 additive, 1 super'", 
+                    "'all additive'")
 
 
 trait_outcomes_p_df <- eta_sim_df %>%
