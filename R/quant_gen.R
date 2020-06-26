@@ -296,6 +296,54 @@ unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALS
 
 
 
+
+#' Population abundances from quantitative genetics analytical solutions.
+#'
+#' *Note:* Only works for 2 traits for now.
+#'
+#' @inheritParams adapt_dyn
+#'
+#' @return A numeric vector of abundances, of length `n`.
+#'
+#' @export
+#'
+pop_sizes <- function(n, eta, d, ...) {
+
+    stopifnot(is.numeric(n) && length(eta) == 1)
+    stopifnot(is.numeric(eta))
+    stopifnot(is.numeric(d))
+
+    if (length(d) > 2 || length(eta) > 1) {
+        stop("`pop_sizes` is only programmed for 2 traits")
+    }
+    if (length(d) == 1) d <- rep(d, 2)
+
+    LIST <- modifyList(formals(quant_gen), list(...))
+    LIST <- modifyList(LIST,
+                       list(eta = eta, n = n, d1 = d[1], d2 = d[2]))
+
+    N <- with(LIST,
+              {
+                  num <- f * (1 + eta) * exp((r0 / (f * (1 + eta))) - 1)
+                  denom <- a0 * (
+                      1 + exp(-0.5 * (r0 / (f * (1 + eta)) - 1) * (d1 + d2)) *
+                          (n - 1)
+                  )
+                  (num / denom)
+              })
+
+    rep(N, n)
+
+}
+
+
+
+
+
+
+
+
+
 #'
 #' @importFrom magrittr %>%
 #'

@@ -15,7 +15,7 @@ quant_gen(
   f = 0.1,
   a0 = 0.5,
   r0 = 0.5,
-  add_var = rep(0.1, n),
+  add_var = rep(0.01, n),
   perturb_sd = 1,
   n_reps = 100,
   start_t = 0,
@@ -90,7 +90,7 @@ Defaults to \code{NULL}, which causes no new species to be add.}
 \item{new_N}{Numeric vector of new species to add. Defaults to \code{NULL}, which
 causes no new species to be add.}
 
-\item{...}{Not used here.}
+\item{...}{Other parameters to pass to \code{quant_gen}.}
 }
 \value{
 A \code{quant_gen} object with \code{nv} (for N and V output) and \code{fs} (for fitness
