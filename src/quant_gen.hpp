@@ -170,15 +170,15 @@ public:
                            const arma::mat& D) {
 
         // Temporary objects:
-        arma::vec WN(this->V.size());
+        arma::vec WN(V.size());
         arma::mat SV;
         // Filling in fitnesses and selection strengths:
-        F_t__<arma::vec>(WN, this->V, this->N, f, a0, C, r0, D);
-        sel_str__(SV, this->V, this->N, f, a0, C, r0, D);
+        F_t__<arma::vec>(WN, V, N, f, a0, C, r0, D);
+        sel_str__(SV, V, N, f, a0, C, r0, D);
 
         // Fill final values:
-        this->fitness = arma::prod(WN);
-        this->selection = arma::accu(SV);
+        fitness = arma::prod(WN);
+        selection = arma::accu(SV);
 
         return;
     }
