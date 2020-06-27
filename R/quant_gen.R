@@ -423,18 +423,11 @@ one_jacobian <- function(one_rep, qg_obj) {
         sel_str_cpp(V = V, N = N, f = f, a0 = a0, C = C, r0 = r0, D = D)
     newV <- as.numeric(t(do.call(rbind, V) + deltaV))
 
-    # The Heaviside step function is how we made traits >= 0, and the
-    # Dirac delta function is the derivative of the Heaviside
+    # The ramp function is how we made traits >= 0, and the
+    # Heaviside step function is the derivative of the ramp function
     heaviside <- function(x) ifelse(x > 0, 1, 0)
-    dirac_delta <- function(x) ifelse(x == 0, Inf, 0)
 
-    multiplier <- dirac_delta(newV) * newV + heaviside(newV)
-    # If both V_t and V_t+1 are zero, then we say that the derivative is
-    # also zero. If we didn't do this, then the derivative is undefined.
-    multiplier <- ifelse(is.nan(multiplier) & newV == 0 & do.call(c, V) == 0,
-                         0, multiplier)
-
-    jac <- diag(multiplier) %*% jac
+    jac <- diag(heaviside(newV)) %*% jac
 
     return(jac)
 
