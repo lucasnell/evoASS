@@ -35,12 +35,6 @@ NULL
 #'
 NULL
 
-#' Search for unique species in a matrix of species trait values.
-#'
-#' @noRd
-#'
-NULL
-
 #' One repetition of quantitative genetics.
 #'
 #' Higher-up function(s) should handle the info put into `info`.
@@ -90,7 +84,7 @@ jacobian_cpp <- function(V, N, f, a0, D, C, add_var) {
     .Call(`_sauron_jacobian_cpp`, V, N, f, a0, D, C, add_var)
 }
 
-#' Same as above, but exported for use in R
+#' Search for unique species in a matrix of species trait values.
 #'
 #' @noRd
 #'

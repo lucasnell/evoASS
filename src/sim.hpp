@@ -2,7 +2,7 @@
 #define __SAURON_SIM_H
 
 
-#define ARMA_NO_DEBUG
+// #define ARMA_NO_DEBUG
 
 
 
@@ -71,12 +71,12 @@ inline double trunc_rnorm_(const double& mu, const double& sigma) {
 //'
 //' @noRd
 //'
-inline double r_V_(const arma::rowvec& Vi,
+inline double r_V_(const arma::vec& Vi,
                    const double& f,
                    const arma::mat& C,
                    const double& r0) {
 
-    double r = r0 - f * arma::as_scalar(Vi * C * Vi.t());
+    double r = r0 - f * arma::as_scalar(Vi.t() * C * Vi);
 
     return r;
 }
@@ -93,19 +93,19 @@ inline double r_V_(const arma::rowvec& Vi,
 //'
 template <typename T>
 inline void A_VN_(T& A,
-                  const std::vector<arma::rowvec>& V,
+                  const std::vector<arma::vec>& V,
                   const std::vector<double>& N,
                   const double& a0,
                   const arma::mat& D) {
 
     // Values of sum of squared trait values for each clone
-    std::vector<double> W_intra; // `exp(- V %*% t(V))` for intraspecific component
-    std::vector<double> W_inter; // `exp(- V %*% D %*% t(V))` for interspecific component
+    std::vector<double> W_intra; // `exp(- t(V) %*% V)` for intraspecific component
+    std::vector<double> W_inter; // `exp(- t(V) %*% D %*% V)` for interspecific component
     W_intra.reserve(V.size());
     W_inter.reserve(V.size());
     for (uint32_t j = 0; j < V.size(); j++) {
-        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[j] * V[j].t())));
-        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[j] * D * V[j].t())));
+        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[j].t() * V[j])));
+        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[j].t() * D * V[j])));
     }
 
     for (uint32_t i = 0; i < V.size(); i++) {
@@ -133,20 +133,20 @@ inline void A_VN_(T& A,
 //'
 template <typename T>
 inline void A_VNI__(T& A,
-                    const std::vector<arma::rowvec>& V,
+                    const std::vector<arma::vec>& V,
                     const std::vector<double>& N,
                     const std::vector<uint32_t>& I,
                     const double& a0,
                     const arma::mat& D) {
 
     // Values of sum of squared trait values for each clone
-    std::vector<double> W_intra; // `exp(- V %*% t(V))` for intraspecific component
-    std::vector<double> W_inter; // `exp(- V %*% D %*% t(V))` for interspecific component
+    std::vector<double> W_intra; // `exp(- t(V) %*% V)` for intraspecific component
+    std::vector<double> W_inter; // `exp(- t(V) %*% D %*% V)` for interspecific component
     W_intra.reserve(I.size());
     W_inter.reserve(I.size());
     for (uint32_t j = 0; j < I.size(); j++) {
-        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[I[j]] * V[I[j]].t())));
-        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[I[j]] * D * V[I[j]].t())));
+        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[I[j]].t() * V[I[j]])));
+        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[I[j]].t() * D * V[I[j]])));
     }
 
     for (uint32_t i = 0; i < I.size(); i++) {
@@ -168,7 +168,7 @@ inline void A_VNI__(T& A,
 */
 template <typename T>
 inline void F_t__(T& F,
-                  const std::vector<arma::rowvec>& V,
+                  const std::vector<arma::vec>& V,
                   const std::vector<double>& N,
                   const double& f,
                   const double& a0,

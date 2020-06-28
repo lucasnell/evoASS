@@ -20,7 +20,7 @@ using namespace Rcpp;
 //'
 //[[Rcpp::export]]
 arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
-                        const std::vector<arma::rowvec>& V0,
+                        const std::vector<arma::vec>& V0,
                         const std::vector<double>& N0,
                         const double& f,
                         const double& a0,

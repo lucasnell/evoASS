@@ -9,6 +9,9 @@
 #'   at time t
 #'
 
+# library(sauron)
+# library(testthat)
+
 context("derivative functions")
 
 
@@ -30,12 +33,12 @@ get_sim_info <- function(sim_i) {
     with(info, {
         N = as.numeric(sims[sim_i,colnames(sims)[grepl("^N", colnames(sims))]])
         V = matrix(as.numeric(sims[sim_i,colnames(sims)[grepl("^V", colnames(sims))]]),
-                   length(N))
-        V_ = split(V, row(V))
-        C = matrix(eta, ncol(V), ncol(V))
+                    ncol = length(N))
+        V_ = lapply(split(V, col(V)), cbind)
+        C = matrix(eta, nrow(V), nrow(V))
         diag(C) = 1
         add_var = 0.01
-        D <- matrix(0, ncol(V), ncol(V))
+        D <- matrix(0, nrow(V), nrow(V))
         diag(D) <- d
     })
 
@@ -53,7 +56,7 @@ calc_dF_dVi <- function(sim_info) {
     ss <- with(sim_info, {
         sauron:::sel_str_cpp(V_, N, f, a0, C, r0, D)
     })
-    sauron_results <- diag(as.numeric(F_)) %*% ss
+    sauron_results <- ss %*% diag(as.numeric(F_))
     return(sauron_results)
 }
 calc_dVi_dVi <- function(sim_info) {
@@ -63,7 +66,7 @@ calc_dVi_dVi <- function(sim_info) {
             N[i] + sum(sapply(1:length(N),
                               function(j) {
                                   if (j == i) return(0)
-                                  exp(-V[j,,drop=F] %*% D %*% t(V[j,,drop=F])) * N[j]
+                                  exp(- t(V[,j,drop=F]) %*% D %*% V[,j,drop=F]) * N[j]
                               }))
         })
         with(sim_info, {
@@ -87,6 +90,8 @@ calc_dVi_dVk <- function(sim_info) {
 
 check_results <- function(type) {
 
+    # type = "dF_dVi"
+
     if (!type %in% c("dF_dVi", "dVi_dVi", "dVi_dVk")) stop("type not recognized")
 
     py_results_df <- readr::read_csv(sprintf("%sresults/%s.csv", dir, type),
@@ -100,13 +105,15 @@ check_results <- function(type) {
 
     same_results <- logical(nsims)
 
+    # sim_i = 1
     for (sim_i in 1:nsims) {
+
 
         py_results <- as.numeric(py_results_df[sim_i,])
         info <- get_sim_info(sim_i)
 
         if (type == "dF_dVi") {
-            py_results <- matrix(py_results, n, q, byrow = TRUE)
+            py_results <- matrix(py_results, q, n)
             sauron_results <- calc_dF_dVi(info)
         } else if (type == "dVi_dVi") {
             py_results <- lapply(split(py_results, rep(1:n, each = q^2)),

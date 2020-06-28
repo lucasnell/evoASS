@@ -30,17 +30,17 @@ std::vector<double> trunc_rnorm_cpp(const uint32_t& N,
  Fitness at time t.
  */
 //[[Rcpp::export]]
-arma::rowvec F_t_cpp(const std::vector<arma::rowvec>& V,
-                     const std::vector<double>& N,
-                     const double& f,
-                     const double& a0,
-                     const arma::mat& C,
-                     const double& r0,
-                     const arma::mat& D) {
+arma::vec F_t_cpp(const std::vector<arma::vec>& V,
+                  const std::vector<double>& N,
+                  const double& f,
+                  const double& a0,
+                  const arma::mat& C,
+                  const double& r0,
+                  const arma::mat& D) {
 
-    arma::rowvec F(V.size());
+    arma::vec F(V.size());
 
-    F_t__<arma::rowvec>(F, V, N, f, a0, C, r0, D);
+    F_t__<arma::vec>(F, V, N, f, a0, C, r0, D);
 
     return F;
 }

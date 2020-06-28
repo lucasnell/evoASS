@@ -9,7 +9,7 @@ using namespace Rcpp;
 
 
 void sel_str__(arma::mat& ss_mat,
-               const std::vector<arma::rowvec>& V,
+               const std::vector<arma::vec>& V,
                const std::vector<double>& N,
                const double& f,
                const double& a0,
@@ -23,29 +23,30 @@ void sel_str__(arma::mat& ss_mat,
 class OneRepInfo {
 public:
 
-    std::vector<double> N;          // abundances
-    std::vector<arma::rowvec> V;    // traits
-    std::vector<uint32_t> spp;      // species indexes (based on N0 and V0)
+    std::vector<double> N;      // abundances
+    std::vector<arma::vec> V;   // traits
+    std::vector<uint32_t> spp;  // species indexes (based on N0 and V0)
     double fitness;
     double selection;
     // Info for output if tracking through time:
     std::vector<double> t;
     std::vector<std::vector<double>> N_t;
-    std::vector<std::vector<arma::rowvec>> V_t;
+    std::vector<std::vector<arma::vec>> V_t;
     std::vector<std::vector<uint32_t>> spp_t;
 
     OneRepInfo () {};
     OneRepInfo(const std::vector<double>& N_,
-               const std::vector<arma::rowvec>& V_,
+               const std::vector<arma::vec>& V_,
                const uint32_t& max_t,
                const uint32_t& save_every,
                const double& perturb_sd)
         : N(N_), V(V_), spp(N_.size()), fitness(-1), selection(-1),
           t(), N_t(), V_t(),
           A(V_.size()),
-          ss_mat(V_.size(), V_[0].n_elem),
-          n(N_.size()), q(V_[0].n_elem),
-          norm_distr(0.0, perturb_sd) {
+          ss_mat(),
+          n(N_.size()),
+          q(V_[0].n_elem),
+          perturb_sd_(perturb_sd) {
 
         for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
 
@@ -110,8 +111,7 @@ public:
         sel_str__(ss_mat, V, N, f, a0, C, r0, D);
         // Then include additive genetic variance when adding to trait values:
         for (uint32_t i = 0; i < V.size(); i++) {
-            V[i] += (add_var(i) * ss_mat.row(i));
-            // for (double& v : V[i]) if (v < 0) v *= -1; // <-- keeping traits >= 0
+            V[i] += (add_var(i) * ss_mat.col(i));
             for (double& v : V[i]) if (v < 0) v = 0; // <-- keeping traits >= 0
         }
 
@@ -133,9 +133,7 @@ public:
     void perturb(pcg64& eng) {
         for (uint32_t i = 0; i < V.size(); i++) {
             for (double& v : V[i]) {
-                v += norm_distr(eng);
-                // if (v < 0) v *= -1; // <-- keeping traits >= 0
-                if (v < 0) v = 0; // <-- keeping traits >= 0
+                v = trunc_rnorm_(v, perturb_sd_, eng);
             }
         }
         return;
@@ -149,7 +147,7 @@ public:
             // Fill last set of N's with a zero:
             N_t.push_back(std::vector<double>(1, 0.0));
             // Fill last V with a `NaN` (closest to NA I know of):
-            std::vector<arma::rowvec> V__(1, arma::rowvec(q));
+            std::vector<arma::vec> V__(1, arma::vec(q));
             V__[0].fill(arma::datum::nan);
             V_t.push_back(V__);
             // Fill last set of spp's with a zero:
@@ -190,7 +188,7 @@ private:
     arma::mat ss_mat;       // Selection strength
     uint32_t n;             // Starting # species
     uint32_t q;             // # traits
-    std::normal_distribution<double> norm_distr;
+    double perturb_sd_;
 
 
 };

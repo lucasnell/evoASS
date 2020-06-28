@@ -36,7 +36,7 @@ public:
     -----------------
     */
     // Trait values for all clones:
-    std::vector<arma::rowvec> all_V;
+    std::vector<arma::vec> all_V;
     // All abundances from t = 1 to max_t:
     std::vector<std::vector<double>> all_N;
     // All indices from t = 1 to max_t:
@@ -46,7 +46,7 @@ public:
 
 
     OneRepInfoAD() {};
-    OneRepInfoAD(const std::vector<arma::rowvec>& V0,
+    OneRepInfoAD(const std::vector<arma::vec>& V0,
                  const std::vector<double>& N0,
                  const uint32_t& max_clones,
                  const uint32_t& max_t,
@@ -54,7 +54,7 @@ public:
                  const double& mut_sd)
         : N(N0), A(N0.size()), I(N0.size()), clone_I(0),
           all_V(V0), all_N(1), all_I(1), all_t(1),
-          norm_distr(0, mut_sd) {
+          mut_sd_(mut_sd) {
 
         N.reserve(max_clones);
         A.reserve(max_clones);
@@ -134,11 +134,9 @@ public:
                 clone_I++;
 
                 all_V.push_back(all_V[I[i]]);
-                arma::rowvec& new_V(all_V.back());
+                arma::vec& new_V(all_V.back());
                 for (double& v : new_V) {
-                    v += norm_distr(eng);
-                    // if (v < 0) v *= -1; // <-- keeping traits >= 0
-                    if (v < 0) v = 0; // <-- keeping traits >= 0
+                    v = trunc_rnorm_(v, mut_sd_, eng);
                 }
 
             }
@@ -207,7 +205,7 @@ public:
 
 private:
 
-    std::normal_distribution<double> norm_distr;
+    double mut_sd_;
 
 };
 

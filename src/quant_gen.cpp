@@ -36,7 +36,7 @@ using namespace Rcpp;
 //' @noRd
 //'
 inline void sel_str__(arma::mat& ss_mat,
-                      const std::vector<arma::rowvec>& V,
+                      const std::vector<arma::vec>& V,
                       const std::vector<double>& N,
                       const double& f,
                       const double& a0,
@@ -44,30 +44,37 @@ inline void sel_str__(arma::mat& ss_mat,
                       const double& r0,
                       const arma::mat& D) {
 
-    uint32_t n_spp = V.size();      // # species
-    uint32_t n_trt = V[0].size();   // # traits
+    uint32_t n = V.size();      // # species
+    uint32_t q = V[0].n_elem;   // # traits
 
-    if (ss_mat.n_rows != n_spp || ss_mat.n_cols != n_trt) ss_mat.set_size(n_spp, n_trt);
+    if (ss_mat.n_rows != q || ss_mat.n_cols != n) {
+        ss_mat.set_size(q, n);
+    }
 
-    // For all i, calculate `N_j * exp(- V_j * D * transpose(V_j))`, where `j != i`
-    arma::vec W(n_spp, arma::fill::zeros);
-    for (uint32_t j = 0; j < n_spp; j++) {
-        // Calculate `N_j * exp(-V_j * D * transpose(V_j))`:
-        double W_ = N[j] * std::exp(-1 * arma::as_scalar(V[j] * D * V[j].t()));
+    /*
+     For all `i`, calculate `sum(N_j * exp(- transpose(V_j) * D * V_j))`,
+     for all `j != i`.
+     From the equation parameters, `Omega_i = N_i + W_i`
+     */
+    arma::vec W(n, arma::fill::zeros);
+    for (uint32_t j = 0; j < n; j++) {
+        // Calculate `N_j * exp(-transpose(V_j) * D * V_j)`:
+        double W_ = N[j] * std::exp(-1 * arma::as_scalar(V[j].t() * D * V[j]));
         // Now insert this value at all `i` where `j != i`:
-        for (uint32_t i = 0; i < n_spp; i++) {
+        for (uint32_t i = 0; i < n; i++) {
             if (i == j) continue;
             W(i) += W_;
         }
     }
-    arma::mat C_ = C + C.t();
 
     // Now go back through and calculate strength of selection:
-    for (uint32_t i = 0; i < n_spp; i++) {
-        const arma::rowvec& V_i(V[i]);
-        const double& N_i(N[i]);
-        ss_mat.row(i) = (-f * V_i * C_) +
-            2 * a0 * V_i * std::exp(arma::as_scalar(-V_i * V_i.t())) * (N_i + W(i));
+    arma::rowvec Vtmp(q);
+    for (uint32_t i = 0; i < n; i++) {
+        const arma::vec& Vi(V[i]);
+        double Omega_i = N[i] + W[i];
+        Vtmp = 2 * (-f * Vi.t() * C +
+            a0 * Omega_i * std::exp(arma::as_scalar(-Vi.t() * Vi)) * Vi.t());
+        ss_mat.col(i) = Vtmp.t();
     }
 
     return;
@@ -81,7 +88,7 @@ inline void sel_str__(arma::mat& ss_mat,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
+arma::mat sel_str_cpp(const std::vector<arma::vec>& V,
                       const std::vector<double>& N,
                       const double& f,
                       const double& a0,
@@ -107,7 +114,7 @@ arma::mat sel_str_cpp(const std::vector<arma::rowvec>& V,
 inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
-                     const arma::rowvec& Vi,
+                     const arma::vec& Vi,
                      const double& Z,
                      const arma::mat& C,
                      const double& f,
@@ -120,10 +127,11 @@ inline void dVi_dVi_(arma::mat& dVhat,
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I +
         2 * add_var * (
                 (
-                        a0 * Z * std::exp(-1 * arma::as_scalar(Vi * Vi.t())) *
-                            (I - 2 * (Vi.t() * Vi))
-                ) - (f * C)
+                        a0 * Z * std::exp(-1 * arma::as_scalar(Vi.t() * Vi)) *
+                            (I - 2 * Vi * Vi.t())
+                ) - (f * C.t())
         );
+
     return;
 }
 
@@ -138,13 +146,13 @@ inline void dVi_dVi_(arma::mat& dVhat,
 arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
                       const arma::mat& C, const double& f, const double& a0,
                       const double& add_var) {
-    uint32_t q = V.n_cols;
-    arma::mat dVhat(q, q);
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+
+    arma::mat dVhat(V.n_rows, V.n_rows);
 
     // Fill dVhat:
-    dVi_dVi_(dVhat, 0, 0, V.row(i), Z, C, f, a0, add_var);
-
-    dVhat = dVhat.t();
+    dVi_dVi_(dVhat, 0, 0, V.col(i), Z, C, f, a0, add_var);
 
     return dVhat;
 }
@@ -160,14 +168,15 @@ inline void dVi_dVk_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
                      const double& Nk,
-                     const arma::rowvec& Vi,
-                     const arma::rowvec& Vk,
+                     const arma::vec& Vi,
+                     const arma::vec& Vk,
                      const arma::mat& D,
                      const double& a0,
                      const double& add_var) {
     uint32_t row_end = row_start + Vi.n_elem - 1;
     uint32_t col_end = col_start + Vi.n_elem - 1;
-    arma::mat M = D * Vk.t() * arma::exp(-1 * Vk * D * Vk.t() - Vi * Vi.t()) * Vi;
+    arma::mat M = Vi * arma::exp(-1 * Vk.t() * D * Vk - Vi.t() * Vi) *
+        Vk.t() * D;
     M *= (-4 * a0 * add_var * Nk);
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
     return;
@@ -188,12 +197,12 @@ arma::mat dVi_dVk_cpp(const uint32_t& i,
                       const arma::mat& D,
                       const double& a0,
                       const double& add_var) {
-    uint32_t q = V.n_cols;
-    arma::mat dVhat(q, q);
-    // Fill dVhat:
-    dVi_dVk_(dVhat, 0, 0, N[k], V.row(i), V.row(k), D, a0, add_var);
 
-    dVhat = dVhat.t();
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+    arma::mat dVhat(V.n_rows, V.n_rows);
+    // Fill dVhat:
+    dVi_dVk_(dVhat, 0, 0, N[k], V.col(i), V.col(k), D, a0, add_var);
 
     return dVhat;
 }
@@ -213,7 +222,7 @@ arma::mat dVi_dVk_cpp(const uint32_t& i,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
+arma::mat jacobian_cpp(const std::vector<arma::vec>& V,
                         const std::vector<double>& N,
                         const double& f,
                         const double& a0,
@@ -221,31 +230,34 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
                         const arma::mat& C,
                         const arma::vec& add_var) {
 
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
     uint32_t n = N.size();
-    uint32_t q = V[0].n_cols;
+    uint32_t q = V[0].n_elem;
 
     if (V.size() != n) stop("V.size() != N.size()");
     if (add_var.n_elem != n) stop("add_var.n_elem != N.size()");
     for (uint32_t i = 0; i < n; i++) {
-        if (V[i].n_elem != q) stop("V[i].n_cols != q");
+        if (V[i].n_elem != q) stop("V[i].n_elem != q");
     }
 
     arma::mat jcb_mat(n*q, n*q);
 
     arma::vec Z_vec(n);
     for (uint32_t j = 0; j < n; j++) {
-        Z_vec[j] = (N[j] * std::exp(arma::as_scalar(-1 * V[j] * D * V[j].t())));
+        Z_vec[j] = (N[j] * std::exp(arma::as_scalar(-1 * V[j].t() * D * V[j])));
     }
 
     for (uint32_t i = 0; i < n; i++) {
 
-        const arma::rowvec& Vi(V[i]);
+        const arma::vec& Vi(V[i]);
         const double& add_var_i(add_var[i]);
-        uint32_t col_start = i * q;
+        uint32_t row_start = i * q;
 
         for (uint32_t k = 0; k < n; k++) {
 
-            uint32_t row_start = k * q;
+            uint32_t col_start = k * q;
 
             if (k == i) {
 
@@ -269,9 +281,6 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
 
     }
 
-    jcb_mat = jcb_mat.t();
-
-
     return jcb_mat;
 }
 
@@ -283,41 +292,26 @@ arma::mat jacobian_cpp(const std::vector<arma::rowvec>& V,
 //'
 //' @noRd
 //'
-inline void unq_spp_(arma::uvec& is_unq,
-                     const std::vector<arma::rowvec>& V,
-                     const double& precision) {
+//[[Rcpp::export]]
+arma::uvec unq_spp_cpp(const std::vector<arma::vec>& V,
+                       double precision) {
 
-    double precision_ = precision * precision;
+    precision *= precision;
 
     uint32_t n = V.size();
-    is_unq = arma::ones<arma::uvec>(n);
+    arma::uvec is_unq = arma::ones<arma::uvec>(n);
 
     for (uint32_t i = 1; i < n; i++) {
         for (uint32_t j = 0; j < i; j++) {
             if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
-            arma::rowvec diff_;
+            arma::vec diff_;
             diff_ = (V[i] - V[j]) % (V[i] - V[j]);
-            if (arma::mean(diff_) < precision_) {
+            if (arma::mean(diff_) < precision) {
                 is_unq(i) = 0;
                 break;
             }
         }
     }
-
-    return;
-}
-
-//' Same as above, but exported for use in R
-//'
-//' @noRd
-//'
-//[[Rcpp::export]]
-arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
-                       const double& precision) {
-
-    arma::uvec is_unq;
-
-    unq_spp_(is_unq, V, precision);
 
     return is_unq;
 }
@@ -327,7 +321,7 @@ arma::uvec unq_spp_cpp(const std::vector<arma::rowvec>& V,
  Similar to above, except that it groups species in to unique groups.
  */
 //[[Rcpp::export]]
-IntegerVector group_spp_cpp(const std::vector<arma::rowvec>& V,
+IntegerVector group_spp_cpp(const std::vector<arma::vec>& V,
                                     double precision) {
 
 
@@ -344,7 +338,7 @@ IntegerVector group_spp_cpp(const std::vector<arma::rowvec>& V,
     for (uint32_t i = 1; i < n; i++) {
         for (uint32_t j = 0; j < i; j++) {
             if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
-            arma::rowvec diff_;
+            arma::vec diff_;
             diff_ = (V[i] - V[j]) % (V[i] - V[j]);
             if (arma::mean(diff_) < precision) {
                 is_unq(i) = 0;
@@ -372,7 +366,7 @@ IntegerVector group_spp_cpp(const std::vector<arma::rowvec>& V,
 //' @noRd
 //'
 int one_quant_gen__(OneRepInfo& info,
-                     const std::vector<arma::rowvec>& V0,
+                     const std::vector<arma::vec>& V0,
                      const std::vector<double>& N0,
                      const double& f,
                      const double& a0,
@@ -404,7 +398,7 @@ int one_quant_gen__(OneRepInfo& info,
         prog_bar.increment();
 
         // Check for user interrupt:
-        if (interrupt_check(iters, prog_bar, 1000)) return -1;
+        if (interrupt_check(iters, prog_bar, 100)) return -1;
 
     }
 
@@ -426,6 +420,9 @@ int one_quant_gen__(OneRepInfo& info,
 
         if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t + 1);
+        }
+
+        if (n_incr > 100) {
             prog_bar.increment(n_incr);
             n_incr = 0;
         }
@@ -433,7 +430,7 @@ int one_quant_gen__(OneRepInfo& info,
         t++;
 
         // Check for user interrupt:
-        if (interrupt_check(iters, prog_bar, 1000)) return -1;
+        if (interrupt_check(iters, prog_bar, 100)) return -1;
 
     }
 
@@ -452,7 +449,7 @@ int one_quant_gen__(OneRepInfo& info,
 //'
 //[[Rcpp::export]]
 List quant_gen_cpp(const uint32_t& n_reps,
-                  const std::vector<arma::rowvec>& V0,
+                  const std::vector<arma::vec>& V0,
                   const std::vector<double>& N0,
                   const double& f,
                   const double& a0,
@@ -467,6 +464,9 @@ List quant_gen_cpp(const uint32_t& n_reps,
                   const uint32_t& save_every,
                   const bool& show_progress,
                   const uint32_t& n_threads) {
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
 
     if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
     if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
@@ -503,9 +503,9 @@ List quant_gen_cpp(const uint32_t& n_reps,
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         eng.seed(seeds[i][0], seeds[i][1]);
-        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D, add_var,
-                                     perturb_sd, start_t, max_t, min_N, save_every,
-                                     eng, prog_bar);
+        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D,
+                                     add_var, perturb_sd, start_t, max_t,
+                                     min_N, save_every, eng, prog_bar);
         if (active_thread == 0 && status != 0) interrupted = true;
     }
     #ifdef _OPENMP
@@ -523,7 +523,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
      */
     arma::mat nv; // N and V - either through time or just final values
     arma::mat fs(n_reps, 2); // fitness and selection
-    uint32_t q = V0[0].n_cols;
+    uint32_t q = V0[0].n_elem;
 
     /*
      Go through one time to calculate the # surviving species for all reps and
@@ -548,7 +548,7 @@ List quant_gen_cpp(const uint32_t& n_reps,
             for (uint32_t t = 0; t < info.t.size(); t++) {
 
                 const std::vector<double>& N_t(info.N_t[t]);
-                const std::vector<arma::rowvec>& V_t(info.V_t[t]);
+                const std::vector<arma::vec>& V_t(info.V_t[t]);
                 const std::vector<uint32_t>& spp_t(info.spp_t[t]);
                 const double& t_(info.t[t]);
                 for (uint32_t k = 0; k < N_t.size(); k++) {

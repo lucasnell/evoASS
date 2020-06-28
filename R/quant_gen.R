@@ -51,7 +51,7 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #'
 quant_gen <- function(eta, d, q,
                       n = 100,
-                      V0 = rep(list(matrix(0, 1, q)), n),
+                      V0 = rep(list(matrix(0, q, 1)), n),
                       N0 = rep(1, n),
                       f = 0.1,
                       a0 = 0.5,
@@ -363,7 +363,8 @@ one_jacobian <- function(one_rep, qg_obj) {
         spread(trait, value) %>%
         select(starts_with("V", ignore.case = FALSE)) %>%
         as.matrix() %>%
-        split(1:nrow(.))
+        split(1:nrow(.)) %>%
+        lapply(cbind)
 
 
     if (is.null(qg_obj$call[["n"]])) {
@@ -419,9 +420,9 @@ one_jacobian <- function(one_rep, qg_obj) {
     if (length(add_var) == 1) {
         S <- matrix(add_var)
     } else S <- diag(add_var)
-    deltaV <- S %*%
-        sel_str_cpp(V = V, N = N, f = f, a0 = a0, C = C, r0 = r0, D = D)
-    newV <- as.numeric(t(do.call(rbind, V) + deltaV))
+    deltaV <- sel_str_cpp(V = V, N = N, f = f, a0 = a0,
+                          C = C, r0 = r0, D = D) %*% S
+    newV <- as.numeric(do.call(cbind, V) + deltaV)
 
     # The ramp function is how we made traits >= 0, and the
     # Heaviside step function is the derivative of the ramp function
@@ -490,6 +491,7 @@ perturb.quant_gen <- function(obj,
         stopifnot(inherits(new_V, "list"))
         stopifnot(sapply(new_V, inherits, what = c("numeric", "matrix", "array")))
         stopifnot(sapply(new_V, function(x) all(x >= 0)))
+        stopifnot(sapply(new_V, ncol) == 1)
         V <- new_V
     } else V <- list()
 
@@ -520,7 +522,7 @@ perturb.quant_gen <- function(obj,
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
-        lapply(rbind)
+        lapply(cbind)
     V0 <- c(V0, V)
 
     args <- obj$call %>%
@@ -564,11 +566,11 @@ perturb.quant_gen <- function(obj,
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
-        lapply(rbind)
+        lapply(cbind)
 
 
-    out <- list(start = list(N = N0, V = do.call(rbind, V0)),
-                end = list(N = Nt, V = do.call(rbind, Vt)),
+    out <- list(start = list(N = N0, V = do.call(cbind, V0)),
+                end = list(N = Nt, V = do.call(cbind, Vt)),
                 end_obj = qg)
 
 
