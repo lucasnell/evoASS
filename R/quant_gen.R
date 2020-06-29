@@ -35,8 +35,8 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #' @param n_threads Number of cores to use. Defaults to 1.
 #' @inheritParams adapt_dyn
 #'
-#' @return A `quant_gen` object with `nv` (for N and V output) and `fs` (for fitness
-#'     and selection output) fields.
+#' @return A `quant_gen` object with `nv` (for N and V output) and
+#'     `call` (for original call) fields.
 #' @export
 #'
 #' @importFrom magrittr %>%
@@ -127,8 +127,8 @@ quant_gen <- function(eta, d, q,
 
 
     if (save_every > 0) {
-        colnames(qg$NV) <- c("rep", "time", "spp", "N", paste0("trait_", 1:q))
-        NV_ <- as_tibble(qg$NV) %>%
+        colnames(qg) <- c("rep", "time", "spp", "N", paste0("trait_", 1:q))
+        qg <- as_tibble(qg) %>%
             mutate_at(vars(rep, time, spp), as.integer) %>%
             gather("trait", "value", starts_with("trait_"), factor_key = TRUE) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
@@ -138,8 +138,8 @@ quant_gen <- function(eta, d, q,
             arrange(rep, time, spp, trait) %>%
             mutate(value = ifelse(is.nan(value), NA, value))
     } else {
-        colnames(qg$NV) <- c("rep", "spp", "N", paste0("trait_", 1:q))
-        NV_ <- as_tibble(qg$NV) %>%
+        colnames(qg) <- c("rep", "spp", "N", paste0("trait_", 1:q))
+        qg <- as_tibble(qg) %>%
             mutate_at(vars(rep, spp), as.integer) %>%
             gather("trait", "value", starts_with("trait_")) %>%
             mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
@@ -150,13 +150,8 @@ quant_gen <- function(eta, d, q,
             mutate(value = ifelse(is.nan(value), NA, value))
     }
 
-    colnames(qg$FS) <- c("fit", "sel")
-    FS_ <- as_tibble(qg$FS) %>%
-        mutate(rep = 1L:(dplyr::n())) %>%
-        dplyr::select(rep, fit, sel)
 
-
-    qg_obj <- list(nv = NV_, fs = FS_, call = call_)
+    qg_obj <- list(nv = qg, call = call_)
 
     class(qg_obj) <- "quant_gen"
 
@@ -208,17 +203,16 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$value)) > 0 ||
         length(unique(x$nv$rep)) < length(levels(x$nv$rep))
     if (is.null(x$call$save_every) || x$call$save_every > 0) {
-        extinct_ <- extinct_ || length(unique(filter(x$nv, time == max(time))$rep)) <
+        extinct_ <- extinct_ || length(unique(filter(x$nv,
+                                                     time == max(time))$rep)) <
             length(levels(x$nv$rep))
     }
     cat(blu_("* Total extinction:", extinct_, "\n"))
 
-    fs_ <- x$fs %>%
-        gather("par","value", fit:sel) %>%
-        group_by(par) %>%
-        summarize(min = min(value), max = max(value))
-    cat(blu_(sprintf("* Fitness range = %.3g, %.3g\n", fs_$min[1], fs_$max[1])))
-    cat(blu_(sprintf("* Selection range = %.3g, %.3g\n", fs_$min[2], fs_$max[2])))
+    cat("\n\n")
+
+    print(head(x$nv, n = 10))
+    if (nrow(x$nv) > 10) cat("    ...\n")
 
     invisible(x)
 

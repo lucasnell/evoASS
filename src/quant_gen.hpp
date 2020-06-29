@@ -26,8 +26,6 @@ public:
     std::vector<double> N;      // abundances
     std::vector<arma::vec> V;   // traits
     std::vector<uint32_t> spp;  // species indexes (based on N0 and V0)
-    double fitness;
-    double selection;
     // Info for output if tracking through time:
     std::vector<double> t;
     std::vector<std::vector<double>> N_t;
@@ -40,7 +38,7 @@ public:
                const uint32_t& max_t,
                const uint32_t& save_every,
                const double& perturb_sd)
-        : N(N_), V(V_), spp(N_.size()), fitness(-1), selection(-1),
+        : N(N_), V(V_), spp(N_.size()),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(),
@@ -157,27 +155,6 @@ public:
             V_t.push_back(V);
             spp_t.push_back(spp);
         }
-        return;
-    }
-
-
-    void fitness_selection(const double& f,
-                           const double& a0,
-                           const arma::mat& C,
-                           const double& r0,
-                           const arma::mat& D) {
-
-        // Temporary objects:
-        arma::vec WN(V.size());
-        arma::mat SV;
-        // Filling in fitnesses and selection strengths:
-        F_t__<arma::vec>(WN, V, N, f, a0, C, r0, D);
-        sel_str__(SV, V, N, f, a0, C, r0, D);
-
-        // Fill final values:
-        fitness = arma::prod(WN);
-        selection = arma::accu(SV);
-
         return;
     }
 

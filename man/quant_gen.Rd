@@ -10,7 +10,7 @@ quant_gen(
   d,
   q,
   n = 100,
-  V0 = rep(list(matrix(0, 1, q)), n),
+  V0 = rep(list(matrix(0, q, 1)), n),
   N0 = rep(1, n),
   f = 0.1,
   a0 = 0.5,
@@ -93,8 +93,8 @@ causes no new species to be add.}
 \item{...}{Other parameters to pass to \code{quant_gen}.}
 }
 \value{
-A \code{quant_gen} object with \code{nv} (for N and V output) and \code{fs} (for fitness
-and selection output) fields.
+A \code{quant_gen} object with \code{nv} (for N and V output) and
+\code{call} (for original call) fields.
 }
 \description{
 Quantitative genetics.

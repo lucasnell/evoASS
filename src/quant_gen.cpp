@@ -434,10 +434,6 @@ int one_quant_gen__(OneRepInfo& info,
 
     }
 
-    // Calculate final fitnesses and selection pressure to see if we're at equilibrium
-    info.fitness_selection(f, a0, C, r0, D);
-
-
     return 0;
 }
 
@@ -448,22 +444,22 @@ int one_quant_gen__(OneRepInfo& info,
 //' @noRd
 //'
 //[[Rcpp::export]]
-List quant_gen_cpp(const uint32_t& n_reps,
-                  const std::vector<arma::vec>& V0,
-                  const std::vector<double>& N0,
-                  const double& f,
-                  const double& a0,
-                  const arma::mat& C,
-                  const double& r0,
-                  const arma::mat& D,
-                  const arma::vec& add_var,
-                  const double& perturb_sd,
-                  const uint32_t& start_t,
-                  const uint32_t& max_t,
-                  const double& min_N,
-                  const uint32_t& save_every,
-                  const bool& show_progress,
-                  const uint32_t& n_threads) {
+arma::mat quant_gen_cpp(const uint32_t& n_reps,
+                        const std::vector<arma::vec>& V0,
+                        const std::vector<double>& N0,
+                        const double& f,
+                        const double& a0,
+                        const arma::mat& C,
+                        const double& r0,
+                        const arma::mat& D,
+                        const arma::vec& add_var,
+                        const double& perturb_sd,
+                        const uint32_t& start_t,
+                        const uint32_t& max_t,
+                        const double& min_N,
+                        const uint32_t& save_every,
+                        const bool& show_progress,
+                        const uint32_t& n_threads) {
 
     if (!C.is_symmetric()) stop("C must be symmetric");
     if (!D.is_symmetric()) stop("D must be symmetric");
@@ -522,7 +518,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
      ------------
      */
     arma::mat nv; // N and V - either through time or just final values
-    arma::mat fs(n_reps, 2); // fitness and selection
     uint32_t q = V0[0].n_elem;
 
     /*
@@ -566,9 +561,6 @@ List quant_gen_cpp(const uint32_t& n_reps,
 
             }
 
-            fs(i,0) = info.fitness;
-            fs(i,1) = info.selection;
-
         }
 
     } else {  //                ----  Just saving final values:  ----
@@ -589,15 +581,11 @@ List quant_gen_cpp(const uint32_t& n_reps,
                 for (uint32_t l = 0; l < q; l++) nv(j+k, 3+l) = info.V[k](l);
             }
             j += info.N.size();
-            fs(i,0) = info.fitness;
-            fs(i,1) = info.selection;
         }
 
     }
 
-    List out = List::create(_["NV"] = nv, _["FS"] = fs);
-
-    return out;
+    return nv;
 
 }
 
