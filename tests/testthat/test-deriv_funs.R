@@ -62,15 +62,16 @@ calc_dF_dVi <- function(sim_info) {
 calc_dVi_dVi <- function(sim_info) {
     n <- length(sim_info$N)
     lapply(1:n, function(i) {
-        Z <- with(sim_info, {
+        Omega <- with(sim_info, {
             N[i] + sum(sapply(1:length(N),
                               function(j) {
                                   if (j == i) return(0)
-                                  exp(- t(V[,j,drop=F]) %*% D %*% V[,j,drop=F]) * N[j]
+                                  Vj <- V[,j,drop=F]
+                                  exp(- t(Vj) %*% D %*% Vj) * N[j]
                               }))
         })
         with(sim_info, {
-            sauron:::dVi_dVi_cpp(i - 1, V, Z, C, f, a0, add_var)
+            sauron:::dVi_dVi_cpp(i - 1, V, Omega, C, f, a0, add_var)
         })
     })
 }

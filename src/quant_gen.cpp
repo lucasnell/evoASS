@@ -105,8 +105,8 @@ arma::mat sel_str_cpp(const std::vector<arma::vec>& V,
 
 
 
-//' Partial derivative of species i traits at time t+1 with respect to species i traits
-//' at time t.
+//' Partial derivative of species i traits at time t+1 with respect to
+//' species i traits at time t.
 //'
 //'
 //' @noRd
@@ -115,7 +115,7 @@ inline void dVi_dVi_(arma::mat& dVhat,
                      const uint32_t& row_start,
                      const uint32_t& col_start,
                      const arma::vec& Vi,
-                     const double& Z,
+                     const double& Omega,
                      const arma::mat& C,
                      const double& f,
                      const double& a0,
@@ -127,7 +127,8 @@ inline void dVi_dVi_(arma::mat& dVhat,
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = I +
         2 * add_var * (
                 (
-                        a0 * Z * std::exp(-1 * arma::as_scalar(Vi.t() * Vi)) *
+                        a0 * Omega * std::exp(-1 *
+                            arma::as_scalar(Vi.t() * Vi)) *
                             (I - 2 * Vi * Vi.t())
                 ) - (f * C.t())
         );
@@ -143,7 +144,8 @@ inline void dVi_dVi_(arma::mat& dVhat,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
+arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V,
+                      const double& Omega,
                       const arma::mat& C, const double& f, const double& a0,
                       const double& add_var) {
 
@@ -152,14 +154,14 @@ arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z,
     arma::mat dVhat(V.n_rows, V.n_rows);
 
     // Fill dVhat:
-    dVi_dVi_(dVhat, 0, 0, V.col(i), Z, C, f, a0, add_var);
+    dVi_dVi_(dVhat, 0, 0, V.col(i), Omega, C, f, a0, add_var);
 
     return dVhat;
 }
 
 
-//' Partial derivative of species i traits at time t+1 with respect to species k traits
-//' at time t.
+//' Partial derivative of species i traits at time t+1 with respect to
+//' species k traits at time t.
 //'
 //' @noRd
 //'
@@ -244,9 +246,10 @@ arma::mat jacobian_cpp(const std::vector<arma::vec>& V,
 
     arma::mat jcb_mat(n*q, n*q);
 
-    arma::vec Z_vec(n);
+    arma::vec Omega_vec(n);
     for (uint32_t j = 0; j < n; j++) {
-        Z_vec[j] = (N[j] * std::exp(arma::as_scalar(-1 * V[j].t() * D * V[j])));
+        Omega_vec[j] = (N[j] * std::exp(
+            arma::as_scalar(-1 * V[j].t() * D * V[j])));
     }
 
     for (uint32_t i = 0; i < n; i++) {
@@ -261,12 +264,12 @@ arma::mat jacobian_cpp(const std::vector<arma::vec>& V,
 
             if (k == i) {
 
-                double Z = N[i];
+                double Omega = N[i];
                 for (uint32_t j = 0; j < n; j++) {
-                    if (j != i) Z += Z_vec[j];
+                    if (j != i) Omega += Omega_vec[j];
                 }
                 // Fill Jacobian:
-                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Z, C, f, a0,
+                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Omega, C, f, a0,
                          add_var_i);
 
             } else {
@@ -303,7 +306,10 @@ arma::uvec unq_spp_cpp(const std::vector<arma::vec>& V,
 
     for (uint32_t i = 1; i < n; i++) {
         for (uint32_t j = 0; j < i; j++) {
-            if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
+
+            // don't want to keep looking at non-unique spp:
+            if (is_unq(j) == 0) continue;
+
             arma::vec diff_;
             diff_ = (V[i] - V[j]) % (V[i] - V[j]);
             if (arma::mean(diff_) < precision) {
@@ -337,7 +343,10 @@ IntegerVector group_spp_cpp(const std::vector<arma::vec>& V,
 
     for (uint32_t i = 1; i < n; i++) {
         for (uint32_t j = 0; j < i; j++) {
-            if (is_unq(j) == 0) continue; // don't want to keep looking at non-unique spp
+
+            // don't want to keep looking at non-unique spp:
+            if (is_unq(j) == 0) continue;
+
             arma::vec diff_;
             diff_ = (V[i] - V[j]) % (V[i] - V[j]);
             if (arma::mean(diff_) < precision) {
@@ -418,7 +427,8 @@ int one_quant_gen__(OneRepInfo& info,
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
 
-        if (save_every > 0 && (t % save_every == 0 || (t+1) == max_t || all_gone)) {
+        if (save_every > 0 &&
+            (t % save_every == 0 || (t+1) == max_t || all_gone)) {
             info.save_time(t + 1);
         }
 
