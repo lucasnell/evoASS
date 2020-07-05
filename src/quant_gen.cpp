@@ -346,12 +346,6 @@ inline void dNi_dVi_(arma::mat& dVhat,
     arma::mat M = 2 * F * N[i] * (
         a0 * Omega * arma::exp(-1 * Vi.t() * Vi) * Vi.t() -
         f * Vi.t() * C);
-    /*
-     F = fitness()
-     Omega  = N[i] + sum(N[j] * exp(Vj * D * Vj))
-     2 * F * N[i] * (a0 * Omega * exp(- t(Vi) %*% Vi) %*% t(Vi) -
-     f * t(Vi) %*% C)
-     */
 
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
 
@@ -427,12 +421,6 @@ inline void dNi_dVk_(arma::mat& dVhat,
         arma::exp(- Vk.t() * D * Vk - Vi.t() * Vi) *
         Vk.t() * D;
 
-    /*
-     2 * F_[i] * N[i] * N[k] * a0 *
-        exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk) %*%
-        t(Vk) %*% D
-     */
-
 
     dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
 
@@ -499,11 +487,6 @@ inline void dNi_dNi_(arma::mat& dVhat,
     double M = F * (1 - N[i] * a0 * std::exp(-1 *
                     arma::as_scalar(Vi.t() * Vi)));
 
-    /*
-     F = fitness()
-     F * (1 - N[i] * a0 * exp(- t(Vi) %*% Vi))
-     */
-
     dVhat(row_start, col_start) = M;
 
     return;
@@ -566,12 +549,6 @@ inline void dNi_dNk_(arma::mat& dVhat,
 
     double M = -1 * F * N[i] * a0 *
         std::exp(arma::as_scalar(-1 * Vi.t() * Vi - Vk.t() * D * Vk));
-
-    /*
-     F = fitness()
-     - F_[i] * N[i] * a0 *
-     exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk)
-     */
 
     dVhat(row_start, col_start) = M;
 

@@ -211,8 +211,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 
     cat("\n\n")
 
-    print(head(x$nv, n = 10))
-    if (nrow(x$nv) > 10) cat("    ...\n")
+    print(x$nv, n = 10)
 
     invisible(x)
 
