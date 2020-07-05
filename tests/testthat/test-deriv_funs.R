@@ -34,13 +34,12 @@ get_sim_info <- function(sim_i) {
         N = as.numeric(sims[sim_i,colnames(sims)[grepl("^N", colnames(sims))]])
         V = matrix(as.numeric(sims[sim_i,colnames(sims)[grepl("^V", colnames(sims))]]),
                    ncol = length(N))
-        V_ = lapply(split(V, col(V)), cbind)
         C = matrix(eta, nrow(V), nrow(V))
         diag(C) = 1
         add_var = 0.01
         D <- matrix(0, nrow(V), nrow(V))
         diag(D) <- d
-        F_ <- sauron:::F_t_cpp(V_, N, f, a0, C, r0, D)
+        F_ <- sauron:::F_t_cpp(V, N, f, a0, C, r0, D)
         n <- length(N)
         Omegas <- sapply(1:n, function(i) {
             Njs <- sapply((1:n)[-i], function(j) {
@@ -61,9 +60,9 @@ get_sim_info <- function(sim_i) {
 # --------------------*
 
 calc_dF_dVi <- function(sim_info) {
-    F_ <- with(sim_info, sauron:::F_t_cpp(V_, N, f, a0, C, r0, D))
+    F_ <- with(sim_info, sauron:::F_t_cpp(V, N, f, a0, C, r0, D))
     ss <- with(sim_info, {
-        sauron:::sel_str_cpp(V_, N, f, a0, C, r0, D)
+        sauron:::sel_str_cpp(V, N, f, a0, C, r0, D)
     })
     sauron_results <- ss %*% diag(as.numeric(F_))
     return(sauron_results)

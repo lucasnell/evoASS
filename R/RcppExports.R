@@ -188,8 +188,8 @@ dNi_dNk_cpp <- function(i, k, V, N, f, a0, C, r0, D) {
 #'
 #' @noRd
 #'
-jacobian_cpp <- function(V, N, f, a0, D, C, add_var) {
-    .Call(`_sauron_jacobian_cpp`, V, N, f, a0, D, C, add_var)
+jacobian_cpp <- function(V, N, f, a0, r0, D, C, add_var, evo_only) {
+    .Call(`_sauron_jacobian_cpp`, V, N, f, a0, r0, D, C, add_var, evo_only)
 }
 
 #' Search for unique species in a matrix of species trait values.

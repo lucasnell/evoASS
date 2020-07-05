@@ -30,7 +30,7 @@ std::vector<double> trunc_rnorm_cpp(const uint32_t& N,
  Fitness at time t for all species
  */
 //[[Rcpp::export]]
-arma::vec F_t_cpp(const std::vector<arma::vec>& V,
+arma::vec F_t_cpp(const arma::mat& V,
                   const std::vector<double>& N,
                   const double& f,
                   const double& a0,
@@ -38,9 +38,16 @@ arma::vec F_t_cpp(const std::vector<arma::vec>& V,
                   const double& r0,
                   const arma::mat& D) {
 
-    arma::vec F(V.size());
+    uint32_t n = V.n_cols;
 
-    F_t__<arma::vec>(F, V, N, f, a0, C, r0, D);
+    if (n != N.size()) stop("V.n_cols != N.size()");
+
+    arma::vec F(n);
+    std::vector<arma::vec> VV;
+    VV.reserve(n);
+    for (uint32_t i = 0; i < n; i++) VV.push_back(V.col(i));
+
+    F_t__<arma::vec>(F, VV, N, f, a0, C, r0, D);
 
     return F;
 }
@@ -50,13 +57,15 @@ arma::vec F_t_cpp(const std::vector<arma::vec>& V,
  */
 //[[Rcpp::export]]
 double F_it_cpp(const uint32_t& i,
-                const std::vector<arma::vec>& V,
+                const arma::mat& V,
                 const std::vector<double>& N,
                 const double& f,
                 const double& a0,
                 const arma::mat& C,
                 const double& r0,
                 const arma::mat& D) {
+
+    if (V.n_cols != N.size()) stop("V.n_cols != N.size()");
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 

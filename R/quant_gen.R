@@ -339,11 +339,11 @@ pop_sizes <- function(n, eta, d, ...) {
 
 #'
 #' @importFrom magrittr %>%
+#' @importFrom tidyr spread
 #'
 #' @noRd
 #'
-one_jacobian <- function(one_rep, qg_obj) {
-
+one_jacobian <- function(one_rep, qg_obj, evo_only) {
 
     if (!is.null(one_rep[["time"]])) {
         one_rep <- dplyr::filter(one_rep, time == max(time))
@@ -352,12 +352,11 @@ one_jacobian <- function(one_rep, qg_obj) {
     N <- dplyr::filter(one_rep, trait == 1)[["N"]]
     spp <- as.integer(paste(dplyr::filter(one_rep, trait == 1)[["spp"]]))
     V <- one_rep %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
-        select(starts_with("V", ignore.case = FALSE)) %>%
+        dplyr::mutate(trait = paste0("V", trait)) %>%
+        tidyr::spread(trait, value) %>%
+        dplyr::select(starts_with("V", ignore.case = FALSE)) %>%
         as.matrix() %>%
-        split(1:nrow(.)) %>%
-        lapply(cbind)
+        t()
 
 
     if (is.null(qg_obj$call[["n"]])) {
@@ -407,21 +406,26 @@ one_jacobian <- function(one_rep, qg_obj) {
         diag(D) <- d
     }
 
-    jac <- jacobian_cpp(V, N, f, a0, D, C, add_var)
+    jac <- jacobian_cpp(V, N, f, a0, r0, D, C, add_var, evo_only)
 
     # Now dealing with the step function that keeps traits >= 0
+    # The ramp function is how we made traits >= 0, and the
+    # Heaviside step function is the derivative of the ramp function
+    heaviside <- function(x) ifelse(x > 0, 1, 0)
     if (length(add_var) == 1) {
         S <- matrix(add_var)
     } else S <- diag(add_var)
     deltaV <- sel_str_cpp(V = V, N = N, f = f, a0 = a0,
                           C = C, r0 = r0, D = D) %*% S
-    newV <- as.numeric(do.call(cbind, V) + deltaV)
+    newV <- as.numeric(V + deltaV)
+    if (evo_only) {
+        jac <- diag(heaviside(newV)) %*% jac
+    } else {
+        newN <- N * as.numeric(F_t_cpp(V, N, f, a0, C, r0, D))
+        jac <- diag(heaviside(c(newV, newN))) %*% jac
+    }
 
-    # The ramp function is how we made traits >= 0, and the
-    # Heaviside step function is the derivative of the ramp function
-    heaviside <- function(x) ifelse(x > 0, 1, 0)
 
-    jac <- diag(heaviside(newV)) %*% jac
 
     return(jac)
 
@@ -435,17 +439,22 @@ one_jacobian <- function(one_rep, qg_obj) {
 #' @export
 #'
 #' @importFrom magrittr %>%
-jacobians <- function(qg_obj) {
+#'
+jacobians <- function(qg_obj, evo_only = FALSE) {
 
     if (!inherits(qg_obj, "quant_gen")) {
         stop(paste("\nArgument `qg_obj` for function `jacobians` must",
                    "be of class \"quant_gen\"\n"))
     }
 
+    if (length(evo_only) != 1 || !is.logical(evo_only)) {
+        stop("\n`evo_only` argument must be a single logical")
+    }
+
 
     jacs <- qg_obj$nv %>%
         split(.$rep) %>%
-        map(one_jacobian, qg_obj = qg_obj)
+        lapply(one_jacobian, qg_obj = qg_obj, evo_only = evo_only)
 
     return(jacs)
 

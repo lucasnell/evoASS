@@ -88,7 +88,7 @@ inline void sel_str__(arma::mat& ss_mat,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat sel_str_cpp(const std::vector<arma::vec>& V,
+arma::mat sel_str_cpp(const arma::mat& V,
                       const std::vector<double>& N,
                       const double& f,
                       const double& a0,
@@ -96,9 +96,18 @@ arma::mat sel_str_cpp(const std::vector<arma::vec>& V,
                       const double& r0,
                       const arma::mat& D) {
 
+    uint32_t n = V.n_cols;
+
+    if (n != N.size()) stop("V.n_cols != N.size()");
+
+    arma::vec F(n);
+    std::vector<arma::vec> VV;
+    VV.reserve(n);
+    for (uint32_t i = 0; i < n; i++) VV.push_back(V.col(i));
+
     arma::mat ss_mat;
 
-    sel_str__(ss_mat, V, N, f, a0, C, r0, D);
+    sel_str__(ss_mat, VV, N, f, a0, C, r0, D);
 
     return ss_mat;
 }
@@ -595,38 +604,45 @@ arma::mat dNi_dNk_cpp(const uint32_t& i,
 //' @noRd
 //'
 //[[Rcpp::export]]
-arma::mat jacobian_cpp(const std::vector<arma::vec>& V,
-                        const std::vector<double>& N,
-                        const double& f,
-                        const double& a0,
-                        const arma::mat& D,
-                        const arma::mat& C,
-                        const arma::vec& add_var) {
+arma::mat jacobian_cpp(const arma::mat& V,
+                       const std::vector<double>& N,
+                       const double& f,
+                       const double& a0,
+                       const double& r0,
+                       const arma::mat& D,
+                       const arma::mat& C,
+                       const arma::vec& add_var,
+                       const bool& evo_only) {
 
     if (!C.is_symmetric()) stop("C must be symmetric");
     if (!D.is_symmetric()) stop("D must be symmetric");
 
     uint32_t n = N.size();
-    uint32_t q = V[0].n_elem;
+    uint32_t q = V.n_rows;
 
-    if (V.size() != n) stop("V.size() != N.size()");
+    if (V.n_cols != n) stop("V.n_cols != N.size()");
     if (add_var.n_elem != n) stop("add_var.n_elem != N.size()");
-    for (uint32_t i = 0; i < n; i++) {
-        if (V[i].n_elem != q) stop("V[i].n_elem != q");
-    }
 
-    arma::mat jcb_mat(n*q, n*q);
+    arma::mat jcb_mat;
+    if (evo_only) {
+        jcb_mat.set_size(n*q, n*q);
+    } else jcb_mat.set_size(n*(q+1), n*(q+1));
+
+
+    /*
+     ---------
+     1. ∂ Traits / ∂ Traits
+     ---------
+     */
 
     arma::vec Omega_vec(n);
     for (uint32_t j = 0; j < n; j++) {
         Omega_vec[j] = (N[j] * std::exp(
-            arma::as_scalar(-1 * V[j].t() * D * V[j])));
+            arma::as_scalar(-1 * V.col(j).t() * D * V.col(j))));
     }
 
     for (uint32_t i = 0; i < n; i++) {
 
-        const arma::vec& Vi(V[i]);
-        const double& add_var_i(add_var[i]);
         uint32_t row_start = i * q;
 
         for (uint32_t k = 0; k < n; k++) {
@@ -640,20 +656,122 @@ arma::mat jacobian_cpp(const std::vector<arma::vec>& V,
                     if (j != i) Omega += Omega_vec[j];
                 }
                 // Fill Jacobian:
-                dVi_dVi_(jcb_mat, row_start, col_start, Vi, Omega, C, f, a0,
-                         add_var_i);
+                dVi_dVi_(jcb_mat, row_start, col_start, V.col(i), Omega,
+                         C, f, a0, add_var[i]);
 
             } else {
 
                 // Fill Jacobian:
-                dVi_dVk_(jcb_mat, row_start, col_start, N[k], Vi, V[k], D, a0,
-                         add_var_i);
+                dVi_dVk_(jcb_mat, row_start, col_start, N[k], V.col(i),
+                         V.col(k), D, a0, add_var[i]);
 
             }
 
         }
 
     }
+
+    if (evo_only) return(jcb_mat);
+
+
+    /*
+     ---------
+     2. ∂ Traits / ∂ Abundances
+     ---------
+     */
+
+    for (uint32_t i = 0; i < n; i++) {
+
+        uint32_t row_start = i * q;
+
+        for (uint32_t k = 0; k < n; k++) {
+
+            uint32_t col_start = n * q + k;
+
+            if (k == i) {
+
+                // Fill Jacobian:
+                dVi_dNi_(jcb_mat, row_start, col_start, V.col(i),
+                         a0, add_var[i]);
+
+            } else {
+
+                // Fill Jacobian:
+                dVi_dNk_(jcb_mat, row_start, col_start, V.col(i), V.col(k),
+                         D, a0, add_var[i]);
+
+            }
+
+        }
+
+    }
+
+
+
+    /*
+     ---------
+     3. ∂ Abundances / ∂ Traits
+     ---------
+     */
+
+    for (uint32_t i = 0; i < n; i++) {
+
+        uint32_t row_start = n * q + i;
+
+        for (uint32_t k = 0; k < n; k++) {
+
+            uint32_t col_start = k * q;
+
+            if (k == i) {
+
+                // Fill Jacobian:
+                dNi_dVi_(jcb_mat, row_start, col_start,
+                         i, V, N, f, a0, C, r0, D);
+
+            } else {
+
+                // Fill Jacobian:
+                dNi_dVk_(jcb_mat, row_start, col_start,
+                         i, k, V, N, f, a0, C, r0, D);
+
+            }
+
+        }
+
+    }
+
+    /*
+     ---------
+     4. ∂ Abundances / ∂ Abundances
+     ---------
+     */
+
+    for (uint32_t i = 0; i < n; i++) {
+
+        uint32_t row_start = n * q + i;
+
+        for (uint32_t k = 0; k < n; k++) {
+
+            uint32_t col_start = n * q + k;
+
+            if (k == i) {
+
+                // Fill Jacobian:
+                dNi_dNi_(jcb_mat, row_start, col_start,
+                         i, V, N, f, a0, C, r0, D);
+
+            } else {
+
+                // Fill Jacobian:
+                dNi_dNk_(jcb_mat, row_start, col_start,
+                         i, k, V, N, f, a0, C, r0, D);
+
+            }
+
+        }
+
+    }
+
 
     return jcb_mat;
 }
