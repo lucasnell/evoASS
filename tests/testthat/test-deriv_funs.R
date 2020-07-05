@@ -41,6 +41,7 @@ get_sim_info <- function(sim_i) {
         D <- matrix(0, nrow(V), nrow(V))
         diag(D) <- d
         F_ <- sauron:::F_t_cpp(V_, N, f, a0, C, r0, D)
+        n <- length(N)
         Omegas <- sapply(1:n, function(i) {
             Njs <- sapply((1:n)[-i], function(j) {
                 Vj <- V[,j,drop=FALSE]
@@ -68,7 +69,7 @@ calc_dF_dVi <- function(sim_info) {
     return(sauron_results)
 }
 calc_dVi_dVi <- function(sim_info) {
-    n <- length(sim_info$N)
+    n <- sim_info$n
     lapply(1:n, function(i) {
         with(sim_info, {
             sauron:::dVi_dVi_cpp(i - 1, V, Omegas[i], C, f, a0, add_var)
@@ -76,7 +77,7 @@ calc_dVi_dVi <- function(sim_info) {
     })
 }
 calc_dVi_dVk <- function(sim_info) {
-    n <- length(sim_info$N)
+    n <- sim_info$n
     mats <- lapply(1:n, function(i) {
         lapply((1:n)[1:n != i], function(k) {
             with(sim_info, {
@@ -87,15 +88,13 @@ calc_dVi_dVk <- function(sim_info) {
     unlist(mats, recursive = FALSE)
 }
 
-# NEW ONES -----
 
 calc_dVi_dNi <- function(sim_info) {
-    n <- length(sim_info$N)
+    n <- sim_info$n
     derivs <- lapply(1:n, function(i) {
         with(sim_info,
              {
-                 Vi <- V[,i,drop=FALSE]
-                 2 * add_var * a0 * Vi %*% exp(- t(Vi) %*% Vi)
+                 sauron:::dVi_dNi_cpp(i-1, V, a0, add_var)
              })
     })
     do.call(cbind, derivs)
@@ -104,14 +103,12 @@ calc_dVi_dNi <- function(sim_info) {
 
 calc_dVi_dNk <- function(sim_info) {
 
-    n <- length(sim_info$N)
+    n <- sim_info$n
     mats <- lapply(1:n, function(i) {
         Ms <- lapply((1:n)[1:n != i], function(k) {
             with(sim_info,
                  {
-                     Vi <- V[,i,drop=FALSE]
-                     Vk <- V[,k,drop=FALSE]
-                     2 * add_var * a0 * Vi %*% exp(- t(Vk) %*% D %*% Vk - t(Vi) %*% Vi)
+                     sauron:::dVi_dNk_cpp(i-1, k-1, V, D, a0, add_var)
                  })
         })
         do.call(cbind, Ms)
@@ -124,12 +121,11 @@ calc_dVi_dNk <- function(sim_info) {
 
 calc_dNi_dVi <- function(sim_info) {
 
-    n <- length(sim_info$N)
+    n <- sim_info$n
 
     derivs <- lapply(1:n, function(i) {
         with(sim_info, {
-            Vi <- V[,i,drop=FALSE]
-            2 * F_[i] * N[i] * (a0 * Omegas[i] * exp(- t(Vi) %*% Vi) %*% t(Vi) - f * t(Vi) %*% C)
+            sauron:::dNi_dVi_cpp(i-1, V, N, f, a0, C, r0, D)
         })
     })
 
@@ -139,17 +135,13 @@ calc_dNi_dVi <- function(sim_info) {
 
 calc_dNi_dVk <- function(sim_info) {
 
-    n <- length(sim_info$N)
+    n <- sim_info$n
 
     mats <- lapply(1:n, function(i) {
         Ms <- lapply((1:n)[1:n != i], function(k) {
             with(sim_info,
                  {
-                     Vi <- V[,i,drop=FALSE]
-                     Vk <- V[,k,drop=FALSE]
-                     2 * F_[i] * N[i] * N[k] * a0 *
-                         exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk) %*%
-                         t(Vk) %*% D
+                     sauron:::dNi_dVk_cpp(i-1, k-1, V, N, f, a0, C, r0, D)
                  })
         })
         do.call(rbind, Ms)
@@ -162,12 +154,11 @@ calc_dNi_dVk <- function(sim_info) {
 
 calc_dNi_dNi <- function(sim_info) {
 
-    n <- length(sim_info$N)
+    n <- sim_info$n
 
     sapply(1:n, function(i) {
         with(sim_info, {
-            Vi <- V[,i,drop=FALSE]
-            F_[i] * (1 - N[i] * a0 * exp(- t(Vi) %*% Vi))
+            sauron:::dNi_dNi_cpp(i-1, V, N, f, a0, C, r0, D)
         })
     })
 
@@ -176,16 +167,13 @@ calc_dNi_dNi <- function(sim_info) {
 
 calc_dNi_dNk <- function(sim_info) {
 
-    n <- length(sim_info$N)
+    n <- sim_info$n
 
     mats <- lapply(1:n, function(i) {
         Ms <- lapply((1:n)[1:n != i], function(k) {
             with(sim_info,
                  {
-                     Vi <- V[,i,drop=FALSE]
-                     Vk <- V[,k,drop=FALSE]
-                     - F_[i] * N[i] * a0 *
-                         exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk)
+                     sauron:::dNi_dNk_cpp(i-1, k-1, V, N, f, a0, C, r0, D)
                  })
         })
         do.call(cbind, Ms)
@@ -196,9 +184,13 @@ calc_dNi_dNk <- function(sim_info) {
 }
 
 
+
+
+
+
 check_results <- function(type) {
 
-    # type = "dNi_dNk"
+    # type = "dNi_dVi"
 
     poss_types <- c("dF_dVi", "dVi_dVi", "dVi_dVk",
                     "dVi_dNi", "dVi_dNk", "dNi_dVi", "dNi_dVk",
@@ -293,7 +285,6 @@ check_results <- function(type) {
 expect_equal(check_results("dF_dVi"), 100)
 expect_equal(check_results("dVi_dVi"), 100)
 expect_equal(check_results("dVi_dVk"), 100)
-# NEW ONES ----
 expect_equal(check_results("dVi_dNi"), 100)
 expect_equal(check_results("dVi_dNk"), 100)
 expect_equal(check_results("dNi_dVi"), 100)

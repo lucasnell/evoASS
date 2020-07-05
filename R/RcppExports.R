@@ -19,16 +19,64 @@ adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd,
 #'
 NULL
 
-#' Partial derivative of species i traits at time t+1 with respect to species i traits
-#' at time t.
+#' Partial derivative of species i traits at time t+1 with respect to
+#' species i traits at time t.
 #'
 #'
 #' @noRd
 #'
 NULL
 
-#' Partial derivative of species i traits at time t+1 with respect to species k traits
-#' at time t.
+#' Partial derivative of species i traits at time t+1 with respect to
+#' species k traits at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i traits at time t+1 with respect to
+#' species i abundance at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i traits at time t+1 with respect to
+#' species k abundance at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i abundance at time t+1 with respect to
+#' species i traits at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i abundance at time t+1 with respect to
+#' species k traits at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i abundance at time t+1 with respect to
+#' species i abundance at time t.
+#'
+#' @noRd
+#'
+#'
+NULL
+
+#' Partial derivative of species i abundance at time t+1 with respect to
+#' species k abundance at time t.
 #'
 #' @noRd
 #'
@@ -58,8 +106,8 @@ sel_str_cpp <- function(V, N, f, a0, C, r0, D) {
 #'
 #' @noRd
 #'
-dVi_dVi_cpp <- function(i, V, Z, C, f, a0, add_var) {
-    .Call(`_sauron_dVi_dVi_cpp`, i, V, Z, C, f, a0, add_var)
+dVi_dVi_cpp <- function(i, V, Omega, C, f, a0, add_var) {
+    .Call(`_sauron_dVi_dVi_cpp`, i, V, Omega, C, f, a0, add_var)
 }
 
 #' R-exported version of above, to be used in R for testing.
@@ -70,6 +118,66 @@ dVi_dVi_cpp <- function(i, V, Z, C, f, a0, add_var) {
 #'
 dVi_dVk_cpp <- function(i, k, N, V, D, a0, add_var) {
     .Call(`_sauron_dVi_dVk_cpp`, i, k, N, V, D, a0, add_var)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dVi_dNi_cpp <- function(i, V, a0, add_var) {
+    .Call(`_sauron_dVi_dNi_cpp`, i, V, a0, add_var)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dVi_dNk_cpp <- function(i, k, V, D, a0, add_var) {
+    .Call(`_sauron_dVi_dNk_cpp`, i, k, V, D, a0, add_var)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dNi_dVi_cpp <- function(i, V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_dNi_dVi_cpp`, i, V, N, f, a0, C, r0, D)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dNi_dVk_cpp <- function(i, k, V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_dNi_dVk_cpp`, i, k, V, N, f, a0, C, r0, D)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dNi_dNi_cpp <- function(i, V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_dNi_dNi_cpp`, i, V, N, f, a0, C, r0, D)
+}
+
+#' R-exported version of above, to be used in R for testing.
+#'
+#' NOTE: This does NOT account for step function to keep traits >= 0
+#'
+#' @noRd
+#'
+dNi_dNk_cpp <- function(i, k, V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_dNi_dNk_cpp`, i, k, V, N, f, a0, C, r0, D)
 }
 
 #' Calculate the Jacobian of first derivatives.
@@ -117,6 +225,10 @@ trunc_rnorm_cpp <- function(N, mu, sigma) {
 
 F_t_cpp <- function(V, N, f, a0, C, r0, D) {
     .Call(`_sauron_F_t_cpp`, V, N, f, a0, C, r0, D)
+}
+
+F_it_cpp <- function(i, V, N, f, a0, C, r0, D) {
+    .Call(`_sauron_F_it_cpp`, i, V, N, f, a0, C, r0, D)
 }
 
 using_openmp <- function() {

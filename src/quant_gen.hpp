@@ -87,7 +87,7 @@ public:
         A_VN_<std::vector<double>>(A, V, N, a0, D);
         // Fill in abundances:
         for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_(V[i], f, C, r0);
+            double r = r_V_<arma::vec>(V[i], f, C, r0);
             N[i] *= std::exp(r - A[i]);
             // See if it goes extinct:
             if (N[i] < min_N) extinct.push_back(i);

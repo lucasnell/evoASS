@@ -69,9 +69,12 @@ inline double trunc_rnorm_(const double& mu, const double& sigma) {
 
 //' r (growth rate) based on Vi (Vi = traits for clone i).
 //'
+//' `T` should be `arma::vec` or `arma::subview_col<double>`
+//'
 //' @noRd
 //'
-inline double r_V_(const arma::vec& Vi,
+template <typename T>
+inline double r_V_(const T& Vi,
                    const double& f,
                    const arma::mat& C,
                    const double& r0) {
@@ -164,7 +167,7 @@ inline void A_VNI__(T& A,
 
 
 /*
- Fitness at time t.
+ Fitness at time t, for all species.
 */
 template <typename T>
 inline void F_t__(T& F,
@@ -180,11 +183,76 @@ inline void F_t__(T& F,
     A_VN_<std::vector<double>>(A, V, N, a0, D);
 
     for (uint32_t i = 0; i < V.size(); i++) {
-        double r = r_V_(V[i], f, C, r0);
+        double r = r_V_<arma::vec>(V[i], f, C, r0);
         F[i] = std::exp(r - A[i]);
     }
 
     return;
+}
+
+
+
+/*
+ Fitness at time t, for species i.
+ */
+inline double F_it__(const uint32_t& i,
+                     const std::vector<arma::vec>& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    double Omega = N[i];
+    double z;
+    for (uint32_t j = 0; j < V.size(); j++) {
+        if (j != i) {
+            z = std::exp(-1 * arma::as_scalar(V[j].t() * D * V[j]));
+            Omega += (N[j] * z);
+        }
+    }
+
+    double A = a0 * std::exp(-1 * arma::as_scalar(V[i].t() * V[i])) * Omega;
+
+    double r = r_V_<arma::vec>(V[i], f, C, r0);
+
+    double F = std::exp(r - A);
+
+    return F;
+}
+/*
+ Overloaded for matrix V.
+ */
+inline double F_it__(const uint32_t& i,
+                     const arma::mat& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    uint32_t n = V.n_cols;
+
+    double Omega = N[i];
+    double z;
+    for (uint32_t j = 0; j < n; j++) {
+        if (j != i) {
+            z = std::exp(-1 * arma::as_scalar(V.col(j).t() * D * V.col(j)));
+            Omega += (N[j] * z);
+        }
+    }
+
+    const arma::subview_col<double>& Vi(V.col(i));
+
+    double A = a0 * std::exp(-1 * arma::as_scalar(Vi.t() * Vi)) * Omega;
+
+    double r = r_V_<arma::subview_col<double>>(Vi, f, C, r0);
+
+    double F = std::exp(r - A);
+
+    return F;
 }
 
 

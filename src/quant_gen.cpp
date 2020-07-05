@@ -159,7 +159,6 @@ arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V,
     return dVhat;
 }
 
-
 //' Partial derivative of species i traits at time t+1 with respect to
 //' species k traits at time t.
 //'
@@ -211,6 +210,401 @@ arma::mat dVi_dVk_cpp(const uint32_t& i,
 
 
 
+
+//' Partial derivative of species i traits at time t+1 with respect to
+//' species i abundance at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dVi_dNi_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const arma::vec& Vi,
+                     const double& a0,
+                     const double& add_var) {
+
+    uint32_t row_end = row_start + Vi.n_elem - 1;
+    const uint32_t& col_end(col_start);
+
+    arma::mat M = 2 * add_var * a0 * Vi * arma::exp(- Vi.t() * Vi);
+
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dVi_dNi_cpp(const uint32_t& i,
+                      const arma::mat& V,
+                      const double& a0,
+                      const double& add_var) {
+
+    arma::mat dVhat(V.n_rows, 1);
+    // Fill dVhat:
+    dVi_dNi_(dVhat, 0, 0, V.col(i), a0, add_var);
+
+    return dVhat;
+}
+
+
+
+
+//' Partial derivative of species i traits at time t+1 with respect to
+//' species k abundance at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dVi_dNk_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const arma::vec& Vi,
+                     const arma::vec& Vk,
+                     const arma::mat& D,
+                     const double& a0,
+                     const double& add_var) {
+
+    uint32_t row_end = row_start + Vi.n_elem - 1;
+    const uint32_t& col_end(col_start);
+
+    arma::mat M = 2 * add_var * a0 * Vi *
+        arma::exp(- Vk.t() * D * Vk - Vi.t() * Vi);
+
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dVi_dNk_cpp(const uint32_t& i,
+                      const uint32_t& k,
+                      const arma::mat& V,
+                      const arma::mat& D,
+                      const double& a0,
+                      const double& add_var) {
+
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+    arma::mat dVhat(V.n_rows, 1);
+    // Fill dVhat:
+    dVi_dNk_(dVhat, 0, 0, V.col(i), V.col(k), D, a0, add_var);
+
+    return dVhat;
+}
+
+
+
+
+//' Partial derivative of species i abundance at time t+1 with respect to
+//' species i traits at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dNi_dVi_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const uint32_t& i,
+                     const arma::mat& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    const uint32_t& row_end(row_start);
+    uint32_t col_end = col_start + V.n_rows - 1;
+
+    double F = F_it__(i, V, N, f, a0, C, r0, D);
+
+    double Omega = N[i];
+    for (uint32_t j = 0; j < N.size(); j++) {
+        if (j != i) {
+            Omega += (N[j] *
+                std::exp(-1 * arma::as_scalar(V.col(j).t() * D * V.col(j))));
+        }
+    }
+
+    const arma::subview_col<double>& Vi(V.col(i));
+
+    arma::mat M = 2 * F * N[i] * (
+        a0 * Omega * arma::exp(-1 * Vi.t() * Vi) * Vi.t() -
+        f * Vi.t() * C);
+    /*
+     F = fitness()
+     Omega  = N[i] + sum(N[j] * exp(Vj * D * Vj))
+     2 * F * N[i] * (a0 * Omega * exp(- t(Vi) %*% Vi) %*% t(Vi) -
+     f * t(Vi) %*% C)
+     */
+
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dNi_dVi_cpp(const uint32_t& i,
+                      const arma::mat& V,
+                      const std::vector<double>& N,
+                      const double& f,
+                      const double& a0,
+                      const arma::mat& C,
+                      const double& r0,
+                      const arma::mat& D) {
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+    arma::mat dVhat(1, V.n_rows);
+    // Fill dVhat:
+    dNi_dVi_(dVhat, 0, 0, i, V, N, f, a0, C, r0, D);
+
+    return dVhat;
+}
+
+
+
+
+//' Partial derivative of species i abundance at time t+1 with respect to
+//' species k traits at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dNi_dVk_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const uint32_t& i,
+                     const uint32_t& k,
+                     const arma::mat& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    const uint32_t& row_end(row_start);
+    uint32_t col_end = col_start + V.n_rows - 1;
+
+    double F = F_it__(i, V, N, f, a0, C, r0, D);
+
+    double Omega = N[i];
+    for (uint32_t j = 0; j < N.size(); j++) {
+        if (j != i) {
+            Omega += (N[j] *
+                std::exp(-1 * arma::as_scalar(V.col(j).t() * D * V.col(j))));
+        }
+    }
+
+    const arma::subview_col<double>& Vi(V.col(i));
+    const arma::subview_col<double>& Vk(V.col(k));
+
+    arma::mat M = 2 * F * N[i] * N[k] * a0 *
+        arma::exp(- Vk.t() * D * Vk - Vi.t() * Vi) *
+        Vk.t() * D;
+
+    /*
+     2 * F_[i] * N[i] * N[k] * a0 *
+        exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk) %*%
+        t(Vk) %*% D
+     */
+
+
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dNi_dVk_cpp(const uint32_t& i,
+                      const uint32_t& k,
+                      const arma::mat& V,
+                      const std::vector<double>& N,
+                      const double& f,
+                      const double& a0,
+                      const arma::mat& C,
+                      const double& r0,
+                      const arma::mat& D) {
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+
+    arma::mat dVhat(1, V.n_rows);
+    // Fill dVhat:
+    dNi_dVk_(dVhat, 0, 0, i, k, V, N, f, a0, C, r0, D);
+
+    return dVhat;
+}
+
+
+
+
+
+
+
+//' Partial derivative of species i abundance at time t+1 with respect to
+//' species i abundance at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dNi_dNi_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const uint32_t& i,
+                     const arma::mat& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    double F = F_it__(i, V, N, f, a0, C, r0, D);
+
+    const arma::subview_col<double>& Vi(V.col(i));
+
+    double M = F * (1 - N[i] * a0 * std::exp(-1 *
+                    arma::as_scalar(Vi.t() * Vi)));
+
+    /*
+     F = fitness()
+     F * (1 - N[i] * a0 * exp(- t(Vi) %*% Vi))
+     */
+
+    dVhat(row_start, col_start) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dNi_dNi_cpp(const uint32_t& i,
+                      const arma::mat& V,
+                      const std::vector<double>& N,
+                      const double& f,
+                      const double& a0,
+                      const arma::mat& C,
+                      const double& r0,
+                      const arma::mat& D) {
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+    arma::mat dVhat(1, 1);
+    // Fill dVhat:
+    dNi_dNi_(dVhat, 0, 0, i, V, N, f, a0, C, r0, D);
+
+    return dVhat;
+}
+
+
+
+
+
+//' Partial derivative of species i abundance at time t+1 with respect to
+//' species k abundance at time t.
+//'
+//' @noRd
+//'
+//'
+inline void dNi_dNk_(arma::mat& dVhat,
+                     const uint32_t& row_start,
+                     const uint32_t& col_start,
+                     const uint32_t& i,
+                     const uint32_t& k,
+                     const arma::mat& V,
+                     const std::vector<double>& N,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D) {
+
+    double F = F_it__(i, V, N, f, a0, C, r0, D);
+
+    const arma::subview_col<double>& Vi(V.col(i));
+    const arma::subview_col<double>& Vk(V.col(k));
+
+    double M = -1 * F * N[i] * a0 *
+        std::exp(arma::as_scalar(-1 * Vi.t() * Vi - Vk.t() * D * Vk));
+
+    /*
+     F = fitness()
+     - F_[i] * N[i] * a0 *
+     exp(- t(Vi) %*% Vi - t(Vk) %*% D %*% Vk)
+     */
+
+    dVhat(row_start, col_start) = M;
+
+    return;
+}
+
+
+//' R-exported version of above, to be used in R for testing.
+//'
+//' NOTE: This does NOT account for step function to keep traits >= 0
+//'
+//' @noRd
+//'
+//[[Rcpp::export]]
+arma::mat dNi_dNk_cpp(const uint32_t& i,
+                      const uint32_t& k,
+                      const arma::mat& V,
+                      const std::vector<double>& N,
+                      const double& f,
+                      const double& a0,
+                      const arma::mat& C,
+                      const double& r0,
+                      const arma::mat& D) {
+
+    if (!C.is_symmetric()) stop("C must be symmetric");
+    if (!D.is_symmetric()) stop("D must be symmetric");
+
+    arma::mat dVhat(1, 1);
+    // Fill dVhat:
+    dNi_dNk_(dVhat, 0, 0, i, k, V, N, f, a0, C, r0, D);
+
+    return dVhat;
+}
 
 
 

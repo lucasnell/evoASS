@@ -50,19 +50,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // dVi_dVi_cpp
-arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Z, const arma::mat& C, const double& f, const double& a0, const double& add_var);
-RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP ZSEXP, SEXP CSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
+arma::mat dVi_dVi_cpp(const uint32_t& i, const arma::mat& V, const double& Omega, const arma::mat& C, const double& f, const double& a0, const double& add_var);
+RcppExport SEXP _sauron_dVi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP OmegaSEXP, SEXP CSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
-    Rcpp::traits::input_parameter< const double& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const double& >::type Omega(OmegaSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
-    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Z, C, f, a0, add_var));
+    rcpp_result_gen = Rcpp::wrap(dVi_dVi_cpp(i, V, Omega, C, f, a0, add_var));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -80,6 +80,110 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
     rcpp_result_gen = Rcpp::wrap(dVi_dVk_cpp(i, k, N, V, D, a0, add_var));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dVi_dNi_cpp
+arma::mat dVi_dNi_cpp(const uint32_t& i, const arma::mat& V, const double& a0, const double& add_var);
+RcppExport SEXP _sauron_dVi_dNi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dNi_cpp(i, V, a0, add_var));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dVi_dNk_cpp
+arma::mat dVi_dNk_cpp(const uint32_t& i, const uint32_t& k, const arma::mat& V, const arma::mat& D, const double& a0, const double& add_var);
+RcppExport SEXP _sauron_dVi_dNk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP VSEXP, SEXP DSEXP, SEXP a0SEXP, SEXP add_varSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type k(kSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const double& >::type add_var(add_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(dVi_dNk_cpp(i, k, V, D, a0, add_var));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dNi_dVi_cpp
+arma::mat dNi_dVi_cpp(const uint32_t& i, const arma::mat& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D);
+RcppExport SEXP _sauron_dNi_dVi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    rcpp_result_gen = Rcpp::wrap(dNi_dVi_cpp(i, V, N, f, a0, C, r0, D));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dNi_dVk_cpp
+arma::mat dNi_dVk_cpp(const uint32_t& i, const uint32_t& k, const arma::mat& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D);
+RcppExport SEXP _sauron_dNi_dVk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type k(kSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    rcpp_result_gen = Rcpp::wrap(dNi_dVk_cpp(i, k, V, N, f, a0, C, r0, D));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dNi_dNi_cpp
+arma::mat dNi_dNi_cpp(const uint32_t& i, const arma::mat& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D);
+RcppExport SEXP _sauron_dNi_dNi_cpp(SEXP iSEXP, SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    rcpp_result_gen = Rcpp::wrap(dNi_dNi_cpp(i, V, N, f, a0, C, r0, D));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dNi_dNk_cpp
+arma::mat dNi_dNk_cpp(const uint32_t& i, const uint32_t& k, const arma::mat& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D);
+RcppExport SEXP _sauron_dNi_dNk_cpp(SEXP iSEXP, SEXP kSEXP, SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type k(kSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    rcpp_result_gen = Rcpp::wrap(dNi_dNk_cpp(i, k, V, N, f, a0, C, r0, D));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -180,6 +284,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// F_it_cpp
+double F_it_cpp(const uint32_t& i, const std::vector<arma::vec>& V, const std::vector<double>& N, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D);
+RcppExport SEXP _sauron_F_it_cpp(SEXP iSEXP, SEXP VSEXP, SEXP NSEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const uint32_t& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::vec>& >::type V(VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
+    Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    rcpp_result_gen = Rcpp::wrap(F_it_cpp(i, V, N, f, a0, C, r0, D));
+    return rcpp_result_gen;
+END_RCPP
+}
 // using_openmp
 bool using_openmp();
 RcppExport SEXP _sauron_using_openmp() {
@@ -196,12 +318,19 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sauron_sel_str_cpp", (DL_FUNC) &_sauron_sel_str_cpp, 7},
     {"_sauron_dVi_dVi_cpp", (DL_FUNC) &_sauron_dVi_dVi_cpp, 7},
     {"_sauron_dVi_dVk_cpp", (DL_FUNC) &_sauron_dVi_dVk_cpp, 7},
+    {"_sauron_dVi_dNi_cpp", (DL_FUNC) &_sauron_dVi_dNi_cpp, 4},
+    {"_sauron_dVi_dNk_cpp", (DL_FUNC) &_sauron_dVi_dNk_cpp, 6},
+    {"_sauron_dNi_dVi_cpp", (DL_FUNC) &_sauron_dNi_dVi_cpp, 8},
+    {"_sauron_dNi_dVk_cpp", (DL_FUNC) &_sauron_dNi_dVk_cpp, 9},
+    {"_sauron_dNi_dNi_cpp", (DL_FUNC) &_sauron_dNi_dNi_cpp, 8},
+    {"_sauron_dNi_dNk_cpp", (DL_FUNC) &_sauron_dNi_dNk_cpp, 9},
     {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 7},
     {"_sauron_unq_spp_cpp", (DL_FUNC) &_sauron_unq_spp_cpp, 2},
     {"_sauron_group_spp_cpp", (DL_FUNC) &_sauron_group_spp_cpp, 2},
     {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 16},
     {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
     {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
+    {"_sauron_F_it_cpp", (DL_FUNC) &_sauron_F_it_cpp, 8},
     {"_sauron_using_openmp", (DL_FUNC) &_sauron_using_openmp, 0},
     {NULL, NULL, 0}
 };
