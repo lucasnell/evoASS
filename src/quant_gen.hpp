@@ -3,9 +3,13 @@
 
 
 #include <RcppArmadillo.h>
+#include <random>
 #include "sim.hpp"
 
 using namespace Rcpp;
+
+
+typedef std::normal_distribution<double> normal_distr;
 
 
 void sel_str__(arma::mat& ss_mat,
@@ -24,12 +28,14 @@ class OneRepInfo {
 public:
 
     std::vector<double> N;      // abundances
-    std::vector<arma::vec> V;   // traits
+    std::vector<arma::vec> V;   // traits - genotypes
+    std::vector<arma::vec> Vp;  // traits - phenotypes
     std::vector<uint32_t> spp;  // species indexes (based on N0 and V0)
     // Info for output if tracking through time:
     std::vector<double> t;
     std::vector<std::vector<double>> N_t;
     std::vector<std::vector<arma::vec>> V_t;
+    std::vector<std::vector<arma::vec>> Vp_t;
     std::vector<std::vector<uint32_t>> spp_t;
 
     OneRepInfo () {};
@@ -38,7 +44,7 @@ public:
                const uint32_t& max_t,
                const uint32_t& save_every,
                const double& perturb_sd)
-        : N(N_), V(V_), spp(N_.size()),
+        : N(N_), V(V_), Vp(V_), spp(N_.size()),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(),
@@ -56,6 +62,7 @@ public:
             t.reserve(n_saves);
             N_t.reserve(n_saves);
             V_t.reserve(n_saves);
+            Vp_t.reserve(n_saves);
             spp_t.reserve(n_saves);
 
         }
@@ -75,7 +82,10 @@ public:
                  const double& r0,
                  const arma::mat& D,
                  const arma::vec& add_var,
-                 const double& min_N) {
+                 const double& min_N,
+                 const double& sigma_N,
+                 const double& sigma_V,
+                 pcg64& eng) {
 
         /*
          Update abundances
@@ -84,11 +94,13 @@ public:
         std::vector<uint32_t> extinct;
         extinct.reserve(V.size());
         // Fill in density dependences:
-        A_VN_<std::vector<double>>(A, V, N, a0, D);
+        A_VN_<std::vector<double>>(A, Vp, N, a0, D);
         // Fill in abundances:
         for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_<arma::vec>(V[i], f, C, r0);
-            N[i] *= std::exp(r - A[i]);
+            double r = r_V_<arma::vec>(Vp[i], f, C, r0);
+            if (sigma_N <= 0) {
+                N[i] *= std::exp(r - A[i]);
+            } else N[i] *= std::exp(r - A[i] + rnorm(eng) * sigma_N);
             // See if it goes extinct:
             if (N[i] < min_N) extinct.push_back(i);
         }
@@ -97,6 +109,7 @@ public:
         if (extinct.size() == N.size()) {
             N.clear();
             V.clear();
+            Vp.clear();
             A.clear();
             spp.clear();
             return true;
@@ -106,11 +119,23 @@ public:
          Update traits
          */
         // Fill in selection-strength matrix:
-        sel_str__(ss_mat, V, N, f, a0, C, r0, D);
+        sel_str__(ss_mat, Vp, N, f, a0, C, r0, D);
         // Then include additive genetic variance when adding to trait values:
         for (uint32_t i = 0; i < V.size(); i++) {
-            V[i] += (add_var(i) * ss_mat.col(i));
-            for (double& v : V[i]) if (v < 0) v = 0; // <-- keeping traits >= 0
+            if (sigma_V > 0) {
+                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
+                    V[i][j] += (add_var(i) * ss_mat(j,i));
+                    if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
+                    // including stochasticity:
+                    Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
+                }
+            } else {
+                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
+                    V[i][j] += (add_var(i) * ss_mat(j,i));
+                    if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
+                    Vp[i][j] = V[i][j];
+                }
+            }
         }
 
         /*
@@ -120,6 +145,7 @@ public:
             j = extinct.size() - i - 1;
             N.erase(N.begin() + extinct[j]);
             V.erase(V.begin() + extinct[j]);
+            Vp.erase(Vp.begin() + extinct[j]);
             A.erase(A.begin() + extinct[j]);
             spp.erase(spp.begin() + extinct[j]);
         }
@@ -128,10 +154,21 @@ public:
     }
 
     // perturb trait values
-    void perturb(pcg64& eng) {
-        for (uint32_t i = 0; i < V.size(); i++) {
-            for (double& v : V[i]) {
-                v = trunc_rnorm_(v, perturb_sd_, eng);
+    void perturb(const double& sigma_V, pcg64& eng) {
+        if (sigma_V > 0) {
+            for (uint32_t i = 0; i < V.size(); i++) {
+                for (uint32_t j = 0; j < V[i].n_elem; j++) {
+                    V[i][j] = trunc_rnorm_(V[i][j], perturb_sd_, eng);
+                    // including stochasticity:
+                    Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
+                }
+            }
+        } else {
+            for (uint32_t i = 0; i < V.size(); i++) {
+                for (uint32_t j = 0; j < V[i].n_elem; j++) {
+                    V[i][j] = trunc_rnorm_(V[i][j], perturb_sd_, eng);
+                    Vp[i][j] = V[i][j];
+                }
             }
         }
         return;
@@ -144,15 +181,17 @@ public:
         if (N.size() == 0) {
             // Fill last set of N's with a zero:
             N_t.push_back(std::vector<double>(1, 0.0));
-            // Fill last V with a `NaN` (closest to NA I know of):
+            // Fill last V and Vp with a `NaN` (closest to NA I know of):
             std::vector<arma::vec> V__(1, arma::vec(q));
             V__[0].fill(arma::datum::nan);
             V_t.push_back(V__);
+            Vp_t.push_back(V__);
             // Fill last set of spp's with a zero:
             spp_t.push_back(std::vector<uint32_t>(1, 0U));
         } else {
             N_t.push_back(N);
             V_t.push_back(V);
+            Vp_t.push_back(Vp);
             spp_t.push_back(spp);
         }
         return;
@@ -166,6 +205,7 @@ private:
     uint32_t n;             // Starting # species
     uint32_t q;             // # traits
     double perturb_sd_;
+    normal_distr rnorm = normal_distr(0, 1);
 
 
 };

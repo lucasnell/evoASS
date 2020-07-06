@@ -30,6 +30,8 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #'
 #' @param n_reps Number of reps to perform.
 #' @param perturb_sd Standard deviation of the perturbation.
+#' @param sigma_N Standard deviation for stochasticity in population dynamics.
+#' @param sigma_V Standard deviation for stochasticity in trait evolution.
 #' @param add_var Vector of additive genetic variances for all starting species.
 #' @param start_t Number of starting iterations (before the perturbation).
 #' @param n_threads Number of cores to use. Defaults to 1.
@@ -58,6 +60,8 @@ quant_gen <- function(eta, d, q,
                       r0 = 0.5,
                       add_var = rep(0.01, n),
                       perturb_sd = 1,
+                      sigma_N = 0,
+                      sigma_V = 0,
                       n_reps = 100,
                       start_t = 0,
                       max_t = 1e6L,
@@ -68,10 +72,12 @@ quant_gen <- function(eta, d, q,
 
     stopifnot(inherits(V0, "list"))
     stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
-    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
+    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+                          n_reps, start_t, max_t, save_every,
                           n_threads, N0), is.numeric))
-    stopifnot(sapply(list(q, n, f, a0, r0, n_reps, start_t, max_t, save_every,
-                          n_threads), length) == 1)
+    stopifnot(sapply(list(q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+                          n_reps, start_t, max_t, save_every, n_threads),
+                     length) == 1)
     stopifnot(sapply(V0, function(x) all(x >= 0)))
     stopifnot(n >= 1 && q >= 1)
     stopifnot(N0 >= 0)
@@ -118,6 +124,8 @@ quant_gen <- function(eta, d, q,
                         D = D,
                         add_var = add_var,
                         perturb_sd = perturb_sd,
+                        sigma_N = sigma_N,
+                        sigma_V = sigma_V,
                         start_t = start_t,
                         max_t = max_t,
                         min_N = min_N,

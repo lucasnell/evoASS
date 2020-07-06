@@ -209,8 +209,8 @@ group_spp_cpp <- function(V, precision) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_threads) {
-    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, start_t, max_t, min_N, save_every, show_progress, n_threads)
+quant_gen_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, sigma_N, sigma_V, start_t, max_t, min_N, save_every, show_progress, n_threads) {
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, N0, f, a0, C, r0, D, add_var, perturb_sd, sigma_N, sigma_V, start_t, max_t, min_N, save_every, show_progress, n_threads)
 }
 
 #' Normal distribution truncated above zero.

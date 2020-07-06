@@ -873,6 +873,8 @@ int one_quant_gen__(OneRepInfo& info,
                      const arma::mat& D,
                      const arma::vec& add_var,
                      const double& perturb_sd,
+                     const double& sigma_N,
+                     const double& sigma_V,
                      const uint32_t& start_t,
                      const uint32_t& max_t,
                      const double& min_N,
@@ -891,7 +893,8 @@ int one_quant_gen__(OneRepInfo& info,
     while (!all_gone && t < start_t) {
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N,
+                                sigma_N, sigma_V, eng);
         t++;
         prog_bar.increment();
 
@@ -902,7 +905,7 @@ int one_quant_gen__(OneRepInfo& info,
 
 
     // perturb trait values
-    if (perturb_sd > 0) info.perturb(eng);
+    if (perturb_sd > 0) info.perturb(sigma_V, eng);
 
     t = 0;
     // Save starting info:
@@ -914,7 +917,8 @@ int one_quant_gen__(OneRepInfo& info,
         n_incr++;
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N);
+        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N,
+                                sigma_N, sigma_V, eng);
 
         if (save_every > 0 &&
             (t % save_every == 0 || (t+1) == max_t || all_gone)) {
@@ -953,6 +957,8 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const arma::mat& D,
                         const arma::vec& add_var,
                         const double& perturb_sd,
+                        const double& sigma_N,
+                        const double& sigma_V,
                         const uint32_t& start_t,
                         const uint32_t& max_t,
                         const double& min_N,
@@ -999,8 +1005,9 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     for (uint32_t i = 0; i < n_reps; i++) {
         eng.seed(seeds[i][0], seeds[i][1]);
         int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D,
-                                     add_var, perturb_sd, start_t, max_t,
-                                     min_N, save_every, eng, prog_bar);
+                                     add_var, perturb_sd, sigma_N, sigma_V,
+                                     start_t, max_t, min_N, save_every,
+                                     eng, prog_bar);
         if (active_thread == 0 && status != 0) interrupted = true;
     }
     #ifdef _OPENMP
