@@ -1,29 +1,4 @@
 
-#' Create list of arguments for running a set of simulations using `quant_gen`.
-#'
-#' @param eta_sign Sign of the `eta` parameter.
-#' @param d_sign Sign of the `d` parameter.
-#' @param q Number of traits.
-#'
-#' @export
-#'
-quant_gen_args <- function(eta_sign, d_sign, q) {
-    stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
-    stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
-    # List for all parameters:
-    args <- list(n_threads = 4, q = q)
-    # the non-additive effects of traits on `r`:
-    args$eta <- 0.6 * sign(eta_sign)
-    # changes how the focal line's traits affect other lines' effects of competition:
-    args$d <- 1e-4 * sign(d_sign)
-    # d > 0 has to run longer to reach equilibrium
-    if (args$d > 0) {
-        args$max_t <- 2e7L
-        args$save_every <- 1e5L
-    }
-    return(args)
-}
-
 
 
 #' Quantitative genetics.
