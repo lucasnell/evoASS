@@ -1,4 +1,105 @@
 
+#
+# Checks inputs to `quant_gen`, creates the D and C matrices, and edits
+# the `n_threads` value if necessary.
+#
+#
+check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
+                                 perturb_sd, sigma_N, sigma_V, n_reps,
+                                 start_t, max_t, min_N, save_every,
+                                 show_progress, n_threads) {
+
+
+    stopifnot(inherits(V0, "list"))
+    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
+    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+                          n_reps, start_t, max_t, save_every,
+                          n_threads, N0), is.numeric))
+    stopifnot(sapply(list(q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+                          n_reps, start_t, max_t, save_every, n_threads),
+                     length) == 1)
+    stopifnot(sapply(V0, function(x) all(x >= 0)))
+
+    stopifnot(n >= 1 && q >= 1)
+    stopifnot(N0 >= 0)
+    stopifnot(c(n_reps, max_t, n_threads) >= 1)
+    stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
+
+    stopifnot(length(eta) %in% c(1, q^2))
+    stopifnot(length(d) %in% c(1, q))
+
+    if (n_threads > 1 && !using_openmp()) {
+        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
+        n_threads <- 1
+    }
+
+    C <- matrix(eta[1], q, q)
+    if (length(eta) == q^2) {
+        stopifnot(inherits(eta, "matrix") &&
+                      identical(dim(eta), as.integer(c(q,q))) &&
+                      isSymmetric(eta))
+        C <- eta
+    }
+    diag(C) <- 1
+
+    D <- matrix(0, q, q)
+    diag(D) <- d
+
+    return(list(C = C, D = D, n_threads = n_threads))
+
+
+}
+
+
+
+#
+# Turns the raw output from `quant_gen_cpp` into a `quant_gen` object
+#
+#
+get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
+
+    type_fmt <- "([[:alnum:]]+)_([[:digit:]]+)"
+
+    if (save_every > 0) {
+        colnames(qg) <- c("rep", "time", "spp", "N",
+                          paste0("geno_", 1:q), paste0("pheno_", 1:q))
+        qg <- qg %>%
+            as_tibble() %>%
+            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
+            extract(key, c("type", "trait"), type_fmt) %>%
+            spread(type, value) %>%
+            mutate(across(c(rep, time, spp, trait),
+                          function(x) as.integer(x) %>%
+                              factor(levels = 1:max(.)))) %>%
+            select(rep, time, spp, trait, everything()) %>%
+            arrange(rep, time, spp, trait) %>%
+            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
+    } else {
+        colnames(qg) <- c("rep", "spp", "N", paste0("geno_", 1:q),
+                          paste0("pheno_", 1:q))
+        qg <- qg %>%
+            as_tibble() %>%
+            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
+            extract(key, c("type", "trait"), type_fmt) %>%
+            spread(type, value) %>%
+            mutate(across(c(rep, spp, trait),
+                          function(x) as.integer(x) %>%
+                              factor(levels = 1:max(.)))) %>%
+            select(rep, spp, trait, everything()) %>%
+            arrange(rep, spp, trait) %>%
+            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
+    }
+    if (sigma_V <= 0) {
+        qg <- select(qg, -pheno)
+    }
+
+
+    qg_obj <- structure(list(nv = qg, call = call_),
+                        class = "quant_gen")
+
+    return(qg_object)
+}
+
 
 
 #' Quantitative genetics.
@@ -49,49 +150,19 @@ quant_gen <- function(eta, d, q,
                       show_progress = TRUE,
                       n_threads = 1) {
 
-    stopifnot(inherits(V0, "list"))
-    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
-    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
-                          n_reps, start_t, max_t, save_every,
-                          n_threads, N0), is.numeric))
-    stopifnot(sapply(list(q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
-                          n_reps, start_t, max_t, save_every, n_threads),
-                     length) == 1)
-    stopifnot(sapply(V0, function(x) all(x >= 0)))
-    stopifnot(n >= 1 && q >= 1)
-    stopifnot(N0 >= 0)
-    stopifnot(c(n_reps, max_t, n_threads) >= 1)
-    stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
-
-    stopifnot(length(eta) %in% c(1, q^2))
-    stopifnot(length(d) %in% c(1, q))
-
-    if (n_threads > 1 && !using_openmp()) {
-        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
-        n_threads <- 1
-    }
-
-
-    C <- matrix(eta[1], q, q)
-    if (length(eta) == q^2) {
-        stopifnot(inherits(eta, "matrix") && identical(dim(eta), as.integer(c(q,q))) &&
-                      isSymmetric(eta))
-        C <- eta
-    }
-    diag(C) <- 1
-
-    D <- matrix(0, q, q)
-    if (length(d) == 1) {
-        diag(D) <- rep(d, q)
-    } else if (length(d) == q) {
-        diag(D) <- d
-    }
-
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
     if (call_[1] != as.call(quote(quant_gen()))) {
         call_[1] <- as.call(quote(quant_gen()))
     }
+
+
+    args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
+                                 perturb_sd, sigma_N, sigma_V, n_reps,
+                                 start_t, max_t, min_N, save_every,
+                                 show_progress, n_threads)
+
+    invisible(list2env(args, environment()))
 
     qg <- quant_gen_cpp(n_reps = n_reps,
                         V0 = V0,
@@ -114,45 +185,7 @@ quant_gen <- function(eta, d, q,
                         n_threads = n_threads)
 
 
-    type_fmt <- "([[:alnum:]]+)_([[:digit:]]+)"
-
-    if (save_every > 0) {
-        colnames(qg) <- c("rep", "time", "spp", "N",
-                          paste0("geno_", 1:q), paste0("pheno_", 1:q))
-        qg <- qg %>%
-            as_tibble() %>%
-            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
-            extract(key, c("type", "trait"), type_fmt) %>%
-            spread(type, value) %>%
-            mutate(across(c(rep, time, spp, trait),
-                          # function(x) as.integer(x) %>%
-                              factor(levels = 1:max(.)))) %>%
-            select(rep, time, spp, trait, everything()) %>%
-            arrange(rep, time, spp, trait) %>%
-            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
-    } else {
-        colnames(qg) <- c("rep", "spp", "N", paste0("geno_", 1:q),
-                          paste0("pheno_", 1:q))
-        qg <- qg %>%
-            as_tibble() %>%
-            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
-            extract(key, c("type", "trait"), type_fmt) %>%
-            spread(type, value) %>%
-            mutate(across(c(rep, spp, trait),
-                          function(x) as.integer(x) %>%
-                              factor(levels = 1:max(.)))) %>%
-            select(rep, spp, trait, everything()) %>%
-            arrange(rep, spp, trait) %>%
-            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
-    }
-    if (sigma_V <= 0) {
-        qg <- select(qg, -pheno)
-    }
-
-
-    qg_obj <- list(nv = qg, call = call_)
-
-    class(qg_obj) <- "quant_gen"
+    qg_obj <- get_quant_gen_output(qg, call_, save_every, q, sigma_V)
 
     return(qg_obj)
 }
@@ -208,7 +241,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     }
     cat(blu_("* Total extinction:", extinct_, "\n"))
 
-    cat("\n\n")
+    cat("\n")
 
     print(x$nv, n = 10)
 
