@@ -120,6 +120,7 @@ quant_gen <- function(eta, d, q,
 
     qg <- quant_gen_cpp(n_reps = n_reps,
                         V0 = V0,
+                        Vp0 = list(),
                         N0 = N0,
                         f = f,
                         a0 = a0,

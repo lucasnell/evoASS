@@ -43,8 +43,53 @@ public:
                const std::vector<arma::vec>& V_,
                const uint32_t& max_t,
                const uint32_t& save_every,
-               const double& perturb_sd)
+               const double& perturb_sd,
+               const double& sigma_V,
+               pcg64& eng)
         : N(N_), V(V_), Vp(V_), spp(N_.size()),
+          t(), N_t(), V_t(),
+          A(V_.size()),
+          ss_mat(),
+          n(N_.size()),
+          q(V_[0].n_elem),
+          perturb_sd_(perturb_sd) {
+
+        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
+
+        if (save_every > 0) {
+
+            uint32_t n_saves = static_cast<uint32_t>(
+                std::ceil(static_cast<double>(max_t - 1) /
+                    static_cast<double>(save_every))) + 2U;
+            t.reserve(n_saves);
+            N_t.reserve(n_saves);
+            V_t.reserve(n_saves);
+            Vp_t.reserve(n_saves);
+            spp_t.reserve(n_saves);
+
+        }
+
+        // adding stochasticity to starting phenotypes
+        if (sigma_V > 0) {
+
+            for (uint32_t i = 0; i < Vp.size(); i++) {
+                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
+                    Vp[i][j] *= std::exp(rnorm(eng) * sigma_V);
+                }
+            }
+
+        }
+
+        return;
+
+    };
+    OneRepInfo(const std::vector<double>& N_,
+               const std::vector<arma::vec>& V_,
+               const std::vector<arma::vec>& Vp_,
+               const uint32_t& max_t,
+               const uint32_t& save_every,
+               const double& perturb_sd)
+        : N(N_), V(V_), Vp(Vp_), spp(N_.size()),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(),
@@ -121,15 +166,17 @@ public:
         // Fill in selection-strength matrix:
         sel_str__(ss_mat, Vp, N, f, a0, C, r0, D);
         // Then include additive genetic variance when adding to trait values:
-        for (uint32_t i = 0; i < V.size(); i++) {
-            if (sigma_V > 0) {
+        if (sigma_V > 0) {
+            for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
                     V[i][j] += (add_var(i) * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
                     // including stochasticity:
                     Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
                 }
-            } else {
+            }
+        } else {
+            for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
                     V[i][j] += (add_var(i) * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0

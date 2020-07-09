@@ -865,6 +865,7 @@ IntegerVector group_spp_cpp(const std::vector<arma::vec>& V,
 //'
 int one_quant_gen__(OneRepInfo& info,
                      const std::vector<arma::vec>& V0,
+                     const std::vector<arma::vec>& Vp0,
                      const std::vector<double>& N0,
                      const double& f,
                      const double& a0,
@@ -883,7 +884,12 @@ int one_quant_gen__(OneRepInfo& info,
                      Progress& prog_bar) {
 
 
-    info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd);
+    if (Vp0.size() > 0) {
+        info = OneRepInfo(N0, V0, Vp0, max_t, save_every, perturb_sd);
+    } else {
+        info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd, sigma_V, eng);
+    }
+
 
     uint32_t t = 0;
     bool all_gone = false;
@@ -949,6 +955,7 @@ int one_quant_gen__(OneRepInfo& info,
 //[[Rcpp::export]]
 arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const std::vector<arma::vec>& V0,
+                        const std::vector<arma::vec>& Vp0,
                         const std::vector<double>& N0,
                         const double& f,
                         const double& a0,
@@ -969,14 +976,20 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     if (!C.is_symmetric()) stop("C must be symmetric");
     if (!D.is_symmetric()) stop("D must be symmetric");
 
-    if (N0.size() != V0.size()) stop("N0.size() != V0.size()");
-    if (add_var.n_elem != V0.size()) stop("add_var.n_elem != V0.size()");
+    const uint32_t n = N0.size();
+
+    if (n == 0) stop("n == 0");
+
+    if (V0.size() != n) stop("V0.size() != n");
+    if (add_var.n_elem != n) stop("add_var.n_elem != n");
+    if (Vp0.size() > 0 && Vp0.size() != n) stop("Vp0.size() != n");
 
 
-    if (C.n_cols != V0[0].n_elem) stop("C.n_cols != q");
-    if (C.n_rows != V0[0].n_elem) stop("C.n_rows != q");
-    if (D.n_cols != V0[0].n_elem) stop("D.n_cols != q");
-    if (D.n_rows != V0[0].n_elem) stop("D.n_rows != q");
+    const uint32_t q = V0[0].n_elem;
+    if (C.n_cols != q) stop("C.n_cols != q");
+    if (C.n_rows != q) stop("C.n_rows != q");
+    if (D.n_cols != q) stop("D.n_cols != q");
+    if (D.n_rows != q) stop("D.n_rows != q");
 
     std::vector<OneRepInfo> rep_infos(n_reps);
 
@@ -1004,7 +1017,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         eng.seed(seeds[i][0], seeds[i][1]);
-        int status = one_quant_gen__(rep_infos[i], V0, N0, f, a0, C, r0, D,
+        int status = one_quant_gen__(rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
                                      add_var, perturb_sd, sigma_N, sigma_V,
                                      start_t, max_t, min_N, save_every,
                                      eng, prog_bar);
@@ -1024,7 +1037,6 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
      ------------
      */
     arma::mat nv; // N and V - either through time or just final values
-    uint32_t q = V0[0].n_elem;
 
     /*
      Go through one time to calculate the # surviving species for all reps and
