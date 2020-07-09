@@ -1039,7 +1039,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                 total_n_spp += rep_infos[i].N_t[j].size();
             }
         }
-        nv.set_size(total_n_spp, 4 + q);
+        nv.set_size(total_n_spp, 4 + 2 * q);
 
         uint32_t j = 0;
         for (uint32_t i = 0; i < n_reps; i++) {
@@ -1050,6 +1050,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
 
                 const std::vector<double>& N_t(info.N_t[t]);
                 const std::vector<arma::vec>& V_t(info.V_t[t]);
+                const std::vector<arma::vec>& Vp_t(info.Vp_t[t]);
                 const std::vector<uint32_t>& spp_t(info.spp_t[t]);
                 const double& t_(info.t[t]);
                 for (uint32_t k = 0; k < N_t.size(); k++) {
@@ -1058,8 +1059,11 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                     nv(j+k,1) = t_;         // time
                     nv(j+k,2) = spp_t[k];   // species
                     nv(j+k,3) = N_t[k];     // N
-                    // V:
-                    for (uint32_t l = 0; l < q; l++) nv(j+k, 4+l) = V_t[k](l);
+                    // V and Vp:
+                    for (uint32_t l = 0; l < q; l++) {
+                        nv(j+k, 4+l) = V_t[k](l);       // V
+                        nv(j+k, 4+q+l) = Vp_t[k](l);    //  Vp
+                    }
 
                 }
 
@@ -1074,7 +1078,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
         for (uint32_t i = 0; i < n_reps; i++) {
             total_n_spp += rep_infos[i].N.size();
         }
-        nv.set_size(total_n_spp, 3 + q);
+        nv.set_size(total_n_spp, 3 + 2 * q);
         uint32_t j = 0;
         for (uint32_t i = 0; i < n_reps; i++) {
             Rcpp::checkUserInterrupt();
@@ -1083,8 +1087,11 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                 nv(j+k,0) = i + 1;      // rep
                 nv(j+k,1) = k + 1;      // species
                 nv(j+k,2) = info.N[k];  // N
-                // V:
-                for (uint32_t l = 0; l < q; l++) nv(j+k, 3+l) = info.V[k](l);
+                // V and Vp:
+                for (uint32_t l = 0; l < q; l++) {
+                    nv(j+k, 3+l) = info.V[k](l);
+                    nv(j+k, 3+q+l) = info.Vp[k](l);
+                }
             }
             j += info.N.size();
         }

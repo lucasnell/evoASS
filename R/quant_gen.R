@@ -42,14 +42,18 @@ quant_gen_args <- function(eta_sign, d_sign, q) {
 #' @export
 #'
 #' @importFrom magrittr %>%
-#' @importFrom tibble as_tibble
 #' @importFrom purrr set_names
-#' @importFrom dplyr mutate_at
-#' @importFrom tidyr gather
-#' @importFrom dplyr starts_with
+#' @importFrom tibble as_tibble
 #' @importFrom dplyr mutate
+#' @importFrom dplyr across
+#' @importFrom dplyr starts_with
 #' @importFrom dplyr arrange
-#' @importFrom dplyr vars
+#' @importFrom dplyr select
+#' @importFrom tidyr gather
+#' @importFrom tidyr spread
+#' @importFrom tidyr extract
+#'
+#'
 #'
 quant_gen <- function(eta, d, q,
                       n = 100,
@@ -134,28 +138,39 @@ quant_gen <- function(eta, d, q,
                         n_threads = n_threads)
 
 
+    type_fmt <- "([[:alnum:]]+)_([[:digit:]]+)"
+
     if (save_every > 0) {
-        colnames(qg) <- c("rep", "time", "spp", "N", paste0("trait_", 1:q))
-        qg <- as_tibble(qg) %>%
-            mutate_at(vars(rep, time, spp), as.integer) %>%
-            gather("trait", "value", starts_with("trait_"), factor_key = TRUE) %>%
-            mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
-            mutate(rep = factor(rep, levels = 1:n_reps),
-                   spp = factor(spp, levels = 1:n),
-                   trait = factor(trait, levels = 1:q)) %>%
+        colnames(qg) <- c("rep", "time", "spp", "N",
+                          paste0("geno_", 1:q), paste0("pheno_", 1:q))
+        qg <- qg %>%
+            as_tibble() %>%
+            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
+            extract(key, c("type", "trait"), type_fmt) %>%
+            spread(type, value) %>%
+            mutate(across(c(rep, time, spp, trait),
+                          # function(x) as.integer(x) %>%
+                              factor(levels = 1:max(.)))) %>%
+            select(rep, time, spp, trait, everything()) %>%
             arrange(rep, time, spp, trait) %>%
-            mutate(value = ifelse(is.nan(value), NA, value))
+            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
     } else {
-        colnames(qg) <- c("rep", "spp", "N", paste0("trait_", 1:q))
-        qg <- as_tibble(qg) %>%
-            mutate_at(vars(rep, spp), as.integer) %>%
-            gather("trait", "value", starts_with("trait_")) %>%
-            mutate(trait = as.integer(gsub("trait_", "", trait))) %>%
-            mutate(rep = factor(rep, levels = 1:n_reps),
-                   spp = factor(spp, levels = 1:n),
-                   trait = factor(trait, levels = 1:q)) %>%
+        colnames(qg) <- c("rep", "spp", "N", paste0("geno_", 1:q),
+                          paste0("pheno_", 1:q))
+        qg <- qg %>%
+            as_tibble() %>%
+            gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
+            extract(key, c("type", "trait"), type_fmt) %>%
+            spread(type, value) %>%
+            mutate(across(c(rep, spp, trait),
+                          function(x) as.integer(x) %>%
+                              factor(levels = 1:max(.)))) %>%
+            select(rep, spp, trait, everything()) %>%
             arrange(rep, spp, trait) %>%
-            mutate(value = ifelse(is.nan(value), NA, value))
+            mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
+    }
+    if (sigma_V <= 0) {
+        qg <- select(qg, -pheno)
     }
 
 
@@ -208,7 +223,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
             unique()
     }
     cat(blu_("* Coexistence:", any(unq_nspp > 1), "\n"))
-    extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$value)) > 0 ||
+    extinct_ <- nrow(x$nv) == 0 || sum(is.na(x$nv$geno)) > 0 ||
         length(unique(x$nv$rep)) < length(levels(x$nv$rep))
     if (is.null(x$call$save_every) || x$call$save_every > 0) {
         extinct_ <- extinct_ || length(unique(filter(x$nv,
@@ -361,7 +376,7 @@ one_jacobian <- function(one_rep, qg_obj, evo_only) {
     spp <- as.integer(paste(dplyr::filter(one_rep, trait == 1)[["spp"]]))
     V <- one_rep %>%
         dplyr::mutate(trait = paste0("V", trait)) %>%
-        tidyr::spread(trait, value) %>%
+        tidyr::spread(trait, geno) %>%
         dplyr::select(starts_with("V", ignore.case = FALSE)) %>%
         as.matrix() %>%
         t()
@@ -528,7 +543,7 @@ perturb.quant_gen <- function(obj,
 
     V0 <- obj$nv %>%
         mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
+        spread(trait, geno) %>%
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
@@ -572,7 +587,7 @@ perturb.quant_gen <- function(obj,
         .[["N"]]
     Vt <- NV %>%
         mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
+        spread(trait, geno) %>%
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
