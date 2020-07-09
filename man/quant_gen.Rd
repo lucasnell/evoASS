@@ -17,6 +17,8 @@ quant_gen(
   r0 = 0.5,
   add_var = rep(0.01, n),
   perturb_sd = 1,
+  sigma_N = 0,
+  sigma_V = 0,
   n_reps = 100,
   start_t = 0,
   max_t = 1000000L,
@@ -67,6 +69,10 @@ matrix row or column.}
 \item{add_var}{Vector of additive genetic variances for all starting species.}
 
 \item{perturb_sd}{Standard deviation of the perturbation.}
+
+\item{sigma_N}{Standard deviation for stochasticity in population dynamics.}
+
+\item{sigma_V}{Standard deviation for stochasticity in trait evolution.}
 
 \item{n_reps}{Number of reps to perform.}
 

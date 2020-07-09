@@ -4,7 +4,7 @@
 \alias{jacobians}
 \title{Jacobian matrices, one per rep.}
 \usage{
-jacobians(qg_obj)
+jacobians(qg_obj, evo_only = FALSE)
 }
 \arguments{
 \item{qg_obj}{A \code{quant_gen} object from \code{quant_gen} function.}
