@@ -35,6 +35,7 @@ quant_gen(
   start_t = 0,
   perturb_sd = 0,
   new_V = NULL,
+  new_Vp = NULL,
   new_N = NULL,
   ...
 )

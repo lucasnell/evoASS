@@ -511,6 +511,7 @@ jacobians <- function(qg_obj, evo_only = FALSE) {
 #'
 #' @importFrom magrittr %>%
 #' @importFrom dplyr filter
+#' @importFrom dplyr select
 #'
 perturb.quant_gen <- function(obj,
                               max_t,
@@ -518,8 +519,13 @@ perturb.quant_gen <- function(obj,
                               start_t = 0,
                               perturb_sd = 0,
                               new_V = NULL,
+                              new_Vp = NULL,
                               new_N = NULL,
                               ...) {
+
+    if (is.null(new_V) && !is.null(new_Vp)) {
+        stop("you can't provide new_Vp if not providing new_V")
+    }
 
     if (!is.null(new_V)) {
         stopifnot(inherits(new_V, "list"))
@@ -528,6 +534,14 @@ perturb.quant_gen <- function(obj,
         stopifnot(sapply(new_V, ncol) == 1)
         V <- new_V
     } else V <- list()
+    if (!is.null(new_Vp)) {
+        stopifnot(inherits(new_Vp, "list"))
+        stopifnot(sapply(new_Vp, inherits, what = c("numeric", "matrix", "array")))
+        stopifnot(sapply(new_Vp, function(x) all(x >= 0)))
+        stopifnot(sapply(new_Vp, ncol) == 1)
+        stopifnot(sapply(new_Vp, length) == sapply(new_V, length))
+        Vp <- new_Vp
+    } else Vp <- list()
 
     if (!is.null(new_N)) {
         stopifnot(is.numeric(new_N))
@@ -540,17 +554,16 @@ perturb.quant_gen <- function(obj,
     stopifnot(max_t >= 1)
     stopifnot(c(start_t, save_every, perturb_sd) >= 0)
 
-    obj$nv <- filter(obj$nv, rep == rep[1])
+    obj$nv <- filter(obj$nv, rep == rep[1]) %>% select(-rep)
     if ("time" %in% colnames(obj$nv)) {
-        obj$nv <- filter(obj$nv, time == max(time))
+        obj$nv <- filter(obj$nv, time == max(time)) %>% select(-time)
     }
 
-    N0 <- obj$nv %>%
-        filter(trait == 1) %>%
-        .[["N"]]
+    N0 <- filter(obj$nv, trait == 1)[["N"]]
     N0 <- c(N0, N)
 
     V0 <- obj$nv %>%
+        select(spp, trait, geno) %>%
         mutate(trait = paste0("V", trait)) %>%
         spread(trait, geno) %>%
         select(starts_with("V", ignore.case = TRUE)) %>%
@@ -558,6 +571,19 @@ perturb.quant_gen <- function(obj,
         split(1:nrow(.)) %>%
         lapply(cbind)
     V0 <- c(V0, V)
+
+    if ("pheno" %in% colnames(obj$nv)) {
+        Vp0 <- obj$nv %>%
+            select(spp, trait, pheno) %>%
+            mutate(trait = paste0("V", trait)) %>%
+            spread(trait, pheno) %>%
+            select(starts_with("V", ignore.case = TRUE)) %>%
+            as.matrix() %>%
+            split(1:nrow(.)) %>%
+            lapply(cbind)
+        Vp0 <- c(Vp0, Vp)
+    }
+
 
     args <- obj$call %>%
         as.list() %>%
@@ -585,7 +611,35 @@ perturb.quant_gen <- function(obj,
     new_args <- list(...)
     for (n in names(new_args)) args[[n]] <- new_args[[n]]
 
-    qg <- do.call(quant_gen, args)
+
+    # LEFT OFF -> GET `args` to match arguments needed for quant_gen_cpp
+
+    args <- args[names(formals(quant_gen_cpp))]
+
+    qg <- do.call(quant_gen_cpp, args)
+
+    # qg <- quant_gen_cpp(n_reps = n_reps,
+    #                     V0 = V0,
+    #                     Vp0 = list(),
+    #                     N0 = N0,
+    #                     f = f,
+    #                     a0 = a0,
+    #                     C = C,
+    #                     r0 = r0,
+    #                     D = D,
+    #                     add_var = add_var,
+    #                     perturb_sd = perturb_sd,
+    #                     sigma_N = sigma_N,
+    #                     sigma_V = sigma_V,
+    #                     start_t = start_t,
+    #                     max_t = max_t,
+    #                     min_N = min_N,
+    #                     save_every = save_every,
+    #                     show_progress = show_progress,
+    #                     n_threads = n_threads)
+
+
+    qg <- get_quant_gen_output(qg, NULL, save_every, nrow(V0[[1]]), args$sigma_V)
 
     NV <- qg$nv
     if ("time" %in% colnames(NV)) {
@@ -595,16 +649,29 @@ perturb.quant_gen <- function(obj,
         filter(trait == 1) %>%
         .[["N"]]
     Vt <- NV %>%
+        select(spp, trait, geno) %>%
         mutate(trait = paste0("V", trait)) %>%
         spread(trait, geno) %>%
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
-        split(1:nrow(.)) %>%
-        lapply(cbind)
+        t()
 
 
-    out <- list(start = list(N = N0, V = do.call(cbind, V0)),
-                end = list(N = Nt, V = do.call(cbind, Vt)),
+    if ("pheno" %in% colnames(obj$nv)) {
+        Vpt <- obj$nv %>%
+            select(spp, trait, pheno) %>%
+            mutate(trait = paste0("V", trait)) %>%
+            spread(trait, pheno) %>%
+            select(starts_with("V", ignore.case = TRUE)) %>%
+            as.matrix() %>%
+            t()
+    } else Vpt <- matrix(0, 0, 0)
+
+    if (length(Vp0) == 0) Vp0 <- list(matrix(0,0,0))
+
+
+    out <- list(start = list(N = N0, V = do.call(cbind, V0), Vp = do.call(cbind, Vp0)),
+                end = list(N = Nt, V = Vt, Vp = Vpt),
                 end_obj = qg)
 
 
