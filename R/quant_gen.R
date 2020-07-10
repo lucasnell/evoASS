@@ -68,9 +68,9 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
             gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
             extract(key, c("type", "trait"), type_fmt) %>%
             spread(type, value) %>%
-            mutate(across(c(rep, time, spp, trait),
-                          function(x) as.integer(x) %>%
-                              factor(levels = 1:max(.)))) %>%
+            mutate(across(c(rep, time, spp, trait), as.integer)) %>%
+            mutate(across(c(rep, spp, trait),
+                          ~ factor(.x, levels = 1:max(.x)))) %>%
             select(rep, time, spp, trait, everything()) %>%
             arrange(rep, time, spp, trait) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
@@ -97,7 +97,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
     qg_obj <- structure(list(nv = qg, call = call_),
                         class = "quant_gen")
 
-    return(qg_object)
+    return(qg_obj)
 }
 
 
@@ -526,6 +526,10 @@ perturb.quant_gen <- function(obj,
     if (is.null(new_V) && !is.null(new_Vp)) {
         stop("you can't provide new_Vp if not providing new_V")
     }
+    if (!is.null(new_Vp) && "pheno" %in% colnames(obj$nv)) {
+        stop(paste("you can't provide new_Vp if no trait stochasticity",
+                   "in original call"))
+    }
 
     if (!is.null(new_V)) {
         stopifnot(inherits(new_V, "list"))
@@ -582,64 +586,58 @@ perturb.quant_gen <- function(obj,
             split(1:nrow(.)) %>%
             lapply(cbind)
         Vp0 <- c(Vp0, Vp)
-    }
+    } else Vp0 <- list()
 
 
-    args <- obj$call %>%
+    # these are useful below
+    n <- length(N0)
+    q <- nrow(V0[[1]])
+
+    call_args <- obj$call %>%
         as.list() %>%
         .[-1]
 
+    new_args <- list(...)
+
+    args <- list()
+
+    # Based on `...`, original call, or defaults (in that order)
+    for (x in names(formals(quant_gen))) {
+        if (!is.null(new_args[[x]])) {
+            args[[x]] <- new_args[[x]]
+        } else if (!is.null(call_args[[x]])) {
+            args[[x]] <- eval(call_args[[x]], parent.frame(2L))
+        } else {
+            args[[x]] <- eval(formals(quant_gen)[[x]])
+        }
+    }
+
+    # based on inputs to this function
     args[["max_t"]] <- max_t
     args[["save_every"]] <- save_every
     args[["start_t"]] <- start_t
     args[["perturb_sd"]] <- perturb_sd
     args[["V0"]] <- V0
     args[["N0"]] <- N0
-    args[["n"]] <- length(N0)
-
     args[["n_reps"]] <- 1
     args[["n_threads"]] <- 1
 
-    if (!is.null(args[["add_var"]])) {
-        if (length(unique(args[["add_var"]])) > 1) {
-            stop(paste("perturb.quant_gen not programmed for species with",
-                       "differing additive genetic variations"))
-        }
-        args[["add_var"]] <- rep(unique(args[["add_var"]]), length(N0))
-    }
+    # C and D
+    args[["n"]] <- n  # <-- prevents error in `check_quant_gen_args`
+    C_and_D <- do.call(check_quant_gen_args, args)
 
-    new_args <- list(...)
-    for (n in names(new_args)) args[[n]] <- new_args[[n]]
+    args[["C"]] <- C_and_D[["C"]]
+    args[["D"]] <- C_and_D[["D"]]
 
+    args[["Vp0"]] <- Vp0  # has to be added after `check_quant_gen_args`
 
-    # LEFT OFF -> GET `args` to match arguments needed for quant_gen_cpp
-
-    args <- args[names(formals(quant_gen_cpp))]
+    # Not needed for cpp version
+    for (x in c("eta", "d", "q", "n")) args[[x]] <- NULL
 
     qg <- do.call(quant_gen_cpp, args)
 
-    # qg <- quant_gen_cpp(n_reps = n_reps,
-    #                     V0 = V0,
-    #                     Vp0 = list(),
-    #                     N0 = N0,
-    #                     f = f,
-    #                     a0 = a0,
-    #                     C = C,
-    #                     r0 = r0,
-    #                     D = D,
-    #                     add_var = add_var,
-    #                     perturb_sd = perturb_sd,
-    #                     sigma_N = sigma_N,
-    #                     sigma_V = sigma_V,
-    #                     start_t = start_t,
-    #                     max_t = max_t,
-    #                     min_N = min_N,
-    #                     save_every = save_every,
-    #                     show_progress = show_progress,
-    #                     n_threads = n_threads)
 
-
-    qg <- get_quant_gen_output(qg, NULL, save_every, nrow(V0[[1]]), args$sigma_V)
+    qg <- get_quant_gen_output(qg, NULL, save_every, q, args$sigma_V)
 
     NV <- qg$nv
     if ("time" %in% colnames(NV)) {
