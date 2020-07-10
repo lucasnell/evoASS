@@ -25,9 +25,9 @@ cc <- function(.x) {
 }
 
 # whether to re-do simulations (use rds files otherwise)
-.REDO_SIMS <- TRUE
+.REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- TRUE
+.RESAVE_PLOTS <- FALSE
 # number of threads to use for simulations
 .N_THREADS <- 3
 
@@ -272,7 +272,8 @@ V0_exclude <- lapply(1:100,
                      })
 
 
-cond_coexist_test <- function(.V0, .lab, .q, .ds) {
+cond_coexist_test <- function(.V0, .lab, .ds) {
+    .q = 2
     stopifnot(length(.ds) == .q)
     .ds <- abs(.ds)*c(-1,rep(1,.q-1))
     Z <- quant_gen(q = .q, eta = etas[[2]], d = .ds, max_t = 20e3L, n_reps = 1,
@@ -282,7 +283,7 @@ cond_coexist_test <- function(.V0, .lab, .q, .ds) {
                    show_progress = FALSE) %>%
         .[["nv"]] %>%
         mutate(trait = paste0("V", trait)) %>%
-        spread(trait, value) %>%
+        spread(trait, geno) %>%
         select(-rep) %>%
         mutate(V0 = .lab)
     return(Z)
@@ -294,7 +295,6 @@ cond_coexist_test <- function(.V0, .lab, .q, .ds) {
 # Just takes a few seconds
 cond_coexist_df <- tibble(.V0 = list(V0_exclude, V0_coexist),
                           .lab = c("exclusion", "coexistence"),
-                          .q = 2,
                           .ds = list(c(0.1, 0.1))) %>%
     pmap_dfr(cond_coexist_test) %>%
     mutate(V0 = factor(V0, levels = c("exclusion", "coexistence")))
@@ -362,6 +362,29 @@ if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
 
 
 
+# # Are these stable?
+#
+# cond_coexist_test_stability <- function(.V0, .lab, .ds) {
+#     .q <- 2
+#     stopifnot(length(.ds) == .q)
+#     .ds <- abs(.ds)*c(-1,rep(1,.q-1))
+#     Z <- quant_gen(q = .q, eta = etas[[2]], d = .ds, max_t = 20e3L, n_reps = 1,
+#                    save_every = 0L, n = 100, N0 = rep(1, 100),
+#                    V0 = .V0,
+#                    start_t = 0, perturb_sd = 0,
+#                    show_progress = FALSE)
+#     Z$call[["q"]] <- .q
+#     Z$call[["d"]] <- .ds
+#     Z$call[["etas"]] <- etas[[2]]
+#     return(jacobians(Z)[[1]])
+# }
+#
+# cond_coexist_J <- tibble(.V0 = list(V0_exclude, V0_coexist),
+#                          .lab = c("exclusion", "coexistence"),
+#                          .ds = list(c(0.1, 0.1))) %>%
+#     pmap(cond_coexist_test_stability)
+#
+# map(cond_coexist_J, ~ max(eigen(.x, only.values = TRUE)[["values"]]))
 
 
 
@@ -375,438 +398,434 @@ if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
 
 
 
-
-
-
-
-# =============================================================================*
-# =============================================================================*
-
-# 3. 3-trait outcomes ----
-
-
-# =============================================================================*
-# =============================================================================*
-
-to_cap <- "Unique trait values for surviving species, for all 27 combinations
-           of pairwise combinations of traits being
-           sub-additive ($\\eta < 0$ or \"$-$\"), neutral ($\\eta = 0$),
-           or super-additive ($\\eta > 0$ or \"$+$\").
-           The size of points indicates the value for trait 3.
-           Sub-panels separate the number of pairwise combinations (out of 3)
-           that are sub-additive, neutral, or super-additive.
-           All but the \"all super\" and \"all neutral\" sub-panels
-           contain multiple pairwise combinations, so each specific combination
-           is separated by color and indicated by the colored label.
-           The symbol $0^{+}$ inside labels indicates when that $\\eta$ can be
-           $\\ge 0$.
-           Therefore, all 3 points in the \"1 sub\" sub-panel represent
-           4 combinations each.
-           When one sub-panel contains multiple points of the same color,
-           this indicates that multiple alternative states are possible
-           for that combination."
-
-
-
-if (.REDO_SIMS) {
-    # Takes ~2.5 min with q=3 and 3 threads
-    set.seed(1611377415)
-    eta_sims_q3 <- crossing(eta1 = -1:1, eta2 = -1:1,
-                            eta3 = -1:1) %>%
-        split(1:nrow(.)) %>%
-        map(as.numeric) %>%
-        map(one_eta_combo, .d = 1, max_t = 50e3L)
-    saveRDS(eta_sims_q3, rds("eta_sim-q3"))
-    eta_sim_q3_df <- map_dfr(eta_sims_q3, ~.x$ts)
-
-    # # Takes >>18 min (didn't finish) with q=4 and 3 threads
-    # t0 <- Sys.time()
-    # set.seed(266613920)
-    # eta_sims_q4 <- crossing(eta1 = -1:1, eta2 = -1:1,
-    #                         eta3 = -1:1, eta4 = -1:1,
-    #                         eta5 = -1:1, eta6 = -1:1) %>%
-    #     split(1:nrow(.)) %>%
-    #     map(as.numeric) %>%
-    #     map(one_eta_combo, .d = 1, max_t = 50e3L)
-    # saveRDS(eta_sims_q4, rds("eta_sim-q4"))
-    # t1 <- Sys.time()
-    # t1 - t0; # rm(t0, t1)
-    # eta_sim_q4_df <- map_dfr(eta_sims_q4, ~.x$ts)
-} else {
-    eta_sims_q3 <- readRDS(rds("eta_sim-q3"))
-    eta_sim_q3_df <- map_dfr(eta_sims_q3, ~.x$ts)
-    # eta_sims_q4 <- readRDS(rds("eta_sim-q4"))
-    # eta_sim_q4_df <- map_dfr(eta_sims_q4, ~.x$ts)
-}
-
-
-
+#' # =============================================================================*
+#' # =============================================================================*
 #'
-#' Based on these eigenvalues...
-#'   *
+#' # 3. 3-trait outcomes ----
 #'
 #'
-eta_sims_q3_eigs <- map_dfr(1:length(eta_sims_q3),
-                        function(i) {
-                            eigs <- map_dbl(eta_sims_q3[[i]][["jacs"]],
-                                            function(.x){
-                                                if (any(is.na(.x))) return(NA)
-                                                max(eigen(.x)$values)
-                                            })
-                            eta_sims_q3[[i]]$ts %>%
-                                distinct(eta1, eta2, eta3) %>%
-                                mutate_all(sign) %>%
-                                rename_all(~ gsub("^eta", "sign", .x)) %>%
-                                mutate(e_min = min(eigs),
-                                       e_max = max(eigs))
-                        })
-
-
-print_big_nums(eta_sims_q3_eigs, n = 30)
-
-eta_sims_q3_eigs %>%
-    mutate_at(vars(starts_with("sign")),
-              ~ case_when(.x < 0 ~ "-",
-                          .x > 0 ~ "+",
-                          TRUE ~ "0")) %>%
-    mutate_at(vars(starts_with("e_m")),
-              ~ case_when(.x < 1 ~ "stable",
-                          .x > 1 ~ paste(.x - 1),
-                          TRUE ~ "neutrally stable")) %>%
-    mutate(id = paste0(sign1, sign2, sign3) %>% factor()) %>%
-    select(id, e_min, e_max) %>%
-    print(n = 30)
-
-
-eta_sim_q3_df %>%
-    group_by(eta1, eta2, eta3) %>%
-    summarize(N = n()) %>%
-    ungroup() %>%
-    print(n = 30)
-
-parseable <- function(.id) {
-    .id = paste(.id)
-    IDD1 = str_sub(.id, 1, 1) %>%
-        {case_when(. == "+" ~ paste0("{}", .),
-                   . == "-" ~ paste0(., "''"),
-                   . == "0" ~ "0",
-                   . == "X" ~ "0^{'+'}",
-                   TRUE ~ NA_character_)}
-    IDD2 = str_sub(.id, 2, 2) %>%
-        {case_when(. == "-" ~ paste0(., "''"),
-                   . == "X" ~ "0^{'+'}",
-                   TRUE ~ .)}
-    IDD3 = str_sub(.id, 3, 3) %>%
-        {case_when(. == "+" ~ paste0(., "{}"),
-                   . == "-" ~ paste0(., "''"),
-                   . == "0" ~ "0",
-                   . == "X" ~ "0^{'+'}",
-                   TRUE ~ NA_character_)}
-    if(any(is.na(IDD1)) || any(is.na(IDD3))) {
-        print(.id[is.na(IDD1) | is.na(IDD3)])
-        stop("Non-programmed option in `parseable`")
-    }
-    paste0(IDD1, IDD2, IDD3) %>%
-        str_replace_all("''0", "0") %>%
-        str_replace_all("\\{\\}0", "0") %>%
-        str_replace_all("\\}0", "\\} * 0") %>%
-        str_replace_all("00", "0 * 0") %>%
-        str_replace_all("00", "0 * 0")
-}
-
-
-n_states_q3_df <- eta_sim_q3_df %>%
-    group_by(eta1, eta2, eta3) %>%
-    summarize(N = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(starts_with("eta")),
-              ~ case_when(.x < 0 ~ "-",
-                          .x > 0 ~ "+",
-                          TRUE ~ "0")) %>%
-    mutate(id = paste0(eta1, eta2, eta3) %>% parseable() %>% factor(),
-           id = reorder(id, N))
-
-outcomes_q3_p <- eta_sim_q3_df %>%
-    mutate_at(vars(starts_with("eta")),
-              ~ case_when(.x < 0 ~ "-",
-                          .x > 0 ~ "+",
-                          TRUE ~ "0")) %>%
-    mutate(id = paste0(eta1, eta2, eta3) %>% parseable() %>%
-               factor(levels = n_states_q3_df$id %>% levels())) %>%
-    group_by(id) %>%
-    filter(unq_spp_filter(V1, V2, V3, .prec = 0.01)) %>%
-    ungroup() %>%
-    ggplot() +
-    geom_point(aes(V1, V2, size = V3), shape = 1, color = "firebrick") +
-    geom_text(data = n_states_q3_df,
-              aes(x = 2.5, y = 2.5, label = N),
-              size = 10 / 2.83465, fontface = "bold",
-              hjust = 1, vjust = 1) +
-    scale_size_continuous("Trait 3", range = c(1, 5), breaks = 0.5 * 1:3) +
-    scale_x_continuous("Trait 1", breaks = 0:2) +
-    scale_y_continuous("Trait 2", breaks = 0:2) +
-    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    facet_wrap(~ id, nrow = 5, labeller = label_parsed) +
-    theme(strip.text = element_text(size = 9),
-          panel.border = element_rect(size = 0.5, fill = NA)) +
-    NULL
-
-
-
-if (.RESAVE_PLOTS) save_plot(outcomes_q3_p, 6.5, 6, "3-")
-
-
-
-
-
-
-
-
-
-
-
-
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
-
-# Interactions between d and eta ----
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
-
-## The code below explores what happens when d >= 0.9
-
-# eta_sim_df %>%
-#     filter((eta1 < 0 & eta2 == 0 & eta3 > 0) |
-#                (eta1 < 0 & eta2 > 0 & eta3 == 0) |
-#                (eta1 == 0 & eta2 < 0 & eta3 > 0) |
-#                (eta1 == 0 & eta2 > 0 & eta3 < 0) |
-#                (eta1 > 0 & eta2 == 0 & eta3 < 0) |
-#                (eta1 > 0 & eta2 < 0 & eta3 == 0)) %>%
-#     group_by(eta1, eta2, eta3) %>%
-#     summarize(N = n()) %>%
-#     ungroup()
-
-eta_sim_df %>%
-    filter(eta1 > 0)
-
-
-sign1 = 1; sign2 = -1; sign3 = 1
-C <- matrix(0, .q, .q)
-C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)[1:length(etas)]
-C <- C + t(C)
-diag(C) <- 1
-
-trait_to <- quant_gen(q = .q, eta = C, d = 10, max_t = 20e3L, n_reps = 24,
-                      save_every = 100L, n = 100, N0 = rep(1, 100),
-                      start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
-                      show_progress = TRUE)
-
-trait_to$nv %>%
-    filter(time == max(time)) %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread(trait, value) %>%
-    filter(unq_spp_filter(V1, V2)) %>%
-    select(starts_with("V")) %>%
-    # mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]) %>%
-    identity()
-
-trait_to$nv %>%
-    filter(time == max(time)) %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread(trait, value) %>%
-    # filter(unq_spp_filter(V1, V2, V3)) %>%
-    # select(starts_with("V")) %>%
-    filter(!((V1 - 1.63)^2 < 0.001 & (V2 - 1.63)^2 < 0.001 & V3 == 0)) %>%
-    .[["N"]] %>%
-    range()
-
-
-
-
-# # A tibble: 1 x 6
-#      V1    V2    V3   eta1  eta2  eta3
-#   <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl>
-# 1  1.63  1.63     0 -0.207     0 0.257
-
-trait_to$nv %>%
-    filter(trait == 1, rep == 1) %>%
-    # filter(time == max(time))
-    # filter(time < 1000) %>%
-    ggplot(aes(time, N)) +
-    geom_line(aes(color = spp)) +
-    scale_color_viridis_d(guide = FALSE)
-
-
-
-zz <- perturb(trait_to, 100e3L, 0, d = 0.27)
-
-# all.equal(zz$start$N, zz$end$N)
-all.equal(zz$start$V, zz$end$V)
-
-
-# LEFT OFF --> even if you reduce d to 0.27 after the fact, the traits remain
-# stable (Ns don't remain stable with even small change in d, as expected)
-
-
-
-
-
-
-
-
-# This function combines id labels for all combinations that have the exact
-# same outcomes. Only used for "1 sub".
-# It also processes all id columns to be parsed.
-process_ids <- function(z) {
-
-    parseable <- function(.id) {
-        .id = paste(.id)
-        IDD1 = str_sub(.id, 1, 1) %>%
-            {case_when(. == "+" ~ paste0("{}", .),
-                       . == "-" ~ paste0(., "''"),
-                       . == "0" ~ "0",
-                       . == "X" ~ "0^{'+'}",
-                       TRUE ~ NA_character_)}
-        IDD2 = str_sub(.id, 2, 2) %>%
-            {case_when(. == "-" ~ paste0(., "''"),
-                       . == "X" ~ "0^{'+'}",
-                       TRUE ~ .)}
-        IDD3 = str_sub(.id, 3, 3) %>%
-            {case_when(. == "+" ~ paste0(., "{}"),
-                       . == "-" ~ paste0(., "''"),
-                       . == "0" ~ "0",
-                       . == "X" ~ "0^{'+'}",
-                       TRUE ~ NA_character_)}
-        if(any(is.na(IDD1)) || any(is.na(IDD3))) {
-            print(.id[is.na(IDD1) | is.na(IDD3)])
-            stop("Non-programmed option in `parseable`")
-        }
-        paste0(IDD1, IDD2, IDD3) %>%
-            str_replace_all("''0", "0") %>%
-            str_replace_all("\\{\\}0", "0") %>%
-            str_replace_all("\\}0", "\\} * 0") %>%
-            str_replace_all("00", "0 * 0") %>%
-            str_replace_all("00", "0 * 0")
-    }
-
-
-    if (z$p_groups[1] != "'1 sub'") return(mutate(z, id = parseable(id)))
-
-    one_chr <- function(.x) {
-        .xx <- .x %>%
-            str_split("") %>%
-            {lapply(1:length(.[[1]]), function(i) map_chr(., ~ .x[[i]]))} %>%
-            map_chr(function(x) {
-                xx <- unique(x)
-                if (length(xx) == 1) return(xx)
-                if (all(xx %in% c("0", "+"))) return("X")
-                return(NA_character_)
-            })
-        if (any(is.na(.xx))) stop("Non-programmed input to `one_chr`")
-        return(paste(.xx, collapse = ""))
-    }
-
-    z %>%
-        mutate(color_group = group_spp(V1, V2, V3) + 1L) %>%
-        mutate_at(vars(id), paste) %>%
-        arrange(p_groups, color_group) %>%
-        group_by(p_groups, color_group) %>%
-        summarize(V1 = mean(V1),
-                  V2 = mean(V2),
-                  V3 = mean(V3),
-                  id = one_chr(id)) %>%
-        ungroup() %>%
-        mutate(id = parseable(id))
-
-}
-
-p_group_levels <- c("{} >= '2 sub'", "'1 sub'",
-                    "'all super'",
-                    "'2 super, 1 neutral'", "'2 neutral, 1 super'",
-                    "'all neutral'")
-
-
-trait_outcomes_p_df <- eta_sim_df %>%
-    mutate_at(vars(starts_with("eta")),
-              ~ factor(sign(.x), levels = -1:1, labels = c("-", "0", "+"))) %>%
-    mutate(id = interaction(eta1, eta2, eta3, sep = "")) %>%
-    group_by(id) %>%
-    filter(unq_spp_filter(V1, V2, V3, .prec = 0.1)) %>%
-    ungroup() %>%
-    mutate(n_p = str_count(id, "\\+"),
-           n_n = str_count(id, "\\-"),
-           n_z = str_count(id, "0"),
-           p_groups = case_when(n_n >= 2 ~ p_group_levels[1],
-                                n_n == 1  ~ p_group_levels[2],
-                                n_p == 3 ~ p_group_levels[3],
-                                n_p == 2 & n_z == 1 ~ p_group_levels[4],
-                                n_z == 2 & n_p == 1 ~ p_group_levels[5],
-                                n_z == 3 ~ p_group_levels[6],
-                                TRUE ~ NA_character_)) %>%
-    select(-starts_with("n", ignore.case = FALSE)) %>%
-    # filter(is.na(p_groups))  ## <-- check that this yields no rows
-    mutate(p_groups = factor(p_groups, levels = p_group_levels)) %>%
-    arrange(p_groups) %>%
-    split(.$p_groups) %>%
-    map(~ mutate(.x, color_group = id %>% droplevels() %>% as.integer())) %>%
-    map_dfr(process_ids) %>%
-    mutate_at(vars(color_group, id), factor) %>%
-    arrange(desc(V3))
-
-
-
-.pal <- function(.a = 1) viridisLite::plasma(7, end = 0.85,
-                                             alpha = .a)[c(6,4,1,3,5,7,2)]
-
-
-trait_outcomes_p <- trait_outcomes_p_df %>%
-    ggplot(aes(V1, V2, size = V3, color = color_group)) +
-    geom_point(aes(fill = color_group), shape = 21) +
-    geom_text(data = trait_outcomes_p_df %>%
-                  filter(!grepl("^\\'all", p_groups)) %>%
-                  group_by(p_groups, color_group, id) %>%
-                  summarize_at(vars(V1, V2), median) %>%
-                  ungroup() %>%
-                  mutate(V1 = case_when(id == "{}+0+{}" ~ V1 - 0.3,
-                                        id == "0 * 0+{}" ~ V1 - 0.3,
-                                        id == "{}+0 * 0" ~ V1 - 0.1,
-                                        id == "0-''-''" ~ V1 - 0.4,
-                                        id == "-''-''+{}" ~ V1 - 0.1,
-                                        id == "{}+-''-''" ~ V1 - 0.3,
-                                        id == "-''+-''" ~ V1 - 0.3,
-                                        id == "-0-''" ~ V1 - 0.4,
-                                        TRUE ~ V1),
-                         V2 = case_when(id == "{}+0+{}" ~ V2 + 0.05,
-                                        id == "0 * 0+{}" ~ V2 + 0.05,
-                                        id == "{}+0 * 0" ~ V2 + 0.05,
-                                        id == "0+0" ~ V2 - 0.05,
-                                        id == "0-''-''" ~ V2 - 0.6,
-                                        id == "-''-0" ~ V2 - 0.4,
-                                        id == "-''-''+{}" ~ V2 - 0.3,
-                                        id == "-''-''-''" ~ V2 - 0.1,
-                                        id == "{}+-''-''" ~ V2 - 0.6,
-                                        id == "-0-''" ~ V2 + 0.05,
-                                        TRUE ~ V2)) %>%
-                  identity(),
-              aes(label = id), size = 9 / 2.835, hjust = 0, vjust = 0, parse = TRUE,
-              fontface = "bold", lineheight = 0.75, nudge_x = 0.2, nudge_y = 0.2) +
-    scale_size_continuous("Trait 3", range = c(2, 6), breaks = 0.5 * 1:3) +
-    scale_x_continuous("Trait 1", breaks = 0:2) +
-    scale_y_continuous("Trait 2", breaks = 0:2) +
-    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    facet_wrap(~ p_groups, nrow = 3, labeller = label_parsed) +
-    theme(strip.text = element_text(size = 10),
-          panel.border = element_rect(size = 0.5, fill = NA)) +
-    scale_color_manual(values = .pal(), guide = FALSE) +
-    scale_fill_manual(values = .pal(0.25), guide = FALSE) +
-    NULL
-
-
-if (.RESAVE_PLOTS) save_plot(trait_outcomes_p, 6, 5, "1-")
-
-trait_outcomes_p
+#' # =============================================================================*
+#' # =============================================================================*
+#'
+#' to_cap <- "Unique trait values for surviving species, for all 27 combinations
+#'            of pairwise combinations of traits being
+#'            sub-additive ($\\eta < 0$ or \"$-$\"), neutral ($\\eta = 0$),
+#'            or super-additive ($\\eta > 0$ or \"$+$\").
+#'            The size of points indicates the value for trait 3.
+#'            Sub-panels separate the number of pairwise combinations (out of 3)
+#'            that are sub-additive, neutral, or super-additive.
+#'            All but the \"all super\" and \"all neutral\" sub-panels
+#'            contain multiple pairwise combinations, so each specific combination
+#'            is separated by color and indicated by the colored label.
+#'            The symbol $0^{+}$ inside labels indicates when that $\\eta$ can be
+#'            $\\ge 0$.
+#'            Therefore, all 3 points in the \"1 sub\" sub-panel represent
+#'            4 combinations each.
+#'            When one sub-panel contains multiple points of the same color,
+#'            this indicates that multiple alternative states are possible
+#'            for that combination."
+#'
+#'
+#'
+#' if (.REDO_SIMS) {
+#'     # Takes ~2.5 min with q=3 and 3 threads
+#'     set.seed(1611377415)
+#'     eta_sims_q3 <- crossing(eta1 = -1:1, eta2 = -1:1,
+#'                             eta3 = -1:1) %>%
+#'         split(1:nrow(.)) %>%
+#'         map(as.numeric) %>%
+#'         map(one_eta_combo, .d = 1, max_t = 50e3L)
+#'     saveRDS(eta_sims_q3, rds("eta_sim-q3"))
+#'     eta_sim_q3_df <- map_dfr(eta_sims_q3, ~.x$ts)
+#'
+#'     # # Takes >>18 min (didn't finish) with q=4 and 3 threads
+#'     # t0 <- Sys.time()
+#'     # set.seed(266613920)
+#'     # eta_sims_q4 <- crossing(eta1 = -1:1, eta2 = -1:1,
+#'     #                         eta3 = -1:1, eta4 = -1:1,
+#'     #                         eta5 = -1:1, eta6 = -1:1) %>%
+#'     #     split(1:nrow(.)) %>%
+#'     #     map(as.numeric) %>%
+#'     #     map(one_eta_combo, .d = 1, max_t = 50e3L)
+#'     # saveRDS(eta_sims_q4, rds("eta_sim-q4"))
+#'     # t1 <- Sys.time()
+#'     # t1 - t0; # rm(t0, t1)
+#'     # eta_sim_q4_df <- map_dfr(eta_sims_q4, ~.x$ts)
+#' } else {
+#'     eta_sims_q3 <- readRDS(rds("eta_sim-q3"))
+#'     eta_sim_q3_df <- map_dfr(eta_sims_q3, ~.x$ts)
+#'     # eta_sims_q4 <- readRDS(rds("eta_sim-q4"))
+#'     # eta_sim_q4_df <- map_dfr(eta_sims_q4, ~.x$ts)
+#' }
+#'
+#'
+#'
+#' #'
+#' #' Based on these eigenvalues...
+#' #'   *
+#' #'
+#' #'
+#' eta_sims_q3_eigs <- map_dfr(1:length(eta_sims_q3),
+#'                         function(i) {
+#'                             eigs <- map_dbl(eta_sims_q3[[i]][["jacs"]],
+#'                                             function(.x){
+#'                                                 if (any(is.na(.x))) return(NA)
+#'                                                 max(eigen(.x)$values)
+#'                                             })
+#'                             eta_sims_q3[[i]]$ts %>%
+#'                                 distinct(eta1, eta2, eta3) %>%
+#'                                 mutate_all(sign) %>%
+#'                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
+#'                                 mutate(e_min = min(eigs),
+#'                                        e_max = max(eigs))
+#'                         })
+#'
+#'
+#' print_big_nums(eta_sims_q3_eigs, n = 30)
+#'
+#' eta_sims_q3_eigs %>%
+#'     mutate_at(vars(starts_with("sign")),
+#'               ~ case_when(.x < 0 ~ "-",
+#'                           .x > 0 ~ "+",
+#'                           TRUE ~ "0")) %>%
+#'     mutate_at(vars(starts_with("e_m")),
+#'               ~ case_when(.x < 1 ~ "stable",
+#'                           .x > 1 ~ paste(.x - 1),
+#'                           TRUE ~ "neutrally stable")) %>%
+#'     mutate(id = paste0(sign1, sign2, sign3) %>% factor()) %>%
+#'     select(id, e_min, e_max) %>%
+#'     print(n = 30)
+#'
+#'
+#' eta_sim_q3_df %>%
+#'     group_by(eta1, eta2, eta3) %>%
+#'     summarize(N = n()) %>%
+#'     ungroup() %>%
+#'     print(n = 30)
+#'
+#' parseable <- function(.id) {
+#'     .id = paste(.id)
+#'     IDD1 = str_sub(.id, 1, 1) %>%
+#'         {case_when(. == "+" ~ paste0("{}", .),
+#'                    . == "-" ~ paste0(., "''"),
+#'                    . == "0" ~ "0",
+#'                    . == "X" ~ "0^{'+'}",
+#'                    TRUE ~ NA_character_)}
+#'     IDD2 = str_sub(.id, 2, 2) %>%
+#'         {case_when(. == "-" ~ paste0(., "''"),
+#'                    . == "X" ~ "0^{'+'}",
+#'                    TRUE ~ .)}
+#'     IDD3 = str_sub(.id, 3, 3) %>%
+#'         {case_when(. == "+" ~ paste0(., "{}"),
+#'                    . == "-" ~ paste0(., "''"),
+#'                    . == "0" ~ "0",
+#'                    . == "X" ~ "0^{'+'}",
+#'                    TRUE ~ NA_character_)}
+#'     if(any(is.na(IDD1)) || any(is.na(IDD3))) {
+#'         print(.id[is.na(IDD1) | is.na(IDD3)])
+#'         stop("Non-programmed option in `parseable`")
+#'     }
+#'     paste0(IDD1, IDD2, IDD3) %>%
+#'         str_replace_all("''0", "0") %>%
+#'         str_replace_all("\\{\\}0", "0") %>%
+#'         str_replace_all("\\}0", "\\} * 0") %>%
+#'         str_replace_all("00", "0 * 0") %>%
+#'         str_replace_all("00", "0 * 0")
+#' }
+#'
+#'
+#' n_states_q3_df <- eta_sim_q3_df %>%
+#'     group_by(eta1, eta2, eta3) %>%
+#'     summarize(N = n()) %>%
+#'     ungroup() %>%
+#'     mutate_at(vars(starts_with("eta")),
+#'               ~ case_when(.x < 0 ~ "-",
+#'                           .x > 0 ~ "+",
+#'                           TRUE ~ "0")) %>%
+#'     mutate(id = paste0(eta1, eta2, eta3) %>% parseable() %>% factor(),
+#'            id = reorder(id, N))
+#'
+#' outcomes_q3_p <- eta_sim_q3_df %>%
+#'     mutate_at(vars(starts_with("eta")),
+#'               ~ case_when(.x < 0 ~ "-",
+#'                           .x > 0 ~ "+",
+#'                           TRUE ~ "0")) %>%
+#'     mutate(id = paste0(eta1, eta2, eta3) %>% parseable() %>%
+#'                factor(levels = n_states_q3_df$id %>% levels())) %>%
+#'     group_by(id) %>%
+#'     filter(unq_spp_filter(V1, V2, V3, .prec = 0.01)) %>%
+#'     ungroup() %>%
+#'     ggplot() +
+#'     geom_point(aes(V1, V2, size = V3), shape = 1, color = "firebrick") +
+#'     geom_text(data = n_states_q3_df,
+#'               aes(x = 2.5, y = 2.5, label = N),
+#'               size = 10 / 2.83465, fontface = "bold",
+#'               hjust = 1, vjust = 1) +
+#'     scale_size_continuous("Trait 3", range = c(1, 5), breaks = 0.5 * 1:3) +
+#'     scale_x_continuous("Trait 1", breaks = 0:2) +
+#'     scale_y_continuous("Trait 2", breaks = 0:2) +
+#'     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+#'     facet_wrap(~ id, nrow = 5, labeller = label_parsed) +
+#'     theme(strip.text = element_text(size = 9),
+#'           panel.border = element_rect(size = 0.5, fill = NA)) +
+#'     NULL
+#'
+#'
+#'
+#' if (.RESAVE_PLOTS) save_plot(outcomes_q3_p, 6.5, 6, "3-")
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#' # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+#' # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+#'
+#' # Interactions between d and eta ----
+#'
+#' # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+#' # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+#'
+#' ## The code below explores what happens when d >= 0.9
+#'
+#' # eta_sim_df %>%
+#' #     filter((eta1 < 0 & eta2 == 0 & eta3 > 0) |
+#' #                (eta1 < 0 & eta2 > 0 & eta3 == 0) |
+#' #                (eta1 == 0 & eta2 < 0 & eta3 > 0) |
+#' #                (eta1 == 0 & eta2 > 0 & eta3 < 0) |
+#' #                (eta1 > 0 & eta2 == 0 & eta3 < 0) |
+#' #                (eta1 > 0 & eta2 < 0 & eta3 == 0)) %>%
+#' #     group_by(eta1, eta2, eta3) %>%
+#' #     summarize(N = n()) %>%
+#' #     ungroup()
+#'
+#' eta_sim_df %>%
+#'     filter(eta1 > 0)
+#'
+#'
+#' sign1 = 1; sign2 = -1; sign3 = 1
+#' C <- matrix(0, .q, .q)
+#' C[lower.tri(C)] <- abs(etas) * c(sign1, sign2, sign3)[1:length(etas)]
+#' C <- C + t(C)
+#' diag(C) <- 1
+#'
+#' trait_to <- quant_gen(q = .q, eta = C, d = 10, max_t = 20e3L, n_reps = 24,
+#'                       save_every = 100L, n = 100, N0 = rep(1, 100),
+#'                       start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+#'                       show_progress = TRUE)
+#'
+#' trait_to$nv %>%
+#'     filter(time == max(time)) %>%
+#'     mutate(trait = paste0("V", trait)) %>%
+#'     spread(trait, value) %>%
+#'     filter(unq_spp_filter(V1, V2)) %>%
+#'     select(starts_with("V")) %>%
+#'     # mutate(eta1 = C[2,1], eta2 = C[3,1], eta3 = C[3,2]) %>%
+#'     identity()
+#'
+#' trait_to$nv %>%
+#'     filter(time == max(time)) %>%
+#'     mutate(trait = paste0("V", trait)) %>%
+#'     spread(trait, value) %>%
+#'     # filter(unq_spp_filter(V1, V2, V3)) %>%
+#'     # select(starts_with("V")) %>%
+#'     filter(!((V1 - 1.63)^2 < 0.001 & (V2 - 1.63)^2 < 0.001 & V3 == 0)) %>%
+#'     .[["N"]] %>%
+#'     range()
+#'
+#'
+#'
+#'
+#' # # A tibble: 1 x 6
+#' #      V1    V2    V3   eta1  eta2  eta3
+#' #   <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl>
+#' # 1  1.63  1.63     0 -0.207     0 0.257
+#'
+#' trait_to$nv %>%
+#'     filter(trait == 1, rep == 1) %>%
+#'     # filter(time == max(time))
+#'     # filter(time < 1000) %>%
+#'     ggplot(aes(time, N)) +
+#'     geom_line(aes(color = spp)) +
+#'     scale_color_viridis_d(guide = FALSE)
+#'
+#'
+#'
+#' zz <- perturb(trait_to, 100e3L, 0, d = 0.27)
+#'
+#' # all.equal(zz$start$N, zz$end$N)
+#' all.equal(zz$start$V, zz$end$V)
+#'
+#'
+#' # LEFT OFF --> even if you reduce d to 0.27 after the fact, the traits remain
+#' # stable (Ns don't remain stable with even small change in d, as expected)
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#' # This function combines id labels for all combinations that have the exact
+#' # same outcomes. Only used for "1 sub".
+#' # It also processes all id columns to be parsed.
+#' process_ids <- function(z) {
+#'
+#'     parseable <- function(.id) {
+#'         .id = paste(.id)
+#'         IDD1 = str_sub(.id, 1, 1) %>%
+#'             {case_when(. == "+" ~ paste0("{}", .),
+#'                        . == "-" ~ paste0(., "''"),
+#'                        . == "0" ~ "0",
+#'                        . == "X" ~ "0^{'+'}",
+#'                        TRUE ~ NA_character_)}
+#'         IDD2 = str_sub(.id, 2, 2) %>%
+#'             {case_when(. == "-" ~ paste0(., "''"),
+#'                        . == "X" ~ "0^{'+'}",
+#'                        TRUE ~ .)}
+#'         IDD3 = str_sub(.id, 3, 3) %>%
+#'             {case_when(. == "+" ~ paste0(., "{}"),
+#'                        . == "-" ~ paste0(., "''"),
+#'                        . == "0" ~ "0",
+#'                        . == "X" ~ "0^{'+'}",
+#'                        TRUE ~ NA_character_)}
+#'         if(any(is.na(IDD1)) || any(is.na(IDD3))) {
+#'             print(.id[is.na(IDD1) | is.na(IDD3)])
+#'             stop("Non-programmed option in `parseable`")
+#'         }
+#'         paste0(IDD1, IDD2, IDD3) %>%
+#'             str_replace_all("''0", "0") %>%
+#'             str_replace_all("\\{\\}0", "0") %>%
+#'             str_replace_all("\\}0", "\\} * 0") %>%
+#'             str_replace_all("00", "0 * 0") %>%
+#'             str_replace_all("00", "0 * 0")
+#'     }
+#'
+#'
+#'     if (z$p_groups[1] != "'1 sub'") return(mutate(z, id = parseable(id)))
+#'
+#'     one_chr <- function(.x) {
+#'         .xx <- .x %>%
+#'             str_split("") %>%
+#'             {lapply(1:length(.[[1]]), function(i) map_chr(., ~ .x[[i]]))} %>%
+#'             map_chr(function(x) {
+#'                 xx <- unique(x)
+#'                 if (length(xx) == 1) return(xx)
+#'                 if (all(xx %in% c("0", "+"))) return("X")
+#'                 return(NA_character_)
+#'             })
+#'         if (any(is.na(.xx))) stop("Non-programmed input to `one_chr`")
+#'         return(paste(.xx, collapse = ""))
+#'     }
+#'
+#'     z %>%
+#'         mutate(color_group = group_spp(V1, V2, V3) + 1L) %>%
+#'         mutate_at(vars(id), paste) %>%
+#'         arrange(p_groups, color_group) %>%
+#'         group_by(p_groups, color_group) %>%
+#'         summarize(V1 = mean(V1),
+#'                   V2 = mean(V2),
+#'                   V3 = mean(V3),
+#'                   id = one_chr(id)) %>%
+#'         ungroup() %>%
+#'         mutate(id = parseable(id))
+#'
+#' }
+#'
+#' p_group_levels <- c("{} >= '2 sub'", "'1 sub'",
+#'                     "'all super'",
+#'                     "'2 super, 1 neutral'", "'2 neutral, 1 super'",
+#'                     "'all neutral'")
+#'
+#'
+#' trait_outcomes_p_df <- eta_sim_df %>%
+#'     mutate_at(vars(starts_with("eta")),
+#'               ~ factor(sign(.x), levels = -1:1, labels = c("-", "0", "+"))) %>%
+#'     mutate(id = interaction(eta1, eta2, eta3, sep = "")) %>%
+#'     group_by(id) %>%
+#'     filter(unq_spp_filter(V1, V2, V3, .prec = 0.1)) %>%
+#'     ungroup() %>%
+#'     mutate(n_p = str_count(id, "\\+"),
+#'            n_n = str_count(id, "\\-"),
+#'            n_z = str_count(id, "0"),
+#'            p_groups = case_when(n_n >= 2 ~ p_group_levels[1],
+#'                                 n_n == 1  ~ p_group_levels[2],
+#'                                 n_p == 3 ~ p_group_levels[3],
+#'                                 n_p == 2 & n_z == 1 ~ p_group_levels[4],
+#'                                 n_z == 2 & n_p == 1 ~ p_group_levels[5],
+#'                                 n_z == 3 ~ p_group_levels[6],
+#'                                 TRUE ~ NA_character_)) %>%
+#'     select(-starts_with("n", ignore.case = FALSE)) %>%
+#'     # filter(is.na(p_groups))  ## <-- check that this yields no rows
+#'     mutate(p_groups = factor(p_groups, levels = p_group_levels)) %>%
+#'     arrange(p_groups) %>%
+#'     split(.$p_groups) %>%
+#'     map(~ mutate(.x, color_group = id %>% droplevels() %>% as.integer())) %>%
+#'     map_dfr(process_ids) %>%
+#'     mutate_at(vars(color_group, id), factor) %>%
+#'     arrange(desc(V3))
+#'
+#'
+#'
+#' .pal <- function(.a = 1) viridisLite::plasma(7, end = 0.85,
+#'                                              alpha = .a)[c(6,4,1,3,5,7,2)]
+#'
+#'
+#' trait_outcomes_p <- trait_outcomes_p_df %>%
+#'     ggplot(aes(V1, V2, size = V3, color = color_group)) +
+#'     geom_point(aes(fill = color_group), shape = 21) +
+#'     geom_text(data = trait_outcomes_p_df %>%
+#'                   filter(!grepl("^\\'all", p_groups)) %>%
+#'                   group_by(p_groups, color_group, id) %>%
+#'                   summarize_at(vars(V1, V2), median) %>%
+#'                   ungroup() %>%
+#'                   mutate(V1 = case_when(id == "{}+0+{}" ~ V1 - 0.3,
+#'                                         id == "0 * 0+{}" ~ V1 - 0.3,
+#'                                         id == "{}+0 * 0" ~ V1 - 0.1,
+#'                                         id == "0-''-''" ~ V1 - 0.4,
+#'                                         id == "-''-''+{}" ~ V1 - 0.1,
+#'                                         id == "{}+-''-''" ~ V1 - 0.3,
+#'                                         id == "-''+-''" ~ V1 - 0.3,
+#'                                         id == "-0-''" ~ V1 - 0.4,
+#'                                         TRUE ~ V1),
+#'                          V2 = case_when(id == "{}+0+{}" ~ V2 + 0.05,
+#'                                         id == "0 * 0+{}" ~ V2 + 0.05,
+#'                                         id == "{}+0 * 0" ~ V2 + 0.05,
+#'                                         id == "0+0" ~ V2 - 0.05,
+#'                                         id == "0-''-''" ~ V2 - 0.6,
+#'                                         id == "-''-0" ~ V2 - 0.4,
+#'                                         id == "-''-''+{}" ~ V2 - 0.3,
+#'                                         id == "-''-''-''" ~ V2 - 0.1,
+#'                                         id == "{}+-''-''" ~ V2 - 0.6,
+#'                                         id == "-0-''" ~ V2 + 0.05,
+#'                                         TRUE ~ V2)) %>%
+#'                   identity(),
+#'               aes(label = id), size = 9 / 2.835, hjust = 0, vjust = 0, parse = TRUE,
+#'               fontface = "bold", lineheight = 0.75, nudge_x = 0.2, nudge_y = 0.2) +
+#'     scale_size_continuous("Trait 3", range = c(2, 6), breaks = 0.5 * 1:3) +
+#'     scale_x_continuous("Trait 1", breaks = 0:2) +
+#'     scale_y_continuous("Trait 2", breaks = 0:2) +
+#'     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+#'     facet_wrap(~ p_groups, nrow = 3, labeller = label_parsed) +
+#'     theme(strip.text = element_text(size = 10),
+#'           panel.border = element_rect(size = 0.5, fill = NA)) +
+#'     scale_color_manual(values = .pal(), guide = FALSE) +
+#'     scale_fill_manual(values = .pal(0.25), guide = FALSE) +
+#'     NULL
+#'
+#'
+#' if (.RESAVE_PLOTS) save_plot(trait_outcomes_p, 6, 5, "1-")
+#'
+#' trait_outcomes_p
 
 
 
@@ -882,26 +901,54 @@ if (.REDO_SIMS) {
 
 
 #' #'
-#' #' Code below shows that they're all stable:
+#' #' Code below shows that they're all stable.
+#' #' It also shows that we get complex eigenvalues for positive d1 and d2
+#' #' in about 17% of reps.
 #' #'
-#' d_sim_eigs <- map_dfr(1:length(all_d_sim),
-#'                       function(i) {
-#'                           eigs <- map_dbl(all_d_sim[[i]][["J"]],
-#'                                           function(.x){
-#'                                               if (any(is.na(.x))) return(NA)
-#'                                               max(eigen(.x)$values)
-#'                                           })
-#'                           all_d_sim[[i]]$NV %>%
-#'                               .[1,] %>%
-#'                               select(d1, d2) %>%
-#'                               mutate(e_min = min(eigs),
-#'                                      e_max = max(eigs))
-#'                       })
+#' map_dfr(1:length(all_d_sim),
+#'         function(i) {
+#'             eigs <- map_dbl(all_d_sim[[i]][["J"]],
+#'                             function(.x){
+#'                                 if (any(is.na(.x))) return(NA)
+#'                                 max(Re(eigen(.x)$values))
+#'                             })
+#'             all_d_sim[[i]]$NV %>%
+#'                 .[1,] %>%
+#'                 select(d1, d2) %>%
+#'                 mutate(e_min = min(eigs),
+#'                        e_max = max(eigs))
+#'         }) %>%
+#'     print_big_nums()
 #'
 #'
-#' print_big_nums(d_sim_eigs)
+#' map_dfr(1:length(all_d_sim),
+#'         function(i) {
+#'             eigs <- map(all_d_sim[[i]][["J"]],
+#'                         function(.x){
+#'                             if (any(is.na(.x))) return(NA)
+#'                             eigen(.x)$values
+#'                         })
+#'             eigs <- do.call(c, eigs)
+#'             tibble(d1 = all_d_sim[[i]]$NV[["d1"]][[1]],
+#'                    d2 = all_d_sim[[i]]$NV[["d2"]][[1]],
+#'                    eigs = eigs)
+#'         }) %>%
+#'     filter(Im(eigs) != 0)
 #'
-
+#'
+#' map_dfr(1:length(all_d_sim),
+#'         function(i) {
+#'             eigs <- map(all_d_sim[[i]][["J"]],
+#'                         function(.x){
+#'                             if (any(is.na(.x))) return(NA)
+#'                             eigen(.x)$values
+#'                         })
+#'             cmplx <- map_lgl(eigs, ~ any(Im(.x) != 0))
+#'             tibble(d1 = all_d_sim[[i]]$NV[["d1"]][[1]],
+#'                    d2 = all_d_sim[[i]]$NV[["d2"]][[1]],
+#'                    cmplx = mean(cmplx))
+#'         }) %>%
+#'     identity()
 
 
 
@@ -984,27 +1031,139 @@ if (.REDO_SIMS) {
 }
 
 
-# #'
-# #' Code below shows that they're all stable:
-# #'
-# one_d_sim_eigs <- map_dfr(1:length(one_d_sim),
-#                       function(i) {
-#                           eigs <- map_dbl(one_d_sim[[i]][["J"]],
-#                                           function(.x){
-#                                               if (any(is.na(.x))) return(NA)
-#                                               max(eigen(.x)$values)
-#                                           })
-#                           one_d_sim[[i]]$NV %>%
-#                               .[1,] %>%
-#                               select(d2) %>%
-#                               mutate(e_min = min(eigs),
-#                                      e_max = max(eigs))
-#                       })
-#
-#
-#
-# print_big_nums(one_d_sim_eigs)
-#
+#' #'
+#' #' Code below shows that they're mostly stable, except
+#' #' in some reps when d2 is 0 or 1e-4.
+#' #'
+#' map_dfr(1:length(one_d_sim),
+#'         function(i) {
+#'             eigs <- map_dbl(one_d_sim[[i]][["J"]],
+#'                             function(.x){
+#'                                 if (any(is.na(.x))) return(NA)
+#'                                 max(Re(eigen(.x)$values))
+#'                             })
+#'             one_d_sim[[i]]$NV %>%
+#'                 .[1,] %>%
+#'                 select(d2) %>%
+#'                 mutate(e_min = min(eigs),
+#'                        e_max = max(eigs))
+#'         }) %>%
+#'     print_big_nums()
+#'
+#'
+#' #'
+#' #' If we only look at evolution (∂ V / ∂ V), then it's totally stable
+#' #' with no complex eigenvalues:
+#' #'
+#' map_dfr(1:length(one_d_sim),
+#'         function(i) {
+#'             eigs <- map_dbl(one_d_sim[[i]][["J"]],
+#'                             function(.x){
+#'                                 nm <- nrow(.x) / (1 + 1 / 2)
+#'                                 .x <- .x[1:nm, 1:nm]
+#'                                 if (any(is.na(.x))) return(NA)
+#'                                 max(eigen(.x)$values)
+#'                             })
+#'             one_d_sim[[i]]$NV %>%
+#'                 .[1,] %>%
+#'                 select(d2) %>%
+#'                 mutate(e_min = min(eigs),
+#'                        e_max = max(eigs))
+#'         }) %>%
+#'     print_big_nums()
+#'
+#'
+#' #'
+#' #' And when looking at only ecology (∂ N / ∂ N), we get some unstable
+#' #' points at d2 = 0 and 1e-4, but no complex eigenvalues.
+#' #'
+#' map_dfr(1:length(one_d_sim),
+#'         function(i) {
+#'             eigs <- map_dbl(one_d_sim[[i]][["J"]],
+#'                             function(.x){
+#'                                 nqn <- nrow(.x)
+#'                                 nm <- nqn / (1 + 1 / 2)
+#'                                 .x <- .x[(nm+1):nqn, (nm+1):nqn]
+#'                                 if (any(is.na(.x))) return(NA)
+#'                                 max(eigen(.x)$values)
+#'                             })
+#'             one_d_sim[[i]]$NV %>%
+#'                 .[1,] %>%
+#'                 select(d2) %>%
+#'                 mutate(e_min = min(eigs),
+#'                        e_max = max(eigs))
+#'         }) %>%
+#'     print_big_nums()
+#'
+#'
+#' #'
+#' #' Every positive d2 produced complex eigenvalues:
+#' #'
+#' map_dfr(1:length(one_d_sim),
+#'         function(i) {
+#'             eigs <- map(one_d_sim[[i]][["J"]],
+#'                         function(.x){
+#'                             if (any(is.na(.x))) return(NA)
+#'                             eigen(.x)$values
+#'                         })
+#'             cmplx <- map_lgl(eigs, ~ any(Im(.x) != 0))
+#'             tibble(d2 = one_d_sim[[i]]$NV[["d2"]][[1]],
+#'                    cmplx = mean(cmplx))
+#'         })
+#'
+#'
+
+
+
+# start complex-eigen simulations ----
+
+#'
+#' This part simulates a scenario that results in complex eigenvalues
+#' at equilibrium.
+#'
+.d2 = 1e-4
+.max_t = 500e3L
+
+.d <- c(0.05, .d2)
+
+#'
+#' By setting the seed beforehand, we can look at reps at long time scales
+#' to look at their equilibria, then do short-time-scale simulations to
+#' plot the transient dynamics.
+#' Trying to do both at the same time results in too-massive output.
+#'
+
+set.seed(634789)
+Z_long <- quant_gen(q = length(.d), eta = etas[[2]], d = .d,
+                    max_t = .max_t,
+                    save_every = 0,
+                    n_reps = 3, n = 100, N0 = rep(1, 100),
+                    start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                    show_progress = TRUE)
+set.seed(634789)
+Z_short <- quant_gen(q = length(.d), eta = etas[[2]], d = .d,
+                     max_t = 5000,
+                     save_every = 1L,
+                     n_reps = 3, n = 100, N0 = rep(1, 100),
+                     start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                     show_progress = TRUE)
+
+
+jacs <- jacobians(Z_long)
+
+map(jacs, ~ which(Im(eigen(.x, only.values = TRUE)[["values"]]) != 0))
+
+
+Z_short$nv %>%
+    filter(rep == 2) %>%
+    filter(time < 1000) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(color = spp)) +
+    scale_color_viridis_d(guide = FALSE)
+
+
+
+# end complex-eigen simulations ----
 
 
 
@@ -1089,26 +1248,24 @@ if (.REDO_SIMS) {
 }
 
 
-# #'
-# #' Code below shows that they're all stable:
-# #'
-# one_d_TS_sim_eigs <- map_dfr(1:length(one_d_TS_sim),
-#                       function(i) {
-#                           eigs <- map_dbl(one_d_TS_sim[[i]][["J"]],
-#                                           function(.x){
-#                                               if (any(is.na(.x))) return(NA)
-#                                               max(eigen(.x)$values)
-#                                           })
-#                           one_d_TS_sim[[i]]$NV %>%
-#                               .[1,] %>%
-#                               select(d2) %>%
-#                               mutate(e_min = min(eigs),
-#                                      e_max = max(eigs))
-#                       })
-#
-#
-# print_big_nums(one_d_TS_sim_eigs)
-#
+#' #'
+#' #' Code below shows that they're all stable with no complex eigenvalues:
+#' #'
+#' map_dfr(1:length(one_d_TS_sim),
+#'         function(i) {
+#'             eigs <- map_dbl(one_d_TS_sim[[i]][["J"]],
+#'                             function(.x){
+#'                                 if (any(is.na(.x))) return(NA)
+#'                                 max(eigen(.x)$values)
+#'                             })
+#'             one_d_TS_sim[[i]]$NV %>%
+#'                 .[1,] %>%
+#'                 select(d2) %>%
+#'                 mutate(e_min = min(eigs),
+#'                        e_max = max(eigs))
+#'         }) %>%
+#'     print_big_nums()
+
 
 
 
@@ -1315,22 +1472,70 @@ print_big_nums(fill_qg$nv)
 
 
 # Takes ~ 6 sec w/ 3 threads
-filling_sims <- mclapply(1:nrow(ring_points),
+filling_sims <- lapply(1:nrow(ring_points),
                          function(i) {
                              .new_V <- ring_points %>%
                                  .[i,] %>%
                                  as.matrix() %>%
+                                 t() %>%
                                  list()
                              perturb(fill_qg, max_t = 20e3L, save_every = 0L,
                                      new_V = .new_V, new_N = 1) %>%
                                  .[["end"]] %>%
                                  .[["N"]]
-                         },
-                         mc.cores = .N_THREADS)
+                         })
 
 map_dbl(filling_sims, ~ .x[3]) %>% range()
 
 
 pop_sizes(3, 0, 1e-2)
 
+
+
+
+# =======
+
+library(sauron)
+library(tidyverse)
+
+
+if (file.exists(".Rprofile")) source(".Rprofile")
+
+z <- quant_gen(q = 2, eta = 0.6, d = c(-0.1, 0.1), max_t = 20e3L, n_reps = 120,
+               save_every = 100L, n = 100, N0 = rep(1, 100),
+               start_t = 0, perturb_sd = 2,
+               # sigma_N = 0.05,
+               sigma_V = 0.01,
+               n_threads = 3)
+
+z$nv %>%
+    filter(trait == 1, time == max(time)) %>%
+    group_by(rep) %>%
+    summarize(n_spp = n()) %>%
+    ungroup() %>%
+    .[["n_spp"]] %>%
+    {sum(. > 1)}
+
+coexist_df <- z$nv %>%
+    split(.$rep) %>%
+    map_dfr(~ mutate(., n_spp = spp[time == max(time)] %>% unique() %>% length())) %>%
+    filter(n_spp > 1)
+
+coexist_df %>%
+# z$nv %>%
+    filter(trait == 1) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(color = spp)) +
+    facet_wrap(~ rep, nrow = 6) +
+    scale_color_viridis_d(guide = FALSE)
+
+coexist_df %>%
+    mutate(trait = paste0("V", trait)) %>%
+    spread("trait", "value") %>%
+    arrange(rep, spp, time) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    geom_path() +
+    facet_wrap(~ rep, nrow = 6) +
+    scale_color_viridis_d(guide = FALSE) +
+    coord_equal()
 
