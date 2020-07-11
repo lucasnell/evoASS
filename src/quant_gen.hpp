@@ -27,10 +27,12 @@ void sel_str__(arma::mat& ss_mat,
 class OneRepInfo {
 public:
 
-    std::vector<double> N;      // abundances
-    std::vector<arma::vec> V;   // traits - genotypes
-    std::vector<arma::vec> Vp;  // traits - phenotypes
-    std::vector<uint32_t> spp;  // species indexes (based on N0 and V0)
+    std::vector<double> N;          // abundances
+    std::vector<arma::vec> V;       // traits - genotypes
+    std::vector<arma::vec> Vp;      // traits - phenotypes
+    std::vector<double> add_var;    // additive genetic variances
+    std::vector<uint32_t> spp;      // species indexes (based on N0 and V0)
+    uint32_t n;                     // Total # species added
     // Info for output if tracking through time:
     std::vector<double> t;
     std::vector<std::vector<double>> N_t;
@@ -39,64 +41,22 @@ public:
     std::vector<std::vector<uint32_t>> spp_t;
 
     OneRepInfo () {};
-    OneRepInfo(const std::vector<double>& N_,
-               const std::vector<arma::vec>& V_,
-               const uint32_t& max_t,
-               const uint32_t& save_every,
-               const double& sigma_V0,
-               const double& sigma_V,
-               pcg64& eng)
-        : N(N_), V(V_), Vp(V_), spp(N_.size()),
-          t(), N_t(), V_t(),
-          A(V_.size()),
-          ss_mat(),
+    OneRepInfo(const std::deque<double>& N_,
+               const std::deque<arma::vec>& V_,
+               const std::deque<arma::vec>& Vp_,
+               const std::deque<double>& add_var_)
+        : N(N_.begin(), N_.end()),
+          V(V_.begin(), V_.end()),
+          Vp(Vp_.begin(), Vp_.end()),
+          add_var(add_var_.begin(), add_var_.end()),
+          spp(N_.size()),
           n(N_.size()),
-          q(V_[0].n_elem),
-          sigma_V0_(sigma_V0) {
-
-        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
-
-        if (save_every > 0) {
-
-            uint32_t n_saves = static_cast<uint32_t>(
-                std::ceil(static_cast<double>(max_t - 1) /
-                    static_cast<double>(save_every))) + 2U;
-            t.reserve(n_saves);
-            N_t.reserve(n_saves);
-            V_t.reserve(n_saves);
-            Vp_t.reserve(n_saves);
-            spp_t.reserve(n_saves);
-
-        }
-
-        // adding stochasticity to starting phenotypes
-        if (sigma_V > 0) {
-
-            for (uint32_t i = 0; i < Vp.size(); i++) {
-                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
-                    Vp[i][j] *= std::exp(rnorm(eng) * sigma_V);
-                }
-            }
-
-        }
-
-        return;
-
-    };
-    OneRepInfo(const std::vector<double>& N_,
-               const std::vector<arma::vec>& V_,
-               const std::vector<arma::vec>& Vp_,
-               const uint32_t& max_t,
-               const uint32_t& save_every,
-               const double& sigma_V0)
-        : N(N_), V(V_), Vp(Vp_), spp(N_.size()),
           t(), N_t(), V_t(),
-          A(V_.size()),
+          A(N_.size()),
           ss_mat(),
-          n(N_.size()),
-          q(V_[0].n_elem),
-          sigma_V0_(sigma_V0) {
+          q(V_[0].n_elem) {
 
+        if (V_.size() != N_.size()) stop("\nV_.size() != N_.size()");
         if (Vp_.size() != V_.size()) stop("\nVp_.size() != V_.size()");
         for (uint32_t i = 0; i < N_.size(); i++) {
             if (Vp_[i].n_elem != V_[i].n_elem) {
@@ -106,18 +66,26 @@ public:
             spp[i] = i + 1;
         }
 
+        return;
 
-        if (save_every > 0) {
+    };
+    OneRepInfo(const double& N_,
+               const arma::vec& V_,
+               const arma::vec& Vp_,
+               const double& add_var_)
+        : N(1, N_),
+          V(1, V_),
+          Vp(1, Vp_),
+          add_var(1, add_var_),
+          spp(1, 1),
+          n(1),
+          t(), N_t(), V_t(),
+          A(1),
+          ss_mat(),
+          q(V_.n_elem) {
 
-            uint32_t n_saves = static_cast<uint32_t>(
-                std::ceil(static_cast<double>(max_t - 1) /
-                    static_cast<double>(save_every))) + 2U;
-            t.reserve(n_saves);
-            N_t.reserve(n_saves);
-            V_t.reserve(n_saves);
-            Vp_t.reserve(n_saves);
-            spp_t.reserve(n_saves);
-
+        if (Vp_.n_elem != V_.n_elem) {
+            stop("\nVp and V sizes don't match for first species");
         }
 
         return;
@@ -134,11 +102,16 @@ public:
                  const arma::mat& C,
                  const double& r0,
                  const arma::mat& D,
-                 const arma::vec& add_var,
                  const double& min_N,
                  const double& sigma_N,
                  const double& sigma_V,
                  pcg64& eng) {
+
+        /*
+         This is for iterations where species will be later added, but
+         all species that were already added have gone extinct:
+         */
+        if (V.size() == 0) return true;
 
         /*
          Update abundances
@@ -153,18 +126,14 @@ public:
             double r = r_V_<arma::vec>(Vp[i], f, C, r0);
             if (sigma_N <= 0) {
                 N[i] *= std::exp(r - A[i]);
-            } else N[i] *= std::exp(r - A[i] + rnorm(eng) * sigma_N);
+            } else N[i] *= std::exp(r - A[i] + rand_norm(eng) * sigma_N);
             // See if it goes extinct:
             if (N[i] < min_N) extinct.push_back(i);
         }
 
         // If everything is gone, clear vectors and stop simulations:
         if (extinct.size() == N.size()) {
-            N.clear();
-            V.clear();
-            Vp.clear();
-            A.clear();
-            spp.clear();
+            rm_all();
             return true;
         }
 
@@ -177,16 +146,16 @@ public:
         if (sigma_V > 0) {
             for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
-                    V[i][j] += (add_var(i) * ss_mat(j,i));
+                    V[i][j] += (add_var[i] * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
                     // including stochasticity:
-                    Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
+                    Vp[i][j] = V[i][j] * std::exp(rand_norm(eng) * sigma_V);
                 }
             }
         } else {
             for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
-                    V[i][j] += (add_var(i) * ss_mat(j,i));
+                    V[i][j] += (add_var[i] * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
                     Vp[i][j] = V[i][j];
                 }
@@ -198,34 +167,27 @@ public:
          */
         for (uint32_t i = 0, j; i < extinct.size(); i++) {
             j = extinct.size() - i - 1;
-            N.erase(N.begin() + extinct[j]);
-            V.erase(V.begin() + extinct[j]);
-            Vp.erase(Vp.begin() + extinct[j]);
-            A.erase(A.begin() + extinct[j]);
-            spp.erase(spp.begin() + extinct[j]);
+            rm_species(extinct[j]);
         }
 
         return false;
     }
 
-    // perturb trait values
-    void perturb(const double& sigma_V, pcg64& eng) {
-        if (sigma_V > 0) {
-            for (uint32_t i = 0; i < V.size(); i++) {
-                for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                    V[i][j] = trunc_rnorm_(V[i][j], sigma_V0_, eng);
-                    // including stochasticity:
-                    Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
-                }
-            }
-        } else {
-            for (uint32_t i = 0; i < V.size(); i++) {
-                for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                    V[i][j] = trunc_rnorm_(V[i][j], sigma_V0_, eng);
-                    Vp[i][j] = V[i][j];
-                }
-            }
-        }
+    // add a new species to community
+    void add_species(const double& new_N,
+                     const arma::vec& new_V,
+                     const arma::vec& new_Vp,
+                     const double& new_add_var) {
+
+        N.push_back(new_N);
+        V.push_back(new_V);
+        Vp.push_back(new_Vp);
+        add_var.push_back(new_add_var);
+
+        n++;
+        spp.push_back(n);
+        A.push_back(0);
+
         return;
     }
 
@@ -253,14 +215,50 @@ public:
     }
 
 
+    void reserve(const uint32_t& n_saves) {
+        t.reserve(n_saves);
+        N_t.reserve(n_saves);
+        V_t.reserve(n_saves);
+        Vp_t.reserve(n_saves);
+        spp_t.reserve(n_saves);
+        return;
+    }
+
+
 private:
 
     std::vector<double> A;  // Density dependence
     arma::mat ss_mat;       // Selection strength
-    uint32_t n;             // Starting # species
     uint32_t q;             // # traits
-    double sigma_V0_;
-    normal_distr rnorm = normal_distr(0, 1);
+    normal_distr rand_norm = normal_distr(0, 1);
+
+
+    void rm_species(const uint32_t& idx) {
+
+        N.erase(N.begin() + idx);
+        V.erase(V.begin() + idx);
+        Vp.erase(Vp.begin() + idx);
+        add_var.erase(add_var.begin() + idx);
+        A.erase(A.begin() + idx);
+        spp.erase(spp.begin() + idx);
+
+        return;
+
+    }
+
+
+    void rm_all() {
+
+        N.clear();
+        V.clear();
+        Vp.clear();
+        add_var.clear();
+        A.clear();
+        spp.clear();
+
+        return;
+
+    }
 
 
 };

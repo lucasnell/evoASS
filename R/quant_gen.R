@@ -6,15 +6,15 @@
 #
 check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
                                  sigma_V0, sigma_N, sigma_V, n_reps,
-                                 start_t, max_t, min_N, save_every,
+                                 spp_gap_t, final_t, min_N, save_every,
                                  show_progress, n_threads) {
 
 
     stopifnot(sapply(list(eta, d, q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
-                          n_reps, start_t, max_t, save_every,
+                          n_reps, spp_gap_t, final_t, save_every,
                           n_threads, N0), is.numeric))
     stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
-                          n_reps, start_t, max_t, save_every, n_threads),
+                          n_reps, spp_gap_t, final_t, save_every, n_threads),
                      length) == 1)
     stopifnot(inherits(V0, "matrix") && is.numeric(V0))
     stopifnot(all(V0 >= 0))
@@ -22,8 +22,8 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
 
     stopifnot(n >= 1 && q >= 1)
     stopifnot(N0 >= 0)
-    stopifnot(c(n_reps, max_t, n_threads) >= 1)
-    stopifnot(c(start_t, save_every, add_var, sigma_V0, min_N) >= 0)
+    stopifnot(c(n_reps, final_t, n_threads) >= 1)
+    stopifnot(c(spp_gap_t, save_every, add_var, sigma_V0, min_N) >= 0)
 
     stopifnot(length(eta) %in% c(1, q^2))
     stopifnot(length(d) %in% c(1, q))
@@ -105,6 +105,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #' Quantitative genetics.
 #'
 #' @param n_reps Number of reps to perform.
+#' @param final_t Length of final time period where all species are together.
 #' @param sigma_V0 Standard deviation for normal distribution from which
 #'     starting trait values can be derived.
 #'     Set to 0 for species to start with the exact values of traits
@@ -112,7 +113,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #' @param sigma_N Standard deviation for stochasticity in population dynamics.
 #' @param sigma_V Standard deviation for stochasticity in trait evolution.
 #' @param add_var Vector of additive genetic variances for all starting species.
-#' @param start_t Number of starting iterations (before the perturbation).
+#' @param spp_gap_t Time period between each species introduction.
 #' @param n_threads Number of cores to use. Defaults to 1.
 #' @inheritParams adapt_dyn
 #'
@@ -146,8 +147,8 @@ quant_gen <- function(eta, d, q,
                       sigma_N = 0,
                       sigma_V = 0,
                       n_reps = 100,
-                      start_t = 0,
-                      max_t = 1e6L,
+                      spp_gap_t = 0,
+                      final_t = 1e6L,
                       min_N = 1e-4,
                       save_every = 1e4L,
                       show_progress = TRUE,
@@ -162,7 +163,7 @@ quant_gen <- function(eta, d, q,
 
     args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
                                  sigma_V0, sigma_N, sigma_V, n_reps,
-                                 start_t, max_t, min_N, save_every,
+                                 spp_gap_t, final_t, min_N, save_every,
                                  show_progress, n_threads)
 
     invisible(list2env(args, environment()))
@@ -180,8 +181,8 @@ quant_gen <- function(eta, d, q,
                         sigma_V0 = sigma_V0,
                         sigma_N = sigma_N,
                         sigma_V = sigma_V,
-                        start_t = start_t,
-                        max_t = max_t,
+                        spp_gap_t = spp_gap_t,
+                        final_t = final_t,
                         min_N = min_N,
                         save_every = save_every,
                         show_progress = show_progress,
@@ -519,9 +520,9 @@ jacobians <- function(qg_obj, evo_only = FALSE) {
 #' @importFrom dplyr bind_rows
 #'
 perturb.quant_gen <- function(obj,
-                              max_t,
+                              final_t,
                               save_every,
-                              start_t = 0,
+                              spp_gap_t = 0,
                               sigma_V0 = 0,
                               new_V = NULL,
                               new_Vp = NULL,
@@ -550,10 +551,10 @@ perturb.quant_gen <- function(obj,
     }
 
 
-    stopifnot(sapply(list(start_t, max_t, save_every, sigma_V0), is.numeric))
-    stopifnot(sapply(list(start_t, max_t, save_every, sigma_V0), length) == 1)
-    stopifnot(max_t >= 1)
-    stopifnot(c(start_t, save_every, sigma_V0) >= 0)
+    stopifnot(sapply(list(spp_gap_t, final_t, save_every, sigma_V0), is.numeric))
+    stopifnot(sapply(list(spp_gap_t, final_t, save_every, sigma_V0), length) == 1)
+    stopifnot(final_t >= 1)
+    stopifnot(c(spp_gap_t, save_every, sigma_V0) >= 0)
 
     if (sigma_V0 > 0 && !is.null(new_Vp)) {
         stop("\nwhen sigma_V0 > 0, it negates the provided new_Vp")
@@ -674,9 +675,9 @@ perturb.quant_gen <- function(obj,
     args <- lapply(names(formals(quant_gen)), get_par)
 
     # based on inputs to this function
-    args[["max_t"]] <- max_t
+    args[["final_t"]] <- final_t
     args[["save_every"]] <- save_every
-    args[["start_t"]] <- start_t
+    args[["spp_gap_t"]] <- spp_gap_t
     args[["sigma_V0"]] <- sigma_V0
     args[["V0"]] <- V0
     args[["N0"]] <- N0

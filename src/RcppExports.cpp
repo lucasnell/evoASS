@@ -231,31 +231,31 @@ BEGIN_RCPP
 END_RCPP
 }
 // quant_gen_cpp
-arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::vector<arma::vec>& V0, const std::vector<arma::vec>& Vp0, const std::vector<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const arma::vec& add_var, const double& perturb_sd, const double& sigma_N, const double& sigma_V, const uint32_t& start_t, const uint32_t& max_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
-RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP Vp0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP add_varSEXP, SEXP perturb_sdSEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP start_tSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_threadsSEXP) {
+arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::deque<arma::vec>& V0, const std::deque<arma::vec>& Vp0, const std::deque<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const std::deque<double>& add_var, const double& sigma_V0, const double& sigma_N, const double& sigma_V, const uint32_t& spp_gap_t, const uint32_t& final_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
+RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP Vp0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP add_varSEXP, SEXP sigma_V0SEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP spp_gap_tSEXP, SEXP final_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const uint32_t& >::type n_reps(n_repsSEXP);
-    Rcpp::traits::input_parameter< const std::vector<arma::vec>& >::type V0(V0SEXP);
-    Rcpp::traits::input_parameter< const std::vector<arma::vec>& >::type Vp0(Vp0SEXP);
-    Rcpp::traits::input_parameter< const std::vector<double>& >::type N0(N0SEXP);
+    Rcpp::traits::input_parameter< const std::deque<arma::vec>& >::type V0(V0SEXP);
+    Rcpp::traits::input_parameter< const std::deque<arma::vec>& >::type Vp0(Vp0SEXP);
+    Rcpp::traits::input_parameter< const std::deque<double>& >::type N0(N0SEXP);
     Rcpp::traits::input_parameter< const double& >::type f(fSEXP);
     Rcpp::traits::input_parameter< const double& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type add_var(add_varSEXP);
-    Rcpp::traits::input_parameter< const double& >::type perturb_sd(perturb_sdSEXP);
+    Rcpp::traits::input_parameter< const std::deque<double>& >::type add_var(add_varSEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma_V0(sigma_V0SEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma_N(sigma_NSEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma_V(sigma_VSEXP);
-    Rcpp::traits::input_parameter< const uint32_t& >::type start_t(start_tSEXP);
-    Rcpp::traits::input_parameter< const uint32_t& >::type max_t(max_tSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type spp_gap_t(spp_gap_tSEXP);
+    Rcpp::traits::input_parameter< const uint32_t& >::type final_t(final_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, perturb_sd, sigma_N, sigma_V, start_t, max_t, min_N, save_every, show_progress, n_threads));
+    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, save_every, show_progress, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -4,6 +4,8 @@
 #include <progress.hpp>
 #include <progress_bar.hpp>
 #include <random>
+#include <vector>
+#include <deque>
 
 #include "sim.hpp"
 #include "pcg.hpp"
@@ -864,84 +866,158 @@ IntegerVector group_spp_cpp(const std::vector<arma::vec>& V,
 //' @noRd
 //'
 int one_quant_gen__(OneRepInfo& info,
-                     const std::vector<arma::vec>& V0,
-                     const std::vector<arma::vec>& Vp0,
-                     const std::vector<double>& N0,
-                     const double& f,
-                     const double& a0,
-                     const arma::mat& C,
-                     const double& r0,
-                     const arma::mat& D,
-                     const arma::vec& add_var,
-                     const double& sigma_V0,
-                     const double& sigma_N,
-                     const double& sigma_V,
-                     const uint32_t& start_t,
-                     const uint32_t& max_t,
-                     const double& min_N,
-                     const uint32_t& save_every,
-                     pcg64& eng,
-                     Progress& prog_bar) {
+                    std::deque<arma::vec> V0,
+                    std::deque<arma::vec> Vp0,
+                    std::deque<double> N0,
+                    const double& f,
+                    const double& a0,
+                    const arma::mat& C,
+                    const double& r0,
+                    const arma::mat& D,
+                    std::deque<double> add_var,
+                    const double& sigma_V0,
+                    const double& sigma_N,
+                    const double& sigma_V,
+                    const uint32_t& spp_gap_t,
+                    const uint32_t& final_t,
+                    const double& min_N,
+                    const uint32_t& save_every,
+                    pcg64& eng,
+                    Progress& prog_bar) {
 
 
-    if (Vp0.size() > 0) {
-        info = OneRepInfo(N0, V0, Vp0, max_t, save_every, sigma_V0);
-    } else {
-        info = OneRepInfo(N0, V0, max_t, save_every, sigma_V0, sigma_V, eng);
+    normal_distr distr = normal_distr(0, 1);
+
+    // adding stochasticity to starting genotypes (and phenotypes if desired)
+    if (sigma_V0 > 0) {
+        Vp0 = V0;
+        for (uint32_t i = 0; i < V0.size(); i++) {
+            for (uint32_t j = 0; j < V0[i].n_elem; j++) {
+                V0[i][j] = trunc_rnorm_(V0[i][j], sigma_V0, eng);
+                Vp0[i][j] = V0[i][j];
+                if (sigma_V > 0) Vp0[i][j] *= std::exp(distr(eng) * sigma_V);
+            }
+        }
     }
 
+    /*
+     adjusting starting phenotypes if `sigma_V0 == 0`
+     */
+    if (Vp0.size() == 0) {
+        Vp0 = V0;
+        if (sigma_V > 0) {
+            for (uint32_t i = 0; i < Vp0.size(); i++) {
+                for (double& v : Vp0[i]) v *= std::exp(distr(eng) * sigma_V);
+            }
+        }
+    }
+
+
+    if (spp_gap_t == 0) {
+        info = OneRepInfo(N0, V0, Vp0, add_var);
+        N0.clear();
+        V0.clear();
+        Vp0.clear();
+        add_var.clear();
+    } else {
+        info = OneRepInfo(N0.front(), V0.front(), Vp0.front(), add_var.front());
+        N0.pop_front();
+        V0.pop_front();
+        Vp0.pop_front();
+        add_var.pop_front();
+    }
+
+
+    // Setting size for `info` fields
+    if (save_every > 0) {
+        uint32_t spp_add_saves = static_cast<uint32_t>(std::ceil(
+            static_cast<double>(spp_gap_t) / static_cast<double>(save_every)));
+        spp_add_saves += 2U;
+        uint32_t final_saves = static_cast<uint32_t>(std::ceil(
+            static_cast<double>(final_t) / static_cast<double>(save_every)));
+        final_saves += 2U;
+        info.reserve(final_saves + (info.n + V0.size() - 1) * spp_add_saves);
+    }
 
     uint32_t t = 0;
     bool all_gone = false;
-
-    uint32_t iters = 0;
-
-    while (!all_gone && t < start_t) {
-
-        // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N,
-                                sigma_N, sigma_V, eng);
-        t++;
-        prog_bar.increment();
-
-        // Check for user interrupt:
-        if (interrupt_check(iters, prog_bar, 100)) return -1;
-
-    }
+    uint32_t interrupt_iters = 0;   // checking for user interrupt
+    uint32_t n_pb_incr = 0;         // progress bar increments
 
 
-    // perturb trait values
-    if (sigma_V0 > 0) info.perturb(sigma_V, eng);
-
-    t = 0;
     // Save starting info:
     if (save_every > 0) info.save_time(t);
 
-    uint32_t n_incr = 0;
-    while (!all_gone && t < max_t) {
 
-        n_incr++;
+    // First iterations with species additions
+    bool new_spp = false;
+    while (!N0.empty()) {
+
+        n_pb_incr++;
 
         // Update abundances and traits:
-        all_gone = info.iterate(f, a0, C, r0, D, add_var, min_N,
+        all_gone = info.iterate(f, a0, C, r0, D, min_N,
                                 sigma_N, sigma_V, eng);
 
-        if (save_every > 0 &&
-            (t % save_every == 0 || (t+1) == max_t || all_gone)) {
+        // Add new species if necessary:
+        new_spp = (t + 1) == (info.n * spp_gap_t);
+        if (new_spp) {
+            info.add_species(N0.front(), V0.front(), Vp0.front(),
+                             add_var.front());
+            N0.pop_front();
+            V0.pop_front();
+            Vp0.pop_front();
+            add_var.pop_front();
+        }
+
+        if (save_every > 0 && (t % save_every == 0 || new_spp)) {
             info.save_time(t + 1);
         }
 
-        if (n_incr > 100) {
-            prog_bar.increment(n_incr);
-            n_incr = 0;
+        if (n_pb_incr > 100) {
+            prog_bar.increment(n_pb_incr);
+            n_pb_incr = 0;
+        }
+
+        t++;
+
+
+        // Check for user interrupt:
+        if (interrupt_check(interrupt_iters, prog_bar, 100)) return -1;
+
+    }
+
+    if (final_t == 0) return 0;
+
+    uint32_t total_time = final_t + t;
+
+    // Final iterations with no species additions
+    while (!all_gone && t < total_time) {
+
+        n_pb_incr++;
+
+        // Update abundances and traits:
+        all_gone = info.iterate(f, a0, C, r0, D, min_N,
+                                sigma_N, sigma_V, eng);
+
+        if (save_every > 0 &&
+            (t % save_every == 0 || (t+1) == final_t || all_gone)) {
+            info.save_time(t + 1);
+        }
+
+        if (n_pb_incr > 100) {
+            prog_bar.increment(n_pb_incr);
+            n_pb_incr = 0;
         }
 
         t++;
 
         // Check for user interrupt:
-        if (interrupt_check(iters, prog_bar, 100)) return -1;
+        if (interrupt_check(interrupt_iters, prog_bar, 100)) return -1;
 
     }
+
+    if (n_pb_incr > 0) prog_bar.increment(n_pb_incr);
 
     return 0;
 }
@@ -954,20 +1030,20 @@ int one_quant_gen__(OneRepInfo& info,
 //'
 //[[Rcpp::export]]
 arma::mat quant_gen_cpp(const uint32_t& n_reps,
-                        const std::vector<arma::vec>& V0,
-                        const std::vector<arma::vec>& Vp0,
-                        const std::vector<double>& N0,
+                        const std::deque<arma::vec>& V0,
+                        const std::deque<arma::vec>& Vp0,
+                        const std::deque<double>& N0,
                         const double& f,
                         const double& a0,
                         const arma::mat& C,
                         const double& r0,
                         const arma::mat& D,
-                        const arma::vec& add_var,
+                        const std::deque<double>& add_var,
                         const double& sigma_V0,
                         const double& sigma_N,
                         const double& sigma_V,
-                        const uint32_t& start_t,
-                        const uint32_t& max_t,
+                        const uint32_t& spp_gap_t,
+                        const uint32_t& final_t,
                         const double& min_N,
                         const uint32_t& save_every,
                         const bool& show_progress,
@@ -976,12 +1052,20 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     if (!C.is_symmetric()) stop("C must be symmetric");
     if (!D.is_symmetric()) stop("D must be symmetric");
 
+    /*
+     Adding stochasticity to starting genotypes invalidates starting
+     phenotypes, so I'm not allowing both.
+     */
+    if (sigma_V0 > 0 && Vp0.size() > 0) {
+        stop("\nproviding Vp0 with sigma_V0 > 0 makes no sense");
+    }
+
     const uint32_t n = N0.size();
 
     if (n == 0) stop("n == 0");
 
     if (V0.size() != n) stop("V0.size() != n");
-    if (add_var.n_elem != n) stop("add_var.n_elem != n");
+    if (add_var.size() != n) stop("add_var.size() != n");
     if (Vp0.size() > 0 && Vp0.size() != n) stop("Vp0.size() != n");
 
 
@@ -995,7 +1079,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
 
     const std::vector<std::vector<uint128_t>> seeds = mc_seeds_rep(n_reps);
 
-    Progress prog_bar(n_reps * (max_t + start_t), show_progress);
+    Progress prog_bar(n_reps * (final_t + (n - 1) * spp_gap_t), show_progress);
     bool interrupted = false;
 
     #ifdef _OPENMP
@@ -1019,8 +1103,9 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
         eng.seed(seeds[i][0], seeds[i][1]);
         int status = one_quant_gen__(rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
                                      add_var, sigma_V0, sigma_N, sigma_V,
-                                     start_t, max_t, min_N, save_every,
+                                     spp_gap_t, final_t, min_N, save_every,
                                      eng, prog_bar);
+
         if (active_thread == 0 && status != 0) interrupted = true;
     }
     #ifdef _OPENMP
