@@ -124,7 +124,7 @@ one_eta_combo <- function(signs, .d = 1, ...) {
 
     args <- list(q = .q, eta = C, d = .d, max_t = 20e3L, n_reps = 24,
                  save_every = 0L, n = 100, N0 = rep(1, 100),
-                 start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                 start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                  show_progress = FALSE)
 
     other_args <- list(...)
@@ -279,7 +279,7 @@ cond_coexist_test <- function(.V0, .lab, .ds) {
     Z <- quant_gen(q = .q, eta = etas[[2]], d = .ds, max_t = 20e3L, n_reps = 1,
                    save_every = 10L, n = 100, N0 = rep(1, 100),
                    V0 = .V0,
-                   start_t = 0, perturb_sd = 0,
+                   start_t = 0, sigma_V0 = 0,
                    show_progress = FALSE) %>%
         .[["nv"]] %>%
         mutate(trait = paste0("V", trait)) %>%
@@ -371,7 +371,7 @@ if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
 #     Z <- quant_gen(q = .q, eta = etas[[2]], d = .ds, max_t = 20e3L, n_reps = 1,
 #                    save_every = 0L, n = 100, N0 = rep(1, 100),
 #                    V0 = .V0,
-#                    start_t = 0, perturb_sd = 0,
+#                    start_t = 0, sigma_V0 = 0,
 #                    show_progress = FALSE)
 #     Z$call[["q"]] <- .q
 #     Z$call[["d"]] <- .ds
@@ -619,7 +619,7 @@ if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
 #'
 #' trait_to <- quant_gen(q = .q, eta = C, d = 10, max_t = 20e3L, n_reps = 24,
 #'                       save_every = 100L, n = 100, N0 = rep(1, 100),
-#'                       start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+#'                       start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
 #'                       show_progress = TRUE)
 #'
 #' trait_to$nv %>%
@@ -867,7 +867,7 @@ one_d_combo <- function(sign1, sign2) {
 
     Z <- quant_gen(q = 2, eta = etas[[2]], d = .d, max_t = 50e3L, n_reps = 24,
                    save_every = 0L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                    show_progress = FALSE)
 
     Z$call[["d"]] <- eval(.d)
@@ -996,7 +996,7 @@ one_d_combo_vary_one <- function(.d2, .max_t) {
 
     Z <- quant_gen(q = length(.d), eta = etas[[2]], d = .d, max_t = .max_t,
                    n_reps = 24, save_every = 0L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                    show_progress = FALSE)
 
     Z$call[["q"]] <- eval(length(.d))
@@ -1138,14 +1138,14 @@ Z_long <- quant_gen(q = length(.d), eta = etas[[2]], d = .d,
                     max_t = .max_t,
                     save_every = 0,
                     n_reps = 3, n = 100, N0 = rep(1, 100),
-                    start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                    start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                     show_progress = TRUE)
 set.seed(634789)
 Z_short <- quant_gen(q = length(.d), eta = etas[[2]], d = .d,
                      max_t = 5000,
                      save_every = 1L,
                      n_reps = 3, n = 100, N0 = rep(1, 100),
-                     start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                     start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                      show_progress = TRUE)
 
 
@@ -1213,7 +1213,7 @@ one_d_combo_vary_one_TS <- function(.d2, .max_t) {
 
     Z <- quant_gen(q = 2, eta = etas[[2]], d = .d, max_t = .max_t, n_reps = 24,
                    save_every = .max_t %/% 100L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, perturb_sd = 2, n_threads = .N_THREADS,
+                   start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
                    show_progress = TRUE)
 
     Z$call[["d"]] <- eval(.d)
@@ -1363,7 +1363,7 @@ one_d_invasion <- function(.x) {
                               save_every = 0L, max_t = 50e3L, n_reps = 1,
                               N0 = c(N0, N0[1] * .inv_N0),
                               V0 = c(V0, list(cbind(.v1, .v2))),
-                              start_t = 0, perturb_sd = 0,
+                              start_t = 0, sigma_V0 = 0,
                               show_progress = FALSE) %>%
                 .[["nv"]] %>%
                 filter(trait == 1, spp == .n+1) %>%
@@ -1465,7 +1465,7 @@ fill_qg <- quant_gen(q = 2, eta = 0, d = 1e-2, max_t = 20e3L, n_reps = 1,
                          .[c(30, 60),] %>%
                          as.matrix() %>%
                          split(1:nrow(.)),
-                     start_t = 0, perturb_sd = 0, show_progress = FALSE)
+                     start_t = 0, sigma_V0 = 0, show_progress = FALSE)
 
 print_big_nums(ring_points[c(30, 60),])
 print_big_nums(fill_qg$nv)
@@ -1493,6 +1493,8 @@ pop_sizes(3, 0, 1e-2)
 
 
 
+
+
 # =======
 
 library(sauron)
@@ -1503,7 +1505,7 @@ if (file.exists(".Rprofile")) source(".Rprofile")
 
 z <- quant_gen(q = 2, eta = 0.6, d = c(-0.1, 0.1), max_t = 20e3L, n_reps = 120,
                save_every = 100L, n = 100, N0 = rep(1, 100),
-               start_t = 0, perturb_sd = 2,
+               start_t = 0, sigma_V0 = 2,
                # sigma_N = 0.05,
                sigma_V = 0.01,
                n_threads = 3)

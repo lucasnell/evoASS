@@ -5,25 +5,25 @@
 #
 #
 check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
-                                 perturb_sd, sigma_N, sigma_V, n_reps,
+                                 sigma_V0, sigma_N, sigma_V, n_reps,
                                  start_t, max_t, min_N, save_every,
                                  show_progress, n_threads) {
 
 
-    stopifnot(inherits(V0, "list"))
-    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
-    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
                           n_reps, start_t, max_t, save_every,
                           n_threads, N0), is.numeric))
-    stopifnot(sapply(list(q, n, f, a0, r0, perturb_sd, sigma_N, sigma_V,
+    stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
                           n_reps, start_t, max_t, save_every, n_threads),
                      length) == 1)
-    stopifnot(sapply(V0, function(x) all(x >= 0)))
+    stopifnot(inherits(V0, "matrix") && is.numeric(V0))
+    stopifnot(all(V0 >= 0))
+    stopifnot(nrow(V0) == q && ncol(V0) == n)
 
     stopifnot(n >= 1 && q >= 1)
     stopifnot(N0 >= 0)
     stopifnot(c(n_reps, max_t, n_threads) >= 1)
-    stopifnot(c(start_t, save_every, add_var, perturb_sd, min_N) >= 0)
+    stopifnot(c(start_t, save_every, add_var, sigma_V0, min_N) >= 0)
 
     stopifnot(length(eta) %in% c(1, q^2))
     stopifnot(length(d) %in% c(1, q))
@@ -105,7 +105,10 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #' Quantitative genetics.
 #'
 #' @param n_reps Number of reps to perform.
-#' @param perturb_sd Standard deviation of the perturbation.
+#' @param sigma_V0 Standard deviation for normal distribution from which
+#'     starting trait values can be derived.
+#'     Set to 0 for species to start with the exact values of traits
+#'     specified in `V0`.
 #' @param sigma_N Standard deviation for stochasticity in population dynamics.
 #' @param sigma_V Standard deviation for stochasticity in trait evolution.
 #' @param add_var Vector of additive genetic variances for all starting species.
@@ -133,13 +136,13 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #'
 quant_gen <- function(eta, d, q,
                       n = 100,
-                      V0 = rep(list(matrix(0, q, 1)), n),
+                      V0 = matrix(0, q, n),
                       N0 = rep(1, n),
                       f = 0.1,
                       a0 = 0.5,
                       r0 = 0.5,
                       add_var = rep(0.01, n),
-                      perturb_sd = 1,
+                      sigma_V0 = 1,
                       sigma_N = 0,
                       sigma_V = 0,
                       n_reps = 100,
@@ -158,14 +161,14 @@ quant_gen <- function(eta, d, q,
 
 
     args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
-                                 perturb_sd, sigma_N, sigma_V, n_reps,
+                                 sigma_V0, sigma_N, sigma_V, n_reps,
                                  start_t, max_t, min_N, save_every,
                                  show_progress, n_threads)
 
     invisible(list2env(args, environment()))
 
     qg <- quant_gen_cpp(n_reps = n_reps,
-                        V0 = V0,
+                        V0 = split(t(V0), 1:ncol(V0)),
                         Vp0 = list(),
                         N0 = N0,
                         f = f,
@@ -174,7 +177,7 @@ quant_gen <- function(eta, d, q,
                         r0 = r0,
                         D = D,
                         add_var = add_var,
-                        perturb_sd = perturb_sd,
+                        sigma_V0 = sigma_V0,
                         sigma_N = sigma_N,
                         sigma_V = sigma_V,
                         start_t = start_t,
@@ -517,7 +520,7 @@ perturb.quant_gen <- function(obj,
                               max_t,
                               save_every,
                               start_t = 0,
-                              perturb_sd = 0,
+                              sigma_V0 = 0,
                               new_V = NULL,
                               new_Vp = NULL,
                               new_N = NULL,

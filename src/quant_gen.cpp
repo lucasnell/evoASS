@@ -873,7 +873,7 @@ int one_quant_gen__(OneRepInfo& info,
                      const double& r0,
                      const arma::mat& D,
                      const arma::vec& add_var,
-                     const double& perturb_sd,
+                     const double& sigma_V0,
                      const double& sigma_N,
                      const double& sigma_V,
                      const uint32_t& start_t,
@@ -885,9 +885,9 @@ int one_quant_gen__(OneRepInfo& info,
 
 
     if (Vp0.size() > 0) {
-        info = OneRepInfo(N0, V0, Vp0, max_t, save_every, perturb_sd);
+        info = OneRepInfo(N0, V0, Vp0, max_t, save_every, sigma_V0);
     } else {
-        info = OneRepInfo(N0, V0, max_t, save_every, perturb_sd, sigma_V, eng);
+        info = OneRepInfo(N0, V0, max_t, save_every, sigma_V0, sigma_V, eng);
     }
 
 
@@ -911,7 +911,7 @@ int one_quant_gen__(OneRepInfo& info,
 
 
     // perturb trait values
-    if (perturb_sd > 0) info.perturb(sigma_V, eng);
+    if (sigma_V0 > 0) info.perturb(sigma_V, eng);
 
     t = 0;
     // Save starting info:
@@ -963,7 +963,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const double& r0,
                         const arma::mat& D,
                         const arma::vec& add_var,
-                        const double& perturb_sd,
+                        const double& sigma_V0,
                         const double& sigma_N,
                         const double& sigma_V,
                         const uint32_t& start_t,
@@ -1018,7 +1018,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     for (uint32_t i = 0; i < n_reps; i++) {
         eng.seed(seeds[i][0], seeds[i][1]);
         int status = one_quant_gen__(rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
-                                     add_var, perturb_sd, sigma_N, sigma_V,
+                                     add_var, sigma_V0, sigma_N, sigma_V,
                                      start_t, max_t, min_N, save_every,
                                      eng, prog_bar);
         if (active_thread == 0 && status != 0) interrupted = true;

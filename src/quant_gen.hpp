@@ -43,7 +43,7 @@ public:
                const std::vector<arma::vec>& V_,
                const uint32_t& max_t,
                const uint32_t& save_every,
-               const double& perturb_sd,
+               const double& sigma_V0,
                const double& sigma_V,
                pcg64& eng)
         : N(N_), V(V_), Vp(V_), spp(N_.size()),
@@ -52,7 +52,7 @@ public:
           ss_mat(),
           n(N_.size()),
           q(V_[0].n_elem),
-          perturb_sd_(perturb_sd) {
+          sigma_V0_(sigma_V0) {
 
         for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
 
@@ -88,16 +88,24 @@ public:
                const std::vector<arma::vec>& Vp_,
                const uint32_t& max_t,
                const uint32_t& save_every,
-               const double& perturb_sd)
+               const double& sigma_V0)
         : N(N_), V(V_), Vp(Vp_), spp(N_.size()),
           t(), N_t(), V_t(),
           A(V_.size()),
           ss_mat(),
           n(N_.size()),
           q(V_[0].n_elem),
-          perturb_sd_(perturb_sd) {
+          sigma_V0_(sigma_V0) {
 
-        for (uint32_t i = 0; i < N_.size(); i++) spp[i] = i + 1;
+        if (Vp_.size() != V_.size()) stop("\nVp_.size() != V_.size()");
+        for (uint32_t i = 0; i < N_.size(); i++) {
+            if (Vp_[i].n_elem != V_[i].n_elem) {
+                stop(std::string("\nVp and V sizes don't match at index ") +
+                    std::to_string(i));
+            }
+            spp[i] = i + 1;
+        }
+
 
         if (save_every > 0) {
 
@@ -205,7 +213,7 @@ public:
         if (sigma_V > 0) {
             for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                    V[i][j] = trunc_rnorm_(V[i][j], perturb_sd_, eng);
+                    V[i][j] = trunc_rnorm_(V[i][j], sigma_V0_, eng);
                     // including stochasticity:
                     Vp[i][j] = V[i][j] * std::exp(rnorm(eng) * sigma_V);
                 }
@@ -213,7 +221,7 @@ public:
         } else {
             for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < V[i].n_elem; j++) {
-                    V[i][j] = trunc_rnorm_(V[i][j], perturb_sd_, eng);
+                    V[i][j] = trunc_rnorm_(V[i][j], sigma_V0_, eng);
                     Vp[i][j] = V[i][j];
                 }
             }
@@ -251,7 +259,7 @@ private:
     arma::mat ss_mat;       // Selection strength
     uint32_t n;             // Starting # species
     uint32_t q;             // # traits
-    double perturb_sd_;
+    double sigma_V0_;
     normal_distr rnorm = normal_distr(0, 1);
 
 
