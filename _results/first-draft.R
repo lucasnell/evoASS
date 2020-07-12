@@ -1,5 +1,4 @@
 
-
 # load packages
 suppressPackageStartupMessages({
     library(sauron)
@@ -1495,49 +1494,99 @@ pop_sizes(3, 0, 1e-2)
 
 
 
-# =======
-
-library(sauron)
-library(tidyverse)
 
 
-if (file.exists(".Rprofile")) source(".Rprofile")
+# STOCHASTICITY AND COEXISTENCE ----
 
-z <- quant_gen(q = 2, eta = 0.6, d = c(-0.1, 0.1), max_t = 20e3L, n_reps = 120,
-               save_every = 100L, n = 100, N0 = rep(1, 100),
-               start_t = 0, sigma_V0 = 2,
-               # sigma_N = 0.05,
-               sigma_V = 0.01,
-               n_threads = 3)
 
-z$nv %>%
-    filter(trait == 1, time == max(time)) %>%
-    group_by(rep) %>%
-    summarize(n_spp = n()) %>%
-    ungroup() %>%
-    .[["n_spp"]] %>%
-    {sum(. > 1)}
+set.seed(4235668)
+X <- quant_gen(eta = 0.6, d = c(-0.1, 0.1), q = 2, n = 10,
+               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
+               # sigma_N = 0.1,
+               sigma_V = 0.1,
+               n_reps = 10)
+set.seed(4235669)
+Y <- quant_gen(eta = 0.6, d = -0.1, q = 2, n = 10,
+               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
+               # sigma_N = 0.1,
+               sigma_V = 0.1,
+               n_reps = 10)
+set.seed(4235670)
+Z <- quant_gen(eta = 0.6, d = 0.1, q = 2, n = 10,
+               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
+               # sigma_N = 0.1,
+               sigma_V = 0.1,
+               n_reps = 10)
 
-coexist_df <- z$nv %>%
-    split(.$rep) %>%
-    map_dfr(~ mutate(., n_spp = spp[time == max(time)] %>% unique() %>% length())) %>%
-    filter(n_spp > 1)
+Nts <- function(.QG, .title = NULL) {
+    .QG$nv %>%
+        filter(trait == 1) %>%
+        ggplot(aes(time, N)) +
+        geom_line(aes(color = spp), na.rm = TRUE) +
+        ggtitle(.title) +
+        facet_wrap(~ rep) +
+        scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE)
+}
 
-coexist_df %>%
-# z$nv %>%
-    filter(trait == 1) %>%
-    ggplot(aes(time, N)) +
-    geom_line(aes(color = spp)) +
-    facet_wrap(~ rep, nrow = 6) +
-    scale_color_viridis_d(guide = FALSE)
+Vts <- function(.QG, .title = NULL) {
+    .QG$nv %>%
+        mutate(trait = paste0("V", trait)) %>%
+        select(rep, time, spp, trait, geno) %>%
+        spread(trait, geno) %>%
+        arrange(rep, spp, time) %>%
+        ggplot(aes(V1, V2)) +
+        geom_path(aes(color = spp), na.rm = TRUE) +
+        stable_points(.QG$call[["eta"]], return_geom = TRUE,
+                      shape = 1, size = 4, color = "black") +
+        geom_point(data = .QG$nv %>%
+                       filter(time == max(time)) %>%
+                       mutate(trait = paste0("V", trait)) %>%
+                       select(rep, time, spp, trait, geno) %>%
+                       spread(trait, geno) %>%
+                       group_by(rep) %>%
+                       filter(unq_spp_filter(V1, V2)) %>%
+                       ungroup(),
+                   shape = 4, size = 4, color = "black") +
+        ggtitle(.title) +
+        facet_wrap(~ rep) +
+        scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE)
+}
+Vpts <- function(.QG, .title = NULL) {
+    stopifnot("pheno" %in% colnames(.QG$nv))
+    .QG$nv %>%
+        mutate(trait = paste0("V", trait)) %>%
+        select(rep, time, spp, trait, pheno) %>%
+        spread(trait, pheno) %>%
+        arrange(rep, spp, time) %>%
+        ggplot(aes(V1, V2)) +
+        geom_path(aes(color = spp), na.rm = TRUE) +
+        stable_points(.QG$call[["eta"]], return_geom = TRUE,
+                      shape = 1, size = 4, color = "black") +
+        geom_point(data = .QG$nv %>%
+                       filter(time == max(time)) %>%
+                       mutate(trait = paste0("V", trait)) %>%
+                       select(rep, time, spp, trait, pheno) %>%
+                       spread(trait, pheno) %>%
+                       group_by(rep) %>%
+                       filter(unq_spp_filter(V1, V2)) %>%
+                       ungroup(),
+                   shape = 4, size = 4, color = "black") +
+        ggtitle(.title) +
+        facet_wrap(~ rep) +
+        scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE)
+}
 
-coexist_df %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread("trait", "value") %>%
-    arrange(rep, spp, time) %>%
-    ggplot(aes(V1, V2, color = spp)) +
-    geom_path() +
-    facet_wrap(~ rep, nrow = 6) +
-    scale_color_viridis_d(guide = FALSE) +
-    coord_equal()
+Nts(X, expression(- {} + {}))
+Nts(Y, expression(- {} - {}))
+Nts(Z, expression(+ {} + {}))
+
+Vts(X, expression(- {} + {}))
+Vts(Y, expression(- {} - {}))
+Vts(Z, expression(+ {} + {}))
+
+
+Vpts(X, expression(- {} + {}))
+Vpts(Y, expression(- {} - {}))
+Vpts(Z, expression(+ {} + {}))
+
 
