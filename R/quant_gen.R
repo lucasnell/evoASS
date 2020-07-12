@@ -136,7 +136,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #'
 #'
 quant_gen <- function(eta, d, q,
-                      n = 100,
+                      n = 10,
                       V0 = matrix(0, q, n),
                       N0 = rep(1, n),
                       f = 0.1,
@@ -147,10 +147,10 @@ quant_gen <- function(eta, d, q,
                       sigma_N = 0,
                       sigma_V = 0,
                       n_reps = 100,
-                      spp_gap_t = 0,
-                      final_t = 1e6L,
+                      spp_gap_t = 5e3L,
+                      final_t = 20e3L,
                       min_N = 1e-4,
-                      save_every = 1e4L,
+                      save_every = 10L,
                       show_progress = TRUE,
                       n_threads = 1) {
 
