@@ -137,7 +137,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
 #'
 quant_gen <- function(eta, d, q,
                       n = 10,
-                      V0 = matrix(0, q, n),
+                      V0 = NULL,
                       N0 = rep(1, n),
                       f = 0.1,
                       a0 = 0.5,
@@ -146,7 +146,7 @@ quant_gen <- function(eta, d, q,
                       sigma_V0 = 1,
                       sigma_N = 0,
                       sigma_V = 0,
-                      n_reps = 100,
+                      n_reps = 10,
                       spp_gap_t = 5e3L,
                       final_t = 20e3L,
                       min_N = 1e-4,
@@ -158,6 +158,31 @@ quant_gen <- function(eta, d, q,
     # So it doesn't show the whole function if using do.call:
     if (call_[1] != as.call(quote(quant_gen()))) {
         call_[1] <- as.call(quote(quant_gen()))
+    }
+
+    if (is.null(V0) &&
+        q == 2 &&
+        ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
+          ncol(eta) == 2) ||
+         (inherits(eta, "numeric") && length(eta) == 1))) {
+        # For 2-trait case and proper inputs, we choose starting points
+        # based on known stable points, return warning is sigma_V0 and sigma_V
+        # are both 0
+        if (sigma_V0 == 0 && sigma_V == 0) {
+            warning(paste("\nSimulations start with species at stable",
+                          "points, and you aren't providing stochasticity in",
+                          "either the starting values or via phenotypes.",
+                          "Thus these simulations may be odd or boring.",
+                          "Continuing anyway..."))
+        }
+        pts <- stable_points(eta = eta, f = f, a0 = a0, r0 = r0) %>%
+            split(1:ncol(.)) %>%
+            lapply(unlist)
+        V0 <- sample(pts, n, replace = TRUE) %>%
+            do.call(what = cbind)
+    } else {
+        # Otherwise start at zero:
+        V0 <- matrix(0, q, n)
     }
 
 
@@ -275,7 +300,18 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 #' @importFrom ggplot2 aes
 #'
 stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
-                                 return_geom = FALSE, line_n = 1000, ...) {
+                          return_geom = FALSE, line_n = 1000, ...) {
+    stopifnot((inherits(eta, "matrix") && is.numeric(eta)) ||
+                  inherits(eta, "numeric"))
+    if (inherits(eta, "matrix")) {
+        if (nrow(eta) != 2 || ncol(eta) != 2 || eta[2,1] != eta[1,2]) {
+            stop(paste("\n`eta` must be numeric or a symmetric 2x2 matrix",
+                       "bc `stable_points` is only programmed for 2-trait case."))
+        }
+        eta <- eta[1,2]
+    } else if (length(eta) != 1) {
+        stop("\n`stable_points` is only programmed for 2-trait case.")
+    }
     if (eta < 0) {
         xy <- sqrt(0.5 * ((r0 / (f * (1 + eta))) - 1))
         pts <- tibble(V1 = xy, V2 = xy)
