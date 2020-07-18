@@ -384,12 +384,16 @@ unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALS
 #'
 pop_sizes <- function(n, eta, d, ...) {
 
-    stopifnot(is.numeric(n) && length(eta) == 1)
+    stopifnot(is.numeric(n) && length(n) == 1)
     stopifnot(is.numeric(eta))
     stopifnot(is.numeric(d))
 
     if (length(d) > 2 || length(eta) > 1) {
         stop("`pop_sizes` is only programmed for 2 traits")
+    }
+    if (eta > 0 && length(d) > 1) {
+        stop(paste("`pop_sizes not programmed for differing d values",
+                   "for super-additive tradeoffs`"))
     }
     if (length(d) == 1) d <- rep(d, 2)
 
@@ -397,15 +401,27 @@ pop_sizes <- function(n, eta, d, ...) {
     LIST <- modifyList(LIST,
                        list(eta = eta, n = n, d1 = d[1], d2 = d[2]))
 
-    N <- with(LIST,
-              {
-                  num <- f * (1 + eta) * exp((r0 / (f * (1 + eta))) - 1)
-                  denom <- a0 * (
-                      1 + exp(-0.5 * (r0 / (f * (1 + eta)) - 1) * (d1 + d2)) *
-                          (n - 1)
-                  )
-                  (num / denom)
-              })
+    if (eta < 0) {
+        N <- with(LIST,
+                  {
+                      num <- f * (1 + eta) * exp((r0 / (f * (1 + eta))) - 1)
+                      denom <- a0 * (
+                          1 + exp(-0.5 * (r0 / (f * (1 + eta)) - 1) * (d1 + d2)) *
+                              (n - 1)
+                      )
+                      (num / denom)
+                  })
+    } else {
+        N <- with(LIST,
+                  {
+                      num <- f * exp(r0 / f - 1)
+                      denom <- a0 * (
+                          1 + exp(-d1 * (r0 / f - 1)) * (n - 1)
+                      )
+                      (num / denom)
+                  })
+    }
+
 
     rep(N, n)
 
