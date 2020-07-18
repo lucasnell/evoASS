@@ -176,12 +176,20 @@ quant_gen <- function(eta, d, q,
                           "Continuing anyway..."))
         }
         pts <- stable_points(eta = eta, f = f, a0 = a0, r0 = r0) %>%
-            split(1:ncol(.)) %>%
+            split(1:nrow(.)) %>%
             lapply(unlist)
         V0 <- sample(pts, n, replace = TRUE) %>%
             do.call(what = cbind)
-    } else {
+    } else if (is.null(V0)) {
         # Otherwise start at zero:
+        if (sigma_V0 == 0 && sigma_V == 0) {
+            warning(paste("\nSimulations start with species having all traits",
+                          "at zero, and you aren't providing stochasticity in",
+                          "either the starting values or via phenotypes.",
+                          "Because this is often an unstable equilibrium,",
+                          "these simulations may be odd or boring.",
+                          "Continuing anyway..."))
+        }
         V0 <- matrix(0, q, n)
     }
 
@@ -191,7 +199,9 @@ quant_gen <- function(eta, d, q,
                                  spp_gap_t, final_t, min_N, save_every,
                                  show_progress, n_threads)
 
-    invisible(list2env(args, environment()))
+    C <- args$C
+    D <- args$D
+    n_threads <- args$n_threads
 
     qg <- quant_gen_cpp(n_reps = n_reps,
                         V0 = split(t(V0), 1:ncol(V0)),
