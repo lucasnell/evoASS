@@ -233,51 +233,6 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, "1-")
 # =============================================================================*
 
 
-.eta <- 0.6
-
-D <- matrix(0, 2, 2)
-diag(D) <- 0.1
-C <- matrix(.eta, 2, 2)
-diag(C) <- 1
-f <- formals(quant_gen)[["f"]]
-a0 <- formals(quant_gen)[["a0"]]
-r0 <- formals(quant_gen)[["r0"]]
-
-.dist <- 0.6
-
-V <- stable_points(.eta) %>%
-    filter(V2 > 0) %>%
-    add_row(V1 = .$V1 + c(0, .dist / sqrt(2), .dist,
-                          .dist / sqrt(2), 0),
-            V2 = .$V2 + c(-.dist, -.dist / sqrt(2), 0,
-                          .dist / sqrt(2), .dist)) %>%
-    .[-1,] %>%
-    arrange(V2) %>%
-    as.matrix() %>%
-    t()
-
-for (i in 2:5) {
-    V0 <- do.call(cbind, c(rep(list(stable_points(.eta)[1,] %>%
-                                        as.matrix() %>% t()),
-                               i - 1),
-                           list(V[,i])))
-    if (i > 4) {
-        V0 <- V0[,-3:-4]
-    } else if (i > 3) V0 <- V0[,-3]
-    F_ <- sauron:::F_t_cpp(V0,
-                           # rep(1, ncol(V)),
-                           c(pop_sizes(ncol(V0) - 1, .eta, 0.1), 1),
-                           # 1,
-                           f, a0, C, r0, D)
-    print(F_)
-    print(F_[length(F_)] - F_[length(F_)-1])
-}; rm(i, F_)
-
-
-sauron:::F_t_cpp(cbind(c(0, 2), c(0.424, 1.58)),
-                       c(pop_sizes(1, 0.6, 0.1), 1),
-                       f, a0, C, r0, D)
-
 
 
 cond_coexist_test <- function(.V0, .eta_sign, .d1) {
@@ -300,28 +255,30 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
     .eta <- .eta_sign * etas[[2]]
 
     if (.eta < 0) {
-        if (.V0 == "unrestricted") {
-            .V0 <- stable_points(.eta) %>%
-                add_row(V1 = .$V1 + c(-.dist / sqrt(2), .dist / sqrt(2),
-                                      -.dist / sqrt(2),
-                                      0, .dist / sqrt(2)),
-                        V2 = .$V2 + c(-.dist / sqrt(2), -.dist / sqrt(2),
-                                      .dist / sqrt(2),
-                                      .dist, .dist / sqrt(2))) %>%
-                .[-1,] %>%
-                as.matrix() %>%
-                t()
-        } else {
-            .V0 <- stable_points(.eta) %>%
-                add_row(V1 = c(.$V1 + c(-.dist / sqrt(2), -.dist,
-                                        -.dist / sqrt(2),
-                                        0, .dist / sqrt(2))),
-                        V2 = .$V2 + c(-.dist / sqrt(2), 0, .dist / sqrt(2),
-                                      .dist, .dist / sqrt(2))) %>%
-                .[-1,] %>%
-                as.matrix() %>%
-                t()
-        }
+        # if (.V0 == "unrestricted") {
+        #     .V0 <- stable_points(.eta) %>%
+        #         add_row(V1 = .$V1 + c(-.dist / sqrt(2), .dist / sqrt(2),
+        #                               -.dist / sqrt(2),
+        #                               0, .dist / sqrt(2)),
+        #                 V2 = .$V2 + c(-.dist / sqrt(2), -.dist / sqrt(2),
+        #                               .dist / sqrt(2),
+        #                               .dist, .dist / sqrt(2))) %>%
+        #         .[-1,] %>%
+        #         as.matrix() %>%
+        #         t()
+        # } else {
+        #     .V0 <- stable_points(.eta) %>%
+        #         add_row(V1 = c(.$V1 + c(-.dist / sqrt(2), -.dist,
+        #                                 -.dist / sqrt(2),
+        #                                 0, .dist / sqrt(2))),
+        #                 V2 = .$V2 + c(-.dist / sqrt(2), 0, .dist / sqrt(2),
+        #                               .dist, .dist / sqrt(2))) %>%
+        #         .[-1,] %>%
+        #         as.matrix() %>%
+        #         t()
+        # }
+        .V0 <- rbind(seq(2, 3, length.out = 5),
+                     seq(3, 2, length.out = 5))
     } else {
         # if (.V0 == "unrestricted") {
         #     .V0 <- stable_points(.eta) %>%
@@ -355,6 +312,7 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
         }
     }
 
+
     Z <- quant_gen(q = .q, eta = .eta, d = .ds,
                    n_reps = 1, n = ncol(.V0),
                    V0 = .V0,
@@ -375,89 +333,15 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
 
 
 
-Z <- quant_gen(q = 2, eta = .eta, d = 0.1,
-               n_reps = 1, n = 1,
-               V0 = rbind(2, 2 + 1e-6),
-               N0 = 1, add_var = 0.1,
-               sigma_V0 = 0,
-               spp_gap_t = 0L,
-               final_t = 5e3L,
-               save_every = 1L,
-               show_progress = FALSE) %>%
-    .[["nv"]] %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread(trait, geno) %>%
-    select(-rep)
+.eta <- -0.6
 
-Z %>% filter(time == 650)
-
-
-Z %>%
-    filter(time < 650, time >= 500) %>%
-    gather(trait, value, V1:V2) %>%
-    {
-        ggplot(., aes(time, value, color = spp)) +
-        geom_line() +
-        geom_point(data = filter(., time %in% (min(time) + 25 * 1:5))) +
-        ggtitle(Sys.time()) +
-        facet_wrap(~ trait) +
-        scale_color_brewer(palette = "Dark2", guide = FALSE) +
-        ylab("Trait value") +
-        xlab("Time")
-    }
-
-
-Z %>%
-    filter(time %in% round(750 * (0.9^(0:4)))) %>%
-    select(starts_with("V", FALSE)) %>%
-    as.matrix() %>%
-    t()
-
-
-Z %>%
-    filter(time %in% (500 + 25 * 1:5)) %>%
-    select(starts_with("V", FALSE)) %>%
-    lm(formula = V2 ~ V1)
-
-
-
-ggarrange(Z %>%
-              arrange(time, spp) %>%
-              ggplot(aes(V1, V2, color = spp)) +
-              geom_polygon(data = tibble(x = c(-1, 5, -1), y = c(-1, 5, 5)), aes(x,y),
-                           color = NA, fill = "gray80") +
-              ggtitle(Sys.time()) +
-              geom_path() +
-              geom_point(data = Z %>%
-                             filter(time %in% (500 + 25 * 1:5))) +
-              geom_point(data = Z %>%
-                             filter(time == min(time)),
-                         shape = 1) +
-              geom_point(data = Z %>%
-                             filter(time == max(time)),
-                         shape = 4, size = 4, color = "black") +
-              coord_equal(xlim = c(0, 4.25), ylim = c(0, 4.25)) +
-              scale_color_brewer(palette = "Dark2", guide = FALSE) +
-              ylab("Trait 2") +
-              xlab("Trait 1"),
-          Z %>%
-              filter(time < 1e3L) %>%
-              gather(trait, value, V1:V2) %>%
-              ggplot(aes(time, value, color = spp)) +
-              geom_line() +
-              geom_line(data = Z %>%
-                            filter(time < 1e3L),
-                        aes(time, N / 5), linetype = 2) +
-              ggtitle(Sys.time()) +
-              facet_wrap(~ trait) +
-              scale_color_brewer(palette = "Dark2", guide = FALSE) +
-              ylab("Trait value") +
-              xlab("Time"),
-          nrow = 1)
-
-
-
-
+D <- matrix(0, 2, 2)
+diag(D) <- 0.1
+C <- matrix(.eta, 2, 2)
+diag(C) <- 1
+f <- formals(quant_gen)[["f"]]
+a0 <- formals(quant_gen)[["a0"]]
+r0 <- formals(quant_gen)[["r0"]]
 
 
 invader_fitness <- function(.V1, .V2, .res_n_spp) {
@@ -472,7 +356,7 @@ invader_fitness <- function(.V1, .V2, .res_n_spp) {
 
 invader_heatmap <- crossing(.V1 = seq(0, 3, 0.1),
          .V2 = seq(0, 3, 0.1),
-         .res_n_spp = 1:4) %>%
+         .res_n_spp = 0:4) %>%
     pmap_dfr(.f = invader_fitness)
 
 
@@ -483,7 +367,7 @@ invader_heatmap %>%
     # geom_contour(aes(z = fitness), color = "black", size = 0.25) +
     geom_point(data = invader_heatmap %>%
                    mutate(res_n_spp = factor(res_n_spp)) %>%
-                   filter(fitness > 0.8), shape = 1) +
+                   filter(fitness >= 0.9), shape = 1) +
     scale_fill_gradient2(midpoint = 1) +
     facet_wrap(~ res_n_spp, nrow = 2) +
     coord_equal()
@@ -495,7 +379,7 @@ invader_heatmap %>%
               V2 = V2[fitness == max(fitness)])
 
 invader_heatmap %>%
-    filter(res_n_spp == 3, fitness > 0.8) %>%
+    filter(res_n_spp == 3, fitness > 0.9) %>%
     # filter(abs(V1 - V2) == min(abs(V1 - V2)))
     filter(V2 == max(V2))
 
@@ -507,9 +391,10 @@ invader_heatmap %>%
 
 cond_coexist_df <- crossing(.V0 = c("restricted", "unrestricted"),
          # .eta_sign = c(-1,1),
-         .eta_sign = 1,
+         .eta_sign = -1,
          # .d1 = 0.1) %>%
          .d1 = c(0.1, -0.1)) %>%
+    filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
     pmap_dfr(cond_coexist_test) %>%
     mutate(V0 = factor(V0, levels = c("restricted", "unrestricted")),
            eta = factor(eta, levels = c(-1, 1) * etas[[2]],
