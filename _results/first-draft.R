@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
     library(tidyverse)
     library(grid)
     library(gridExtra)
+    library(scales)
     library(pbmcapply)
     library(parallel)
     library(egg)
@@ -51,10 +52,13 @@ print_big_nums <- function(x, ...) {
 
 
 
-save_plot <- function(plot_obj, .width, .height, .prefix = NULL, .suffix = NULL) {
-    fn <- gsub("_p$", "", paste(substitute(plot_obj)))
-    if (!is.null(.prefix)) fn <- paste0(.prefix, fn)
-    if (!is.null(.suffix)) fn <- paste0(fn, .suffix)
+save_plot <- function(plot_obj, .width, .height,
+                      .name = NULL, .prefix = NULL, .suffix = NULL) {
+    if (is.null(.name)) {
+        fn <- gsub("_p$", "", paste(substitute(plot_obj)))
+        if (!is.null(.prefix)) fn <- paste0(.prefix, fn)
+        if (!is.null(.suffix)) fn <- paste0(fn, .suffix)
+    } else fn <- gsub(".pdf$", "", .name)
     fn <- sprintf("_results/results-plots/%s.pdf", fn)
     message(fn)
     plot_fun <- ifelse(inherits(plot_obj, "egg"), print, plot)
@@ -254,55 +258,17 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
 
     .eta <- .eta_sign * etas[[2]]
 
+    if (.lab == "restricted" && .eta < 0) {
+        stop(paste("\n'restricted' with sub-additivity is not programmed bc",
+                   "there's only one stable trait state.",
+                   "Thus, there is no way to restrict starting traits to",
+                   "be outside of that state's basin of attraction."))
+    }
+
     if (.eta < 0) {
-        # if (.V0 == "unrestricted") {
-        #     .V0 <- stable_points(.eta) %>%
-        #         add_row(V1 = .$V1 + c(-.dist / sqrt(2), .dist / sqrt(2),
-        #                               -.dist / sqrt(2),
-        #                               0, .dist / sqrt(2)),
-        #                 V2 = .$V2 + c(-.dist / sqrt(2), -.dist / sqrt(2),
-        #                               .dist / sqrt(2),
-        #                               .dist, .dist / sqrt(2))) %>%
-        #         .[-1,] %>%
-        #         as.matrix() %>%
-        #         t()
-        # } else {
-        #     .V0 <- stable_points(.eta) %>%
-        #         add_row(V1 = c(.$V1 + c(-.dist / sqrt(2), -.dist,
-        #                                 -.dist / sqrt(2),
-        #                                 0, .dist / sqrt(2))),
-        #                 V2 = .$V2 + c(-.dist / sqrt(2), 0, .dist / sqrt(2),
-        #                               .dist, .dist / sqrt(2))) %>%
-        #         .[-1,] %>%
-        #         as.matrix() %>%
-        #         t()
-        # }
         .V0 <- rbind(seq(2, 3, length.out = 5),
                      seq(3, 2, length.out = 5))
     } else {
-        # if (.V0 == "unrestricted") {
-        #     .V0 <- stable_points(.eta) %>%
-        #         add_row(V1 = c(.$V1[.$V2 > 0] + c(0, .dist, .dist / sqrt(2), 0),
-        #                        .$V1[.$V1 > 0]),
-        #                 V2 = c(.$V2[.$V2 > 0] + c(-.dist, 0, .dist / sqrt(2),
-        #                                           .dist),
-        #                        .$V2[.$V1 > 0] + .dist)) %>%
-        #         .[-1:-2,] %>%
-        #         arrange(V2) %>%
-        #         as.matrix() %>%
-        #         t()
-        # } else {
-        #     .V0 <- stable_points(.eta) %>%
-        #         filter(V2 > 0) %>%
-        #         add_row(V1 = .$V1 + c(0, .dist / sqrt(2), .dist,
-        #                               .dist / sqrt(2), 0),
-        #                 V2 = .$V2 + c(-.dist, -.dist / sqrt(2), 0,
-        #                               .dist / sqrt(2), .dist)) %>%
-        #         .[-1,] %>%
-        #         arrange(V2) %>%
-        #         as.matrix() %>%
-        #         t()
-        # }
         .V0 <- rbind(seq(1.2, 0, length.out = 5),
                      seq(1.3, 2.5, length.out = 5))
         if (.lab == "unrestricted") {
@@ -313,205 +279,207 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
     }
 
 
-    Z <- quant_gen(q = .q, eta = .eta, d = .ds,
+    qg <- quant_gen(q = .q, eta = .eta, d = .ds,
                    n_reps = 1, n = ncol(.V0),
                    V0 = .V0,
                    sigma_V0 = 0,
-                   spp_gap_t = 5e3L,
-                   add_var = rep(0.05, ncol(.V0)),
+                   spp_gap_t = 500L,
                    final_t = 20e3L,
-                   show_progress = FALSE) %>%
-        .[["nv"]] %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, geno) %>%
-        select(-rep) %>%
-        mutate(V0 = .lab, eta = .eta, d1 = .d1)
+                   add_var = rep(0.05, .n),
+                   show_progress = FALSE)
 
-    return(Z)
+    qg$call[["q"]] <- eval(.q)
+    qg$call[["n"]] <- eval(.n)
+    qg$call[["d"]] <- eval(.ds)
+    qg$call[["eta"]] <- eval(.eta)
+    qg$call[["add_var"]] <- eval(rep(0.05, .n))
+
+    out <- list(nv = qg %>%
+                    .[["nv"]] %>%
+                    mutate(trait = paste0("V", trait)) %>%
+                    spread(trait, geno) %>%
+                    select(-rep) %>%
+                    mutate(V0 = .lab, eta = .eta, d1 = .d1),
+                jacs = jacobians(qg))
+
+    return(out)
 }
 
 
 
-
-.eta <- -0.6
-
-D <- matrix(0, 2, 2)
-diag(D) <- 0.1
-C <- matrix(.eta, 2, 2)
-diag(C) <- 1
-f <- formals(quant_gen)[["f"]]
-a0 <- formals(quant_gen)[["a0"]]
-r0 <- formals(quant_gen)[["r0"]]
-
-
-invader_fitness <- function(.V1, .V2, .res_n_spp) {
-    V0_ <- do.call(cbind, c(rep(list(c(0, 2)), .res_n_spp), list(c(.V1, .V2))))
-    F_ <- sauron:::F_it_cpp(i = .res_n_spp,
-                            V = V0_,
-                            N = c(pop_sizes(.res_n_spp, C[1,2], D[1,1]), 1),
-                            f, a0, C, r0, D)
-    return(tibble(res_n_spp = .res_n_spp, V1 = .V1, V2 = .V2, fitness = F_))
-}
-
-
-invader_heatmap <- crossing(.V1 = seq(0, 3, 0.1),
-         .V2 = seq(0, 3, 0.1),
-         .res_n_spp = 0:4) %>%
-    pmap_dfr(.f = invader_fitness)
-
-
-invader_heatmap %>%
-    mutate(res_n_spp = factor(res_n_spp)) %>%
-    ggplot(aes(V1, V2, fill = fitness)) +
-    geom_tile() +
-    # geom_contour(aes(z = fitness), color = "black", size = 0.25) +
-    geom_point(data = invader_heatmap %>%
-                   mutate(res_n_spp = factor(res_n_spp)) %>%
-                   filter(fitness >= 0.9), shape = 1) +
-    scale_fill_gradient2(midpoint = 1) +
-    facet_wrap(~ res_n_spp, nrow = 2) +
-    coord_equal()
-
-
-invader_heatmap %>%
-    group_by(res_n_spp) %>%
-    summarize(V1 = V1[fitness == max(fitness)],
-              V2 = V2[fitness == max(fitness)])
-
-invader_heatmap %>%
-    filter(res_n_spp == 3, fitness > 0.9) %>%
-    # filter(abs(V1 - V2) == min(abs(V1 - V2)))
-    filter(V2 == max(V2))
-
-
-
-
-
-
-
-cond_coexist_df <- crossing(.V0 = c("restricted", "unrestricted"),
-         # .eta_sign = c(-1,1),
-         .eta_sign = -1,
-         # .d1 = 0.1) %>%
-         .d1 = c(0.1, -0.1)) %>%
+cond_coexist <- crossing(.V0 = c("restricted", "unrestricted"),
+                         .eta_sign = c(-1,1),
+                         .d1 = c(-0.1, 0.1)) %>%
     filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
-    pmap_dfr(cond_coexist_test) %>%
+    pmap(cond_coexist_test)
+
+
+cond_coexist_df <- cond_coexist %>%
+    map_dfr(~ .x$nv) %>%
+    filter(time < 4e3L) %>%
     mutate(V0 = factor(V0, levels = c("restricted", "unrestricted")),
            eta = factor(eta, levels = c(-1, 1) * etas[[2]],
-                        labels = c("sub-additive", "super-additive")))
+                        labels = c("sub-additive", "super-additive")),
+           d1 = factor(d1, levels = c(-0.1, 0.1),
+                       labels = c("conflicting",
+                                  "non-conflicting"))) %>%
+    # `trait_space` is a combination of starting trait values and eta:
+    mutate(trait_space =
+               case_when(V0 == "restricted" & eta == "super-additive" ~ "i",
+                         V0 == "unrestricted" & eta == "super-additive" ~ "ii",
+                         V0 == "unrestricted" & eta == "sub-additive" ~ "iii",
+                         TRUE ~ NA_character_) %>%
+               factor(levels = c("i", "ii", "iii")),
+           trt = sprintf("'%s' ~ {%s}", paste(trait_space),
+                         ifelse(d1 == "conflicting", "-{}", "+{}")) %>%
+               factor(levels = sprintf("'%s' ~ {%s}",
+                                       rep(levels(trait_space), 2),
+                                       rep(c("-{}", "+{}"), each = 3))))
+
+if (any(is.na(cond_coexist_df$trait_space))) {
+    stop("\nERROR: unknown combination of V0 and eta")
+}
 
 
-cond_coexist_df %>%
-    filter(time == max(time)) %>%
-    group_by(d1, eta, V0) %>%
-    summarize(n_spp = n()) %>%
-    ungroup()
+# Starting conditions:
 
-
-# cond_coexist_df %>%
-#     filter(d1 > 0, eta == "super-additive", V0 == "restricted", time > 5e3L-10)
-
-
-
-# Time series for coexistence and exclusion
-# cond_coexist_ts_p <-
-cond_coexist_df %>%
-    mutate(d1 = factor(d1)) %>%
-    # filter(d1 > 0) %>%
-    ggplot(aes(time / 1000L, N, color = spp)) +
-    geom_line() +
-    # facet_grid(eta ~ V0, scales = "free_y") +
-    facet_grid(d1 ~ V0, scales = "free_y") +
-    # scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
+cond_coexist_sc_p <- cond_coexist_df %>%
+    filter(d1 == "non-conflicting") %>%
+    group_by(trait_space, spp) %>%
+    filter(time == min(time)) %>%
+    ungroup() %>%
+    select(trait_space, spp, V1, V2) %>%
+    ggplot(aes(V1, V2)) +
+    geom_abline(data = tibble(trait_space = factor(c("i", "ii"),
+                                                   levels = c("i", "ii",
+                                                              "iii")),
+                              slp = 1, int = 0),
+                aes(slope = slp, intercept = int), linetype = 2, color = "gray70") +
+    geom_point(aes(color = spp), size = 2) +
+    geom_point(data = map_dfr(etas[[2]] * c(1, 1, -1), ~ stable_points(.x)) %>%
+                   mutate(trait_space = map2(c("i", "ii", "iii"), c(2,2,1), rep) %>%
+                              do.call(what = c) %>%
+                              factor(levels = c("i", "ii", "iii")),
+                          shp = case_when(V1 > 0 & V2 > 0 ~ 3L,
+                                          V1 == 0 ~ 2L,
+                                          TRUE ~ 1L) %>%
+                              factor(levels = 1:3)),
+               aes(shape = shp), size = 4, color = "black") +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    ylab("Abundance") +
-    scale_x_continuous(expression("Time (" %*% "1,000" * ")")) +
-    theme(#strip.text.x = element_blank(),
-          plot.margin = margin(0,0,0,t=20))
-
-
-
-# Movement through trait space for coexistence and exclusion:
-# cond_coexist_sp_p <-
-    cond_coexist_df %>%
-    mutate(d1 = factor(d1)) %>%
-    # filter(d1 > 0) %>%
-    # filter(time < 2.5e3) %>%
-    arrange(time, spp) %>%
-    ggplot(aes(V1, V2, color = spp)) +
-    geom_polygon(data = tibble(x = c(-1, 5, -1), y = c(-1, 5, 5)), aes(x,y),
-                 color = NA, fill = "gray80") +
-    geom_path() +
-    geom_point(data = cond_coexist_df %>%
-                   mutate(d1 = factor(d1)) %>%
-                   group_by(d1, eta, V0, spp) %>%
-                   filter(time == min(time)) %>%
-                   ungroup(),
-               shape = 1) +
-    geom_point(data = cond_coexist_df %>%
-                   mutate(d1 = factor(d1)) %>%
-                   filter(time == max(time)) %>%
-                   group_by(d1, eta, V0) %>%
-                   filter(unq_spp_filter(V1, V2)) %>%
-                   ungroup(),
-               shape = 4, size = 4, color = "black") +
-    # scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE) +
-    scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    facet_grid(d1 ~ V0) +
-    coord_equal(xlim = c(0, 4.25), ylim = c(0, 4.25)) +
+    scale_shape_manual(values = 0:2, guide = FALSE) +
+    scale_size_continuous(range = c(0.1, 1)) +
+    facet_grid(~ trait_space) +
+    coord_equal(xlim = c(0, 3), ylim = c(0, 3)) +
     ylab("Trait 2") +
     xlab("Trait 1") +
-    theme(# strip.text = element_blank(),
-          plot.margin = margin(0,0,0,t=20))
+    theme(plot.margin = margin(0,0,0,b=6))
+
+
+# Time series of abundances
+cc_N_p_list <- map(c("non-conflicting", "conflicting"),
+                   ~ cond_coexist_df %>%
+                       filter(d1 == .x) %>%
+                       ggplot(aes(time / 1000L, N, color = spp)) +
+                       geom_line() +
+                       facet_wrap(~ trait_space, nrow = 1) +
+                       scale_color_brewer(palette = "Dark2",
+                                          guide = FALSE) +
+                       scale_y_continuous("Abundance", trans = "log",
+                                          breaks = 10^(c(-3, 0, 3)),
+                                          labels = parse(
+                                              text = sprintf("10^{%i}",
+                                                             c(-3, 0, 3)))) +
+                       xlab("Time (× 1,000)") +
+                       theme(plot.margin = margin(0,0,t=10,b=10),
+                             axis.title.x = element_blank())
+)
+
+
+names(cc_N_p_list) <- c("non-conflicting", "conflicting")
 
 
 
-cond_coexist_p_label <-
-    tableGrob(cbind("exclusion", "coexistence"),
-              theme = ttheme_minimal(core = list(fg_params =
-                                                     list(hjust=0.5, x=0.5,
-                                                          vjust=0.5, y=0.5))),
-              widths = unit(rep(1/2,2), "npc"),
-              heights = unit(2,"npc"))
+stable_state_df <- map_dfr(1:3,
+                           function(i) {
+                               ts <- cond_coexist_df$trait_space %>%
+                                   unique() %>%
+                                   sort() %>%
+                                   .[i]
+                               stable_points((etas[[2]] * c(1,1,-1))[i]) %>%
+                                   mutate(trait_space = ts)
+                           }) %>%
+    mutate(time = max(cond_coexist_df$time),
+           shp = case_when(V1 > 0 & V2 > 0 ~ 3L,
+                           V1 == 0 ~ 2L,
+                           TRUE ~ 1L) %>%
+               factor(levels = 1:3)) %>%
+    gather(trait, value, V1:V2) %>%
+    mutate(trait = gsub("^V", "trait ", trait))
 
 
-cond_coexist_p <- ggarrange(cond_coexist_ts_p,
-                            cond_coexist_sp_p,
-                            heights = c(0.4, 0.6),
-                            ncol = 1, labels = LETTERS[1:2],
-                            top = cond_coexist_p_label,
-                            label.args = list(gp = gpar(fontsize = 14,
-                                                        fontface =  "plain"),
-                                              vjust = 1.7, hjust = -3))
+cc_V_p_list <- map(c("non-conflicting", "conflicting"),
+                   ~ cond_coexist_df %>%
+                       filter(d1 == .x) %>%
+                       gather(trait, value, V1:V2) %>%
+                       mutate(trait = gsub("^V", "trait ", trait)) %>%
+                       ggplot(aes(time / 1000L, value)) +
+                       geom_hline(yintercept = 0, size = 0.5,
+                                  linetype = 1, color = "gray70") +
+                       geom_vline(xintercept = 0, size = 0.5,
+                                  linetype = 1, color = "gray70") +
+                       geom_point(data = stable_state_df,
+                                  aes(shape = shp), size = 3) +
+                       geom_line(aes(color = spp)) +
+                       facet_grid(trait ~ trait_space) +
+                       scale_color_brewer(palette = "Dark2", guide = FALSE) +
+                       scale_shape_manual(values = 0:2, guide = FALSE) +
+                       scale_y_continuous("Trait value", limits = c(-0.2, NA)) +
+                       xlab("Time (× 1,000)") +
+                       theme(plot.margin = margin(0,0,0,t=10))
+)
+
+names(cc_V_p_list) <- c("non-conflicting", "conflicting")
 
 
-if (.RESAVE_PLOTS) save_plot(cond_coexist_p, 4.5, 5, "2-")
+
+cond_coexist_ps <- map(c("non-conflicting", "conflicting"),
+                       ~ plot_grid(cond_coexist_sc_p,
+                                   plot_grid(cc_N_p_list[[.x]],
+                                             cc_V_p_list[[.x]],
+                                             ncol = 1, rel_heights = c(1, 2),
+                                             align = "v", axis = "lr",
+                                             labels = LETTERS[2:3],
+                                             label_x = 0.06),
+                                   ncol = 1, rel_heights = c(1, 2),
+                                   labels = c(LETTERS[1], ""), label_x = 0.06))
+names(cond_coexist_ps) <- c("non-conflicting", "conflicting")
 
 
 
-# # Are these stable?
-#
-# cond_coexist_test_stability <- function(.V0, .lab, .ds) {
-#     .q <- 2
-#     stopifnot(length(.ds) == .q)
-#     .ds <- abs(.ds)*c(-1,rep(1,.q-1))
-#     Z <- quant_gen(q = .q, eta = etas[[2]], d = .ds, max_t = 20e3L, n_reps = 1,
-#                    save_every = 0L, n = 100, N0 = rep(1, 100),
-#                    V0 = .V0,
-#                    start_t = 0, sigma_V0 = 0,
-#                    show_progress = FALSE)
-#     Z$call[["q"]] <- .q
-#     Z$call[["d"]] <- .ds
-#     Z$call[["etas"]] <- etas[[2]]
-#     return(jacobians(Z)[[1]])
-# }
-#
-# cond_coexist_J <- tibble(.V0 = list(V0_exclude, V0_coexist),
-#                          .lab = c("exclusion", "coexistence"),
-#                          .ds = list(c(0.1, 0.1))) %>%
-#     pmap(cond_coexist_test_stability)
-#
-# map(cond_coexist_J, ~ max(eigen(.x, only.values = TRUE)[["values"]]))
+# left off ----
+
+if (.RESAVE_PLOTS) {
+    save_plot(cond_coexist_ps[["non-conflicting"]], 6.5, 6.5,
+              .name = "S1-cond_coexist_non-conflicting")
+    save_plot(cond_coexist_ps[["conflicting"]], 6.5, 6.5,
+              .name = "2-cond_coexist_conflicting")
+}
+
+
+
+#' #'
+#' #' They're all stable except for  sub-additive and conflicting trait 1,
+#' #' which is neutrally stable.
+#' #'
+#' crossing(.V0 = c("restricted", "unrestricted"),
+#'          .eta_sign = c(-1,1),
+#'          .d1 = c(-0.1, 0.1)) %>%
+#'     filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
+#'     mutate(eigen = cond_coexist %>%
+#'                map(~ .x$jacs[[1]]) %>%
+#'                map(~ eigen(.x, only.values = TRUE)[["values"]]) %>%
+#'                map_dbl(~ if (is.complex(.x)) { NA_real_ } else { max(.x) }))
+#'
 
 
 
