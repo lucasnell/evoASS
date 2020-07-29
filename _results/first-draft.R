@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
     library(pbmcapply)
     library(parallel)
     library(egg)
+    library(cowplot)
 })
 
 options(dplyr.summarise.inform = FALSE)
@@ -126,7 +127,7 @@ one_eta_combo <- function(signs, .d = 1, ...) {
     diag(C) <- 1
 
     args <- list(q = .q, eta = C, d = .d, n_reps = 24,
-                 spp_gap_t = 1000L, final_t = 10e3L, save_every = 0L,
+                 spp_gap_t = 500L, final_t = 20e3L, save_every = 0L,
                  sigma_V0 = 1, n_threads = .N_THREADS,
                  show_progress = FALSE)
 
@@ -501,6 +502,291 @@ if (.RESAVE_PLOTS) {
 
 
 
+one_coexist_combo <- function(.d1, .eta, .add_var) {
+
+    # .d1 = 0.15; .eta = etas[[2]]; .add_var = 0.01
+    # rm(.d1, .eta, .add_var)
+
+    .d <- c(.d1, 0.1)
+    .n <- 100
+
+    .seed <- sample.int(2^31 - 1, 1)
+    set.seed(.seed)
+
+    Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+                   add_var = rep(.add_var, .n),
+                   spp_gap_t = 500L, final_t = 200e3L, n_reps = 24,
+                   save_every = 0L,
+                   n_threads = .N_THREADS, show_progress = FALSE)
+
+    Z$call[["eta"]] <- eval(.eta)
+    Z$call[["d"]] <- eval(.d)
+    Z$call[["n"]] <- eval(.n)
+    Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+
+    jacs <- jacobians(Z)
+
+    return(list(NV = Z$nv %>%
+                    mutate(trait = paste0("V", trait)) %>%
+                    spread(trait, geno) %>%
+                    mutate(d1 = .d1, eta = .eta, add_var = .add_var),
+                J = jacs,
+                seed = .seed))
+}
+
+
+
+if (.REDO_SIMS) {
+    # Takes ~62 min w/ 3 threads
+    t0 <- Sys.time()
+    set.seed(1558743552)
+    coexist_sims <- crossing(.d1 = signif(seq(-0.15, 0.15, length.out = 13)),
+                             .eta = c(-1,1) * etas[[2]],
+                             .add_var = c(0.01, 0.05, 0.1)) %>%
+        pmap(one_coexist_combo)
+    t1 <- Sys.time()
+    t1 - t0; rm(t0, t1)
+    saveRDS(coexist_sims, rds("coexist_sims"))
+    coexist_df <- map_dfr(coexist_sims, ~ .x[["NV"]])
+} else {
+    coexist_sims <- readRDS(rds("coexist_sims"))
+    coexist_df <- map_dfr(coexist_sims, ~ .x[["NV"]])
+}
+
+
+
+coexist_spp_df <- coexist_df %>%
+    group_by(d1, eta, add_var, rep) %>%
+    summarize(n_spp = n()) %>%
+    ungroup()
+
+
+coexist_spp_p <- coexist_spp_df %>%
+    mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+                        labels = c("sub-additive", "super-additive")),
+           add_var = factor(add_var)) %>%
+    ggplot(aes(d1, n_spp, color = add_var)) +
+    geom_vline(xintercept = c(-0.1, 0), color = "gray70", linetype = 2) +
+    geom_hline(yintercept = 0, color = "gray50", linetype = 1) +
+    geom_jitter(width = 0.002, height = 0, shape = 1, size = 0.5) +
+    geom_line(data = coexist_spp_df %>%
+                  group_by(eta, add_var, d1) %>%
+                  summarize(n_spp = mean(n_spp)) %>%
+                  ungroup() %>%
+                  add_row(eta = -0.6, add_var = unique(coexist_spp_df$add_var),
+                          d1 = -0.1001, n_spp = NA_integer_) %>%
+                  add_row(eta = 0.6, add_var = unique(coexist_spp_df$add_var),
+                          d1 = -0.0001, n_spp = NA_integer_) %>%
+                  mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+                                      labels = c("sub-additive", "super-additive")),
+                         add_var = factor(add_var))) +
+    facet_wrap(~ eta, ncol = 1) +
+    scale_color_viridis_d("additive\ngenetic\nvariance:",
+                          begin = 0.1, end = 0.85) +
+    scale_y_continuous("Number of surviving species", breaks = c(0, 40, 80)) +
+    scale_x_continuous(expression(italic(d[1]))) +
+    theme(legend.title = element_text(lineheight = 0.8))
+
+
+
+
+# ------------------------------------*
+# __ stability ----
+# ------------------------------------*
+
+
+#'
+#' Code below shows that...
+#' * most are stable but some are unstable
+#'     - 18 / 78 combinations have >1 rep that are unstable
+#'     - 348 / 1,872 total reps are unstable
+#' * some reps had complex eigenvalues, some even with complex
+#'   leading eigenvalues
+#'     - When I plotted some of the leading-eigenvalue reps, they didn't
+#'       appear to have obvious fluctuations.
+#'
+#'
+coexist_sims_eigens <- map_dfr(1:length(coexist_sims),
+        function(i) {
+            eigs <- map_dbl(coexist_sims[[i]][["J"]],
+                        function(.x) {
+                            if (any(is.na(.x))) return(NA)
+                            return(max(Re(eigen(.x, only.values = TRUE)$values)))
+                        })
+            coexist_sims[[i]]$NV %>%
+                distinct(rep, d1, eta, add_var) %>%
+                arrange(rep) %>%
+                mutate(eigval = eigs)
+        })
+coexist_sims_eigens %>%
+    group_by(d1, eta, add_var) %>%
+    summarize(n_unstable = sum(eigval > 1), max_eigen = max(eigval)) %>%
+    ungroup() %>%
+    filter(n_unstable > 0) %>%
+    mutate(one_diff = max_eigen - 1) %>%
+    filter(one_diff > 1e-10) %>%
+    print_big_nums()
+
+
+.d1 = -0.025
+.eta = -0.6
+.add_var = 0.05
+
+
+
+
+i <- map_lgl(coexist_sims,
+             ~ .x[["NV"]] %>%
+                 .[1,] %>%
+                 with(d1 == .d1 & eta == .eta & add_var == .add_var)) %>%
+    which()
+
+
+.d <- c(.d1, 0.1)
+.n <- 100
+
+.seed <- coexist_sims[[i]][["seed"]]
+set.seed(.seed)
+
+Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+               add_var = rep(.add_var, .n),
+               spp_gap_t = 500L, final_t = 200e3L, n_reps = 24,
+               save_every = 0L,
+               n_threads = .N_THREADS, show_progress = TRUE)
+
+Z$call[["eta"]] <- eval(.eta)
+Z$call[["d"]] <- eval(.d)
+Z$call[["n"]] <- eval(.n)
+Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+
+jacs <- jacobians(Z)
+map_dbl(jacs, ~ max(Re(eigen(.x, only.values = TRUE)[["values"]]))) - 1
+
+
+
+
+
+# --------------------*
+# complex ----
+
+coexist_sims_eigens_cmplx <- map_dfr(1:length(coexist_sims),
+        function(i) {
+            eig_comps <- map_int(coexist_sims[[i]][["J"]],
+                                 function(.x) {
+                                     if (any(is.na(.x))) return(NA)
+                                     ev <- eigen(.x, only.values = TRUE)$values
+                                     if (is.complex(ev)) {
+                                         return(min(which(Im(ev) != 0)))
+                                     } else return(NA_integer_)
+                                 })
+            names(eig_comps) <- NULL
+            cmplx_reps <- which(!is.na(eig_comps))
+            if (length(cmplx_reps) == 0) {
+                out <- coexist_sims[[i]]$NV %>%
+                    .[1,] %>%
+                    select(rep, d1, eta, add_var) %>%
+                    mutate(cmplx = 1L) %>%
+                    .[0,]
+            } else {
+                out <- coexist_sims[[i]]$NV %>%
+                    filter(rep %in% cmplx_reps) %>%
+                    distinct(rep, d1, eta, add_var) %>%
+                    mutate(cmplx = eig_comps[!is.na(eig_comps)])
+            }
+            return(out)
+        })
+coexist_sims_eigens_cmplx %>%
+    filter(cmplx == min(cmplx)) %>%
+    group_by(d1, eta, add_var) %>%
+    summarize(n = n()) %>%
+    ungroup() %>%
+    print_big_nums()
+
+
+
+.d1 = 0.15; .eta = -0.6; .add_var = 0.01
+
+
+i <- map_lgl(coexist_sims,
+        ~ .x[["NV"]] %>%
+            .[1,] %>%
+            with(d1 == .d1 & eta == .eta & add_var == .add_var)) %>%
+    which()
+
+
+
+
+.d <- c(.d1, 0.1)
+.n <- 100
+
+.seed <- coexist_sims[[i]][["seed"]]
+set.seed(.seed)
+
+Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+               add_var = rep(.add_var, .n),
+               spp_gap_t = 500L, final_t = 20e3L, n_reps = 24,
+               save_every = 10L,
+               n_threads = .N_THREADS, show_progress = FALSE)
+
+Z$call[["eta"]] <- eval(.eta)
+Z$call[["d"]] <- eval(.d)
+Z$call[["n"]] <- eval(.n)
+Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+
+jacs <- jacobians(Z)
+first_complex <- map_int(jacs,
+        function(x) {
+            eigs <- eigen(x, only.values = TRUE)[["values"]]
+            if (is.complex(eigs)) {
+                return(min(which(Im(eigs) != 0)))
+            } else return(NA_integer_)
+        })
+names(first_complex) <- NULL
+# map_dbl(jacs,
+#         function(x) {
+#             eigs <- eigen(x, only.values = TRUE)[["values"]]
+#             max(Re(eigs))
+#         })
+
+
+Z %>%
+    .[["nv"]] %>%
+    # filter(rep %in% which(first_complex == 1), trait == 1) %>%
+    # filter(rep %in% which(first_complex == 3), trait == 1) %>%
+    filter(rep == 1, trait == 1) %>%
+    ggplot(aes(time, N)) +
+    geom_line(aes(color = spp), na.rm = TRUE) +
+    facet_wrap(~ rep, nrow = 3) +
+    scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
+
+# Z %>%
+#     .[["nv"]] %>%
+#     filter(rep %in% which(first_complex == 3), trait == 1) %>%
+#     ggplot(aes(time, N)) +
+#     geom_line(aes(color = spp), na.rm = TRUE) +
+#     facet_wrap(~ rep, nrow = 3) +
+#     scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+# <<  old stuff below ----
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*
+
+
 coex_cap <- "Number of surviving species for
              (A) all permutations of two traits being conflicting (``$-$'')
              or non-conflicting (``$+$''),
@@ -522,11 +808,14 @@ coex_cap <- "Number of surviving species for
 
 one_d_combo <- function(sign1, sign2) {
 
+    # sign1 = 1; sign2 = 1
+
     .d <- c(0.05, 0.1) * c(sign1, sign2)
 
-    Z <- quant_gen(q = 2, eta = etas[[2]], d = .d, max_t = 50e3L, n_reps = 24,
+    Z <- quant_gen(q = 2, eta = - etas[[2]], d = .d,
+                   spp_gap_t = 500L, final_t = 20e3L, n_reps = 24,
                    save_every = 0L, n = 100, N0 = rep(1, 100),
-                   start_t = 0, sigma_V0 = 2, n_threads = .N_THREADS,
+                   n_threads = .N_THREADS,
                    show_progress = FALSE)
 
     Z$call[["d"]] <- eval(.d)
@@ -535,12 +824,10 @@ one_d_combo <- function(sign1, sign2) {
 
     return(list(NV = Z$nv %>%
                     mutate(trait = paste0("V", trait)) %>%
-                    spread(trait, value) %>%
+                    spread(trait, geno) %>%
                     # filter(unq_spp_filter(V1, V2, V3)) %>%
                     mutate(d1 = .d[1], d2 = .d[2]),
                 J = jacs))
-
-
 }
 
 
@@ -613,7 +900,8 @@ if (.REDO_SIMS) {
 
 
 
-coexist_all_d_p <- d_sim_df %>%
+# coexist_all_d_p <-
+d_sim_df %>%
     group_by(d1, d2, rep) %>%
     summarize(N = n()) %>%
     ungroup() %>%
