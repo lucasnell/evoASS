@@ -167,39 +167,29 @@ one_eta_combo <- function(signs, .d = 1, ...) {
 
 
 
+if (.REDO_SIMS) {
+    # Takes ~5 sec with q=2 and 3 threads
+    set.seed(145746935)
+    eta_sims <- list(-1, 0, 1) %>%
+        map(one_eta_combo)
+    saveRDS(eta_sims, rds("eta_sims"))
+} else {
+    eta_sims <- readRDS(rds("eta_sims"))
+}
 
-# Takes ~5 sec with q=2 and 3 threads
-set.seed(145746935)
-eta_sims <- list(-1, 0, 1) %>%
-    map(one_eta_combo)
 eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 
 
 
 
-#' #'
-#' #' Based on these eigenvalues...
-#' #'   * When the tradeoff is additive, the state is neutrally stable
-#' #'   * Everything else is stable
-#' #'
-#' #'
-#' eta_sim_eigs <- map_dfr(1:length(eta_sims),
-#'                         function(i) {
-#'                             eigs <- map_dbl(eta_sims[[i]][["jacs"]],
-#'                                             function(.x){
-#'                                                 if (any(is.na(.x))) return(NA)
-#'                                                 max(eigen(.x)$values)
-#'                                             })
-#'                             eta_sims[[i]]$ts %>%
-#'                                 distinct(eta1) %>%
-#'                                 mutate_all(sign) %>%
-#'                                 rename_all(~ gsub("^eta", "sign", .x)) %>%
-#'                                 mutate(e_min = min(eigs),
-#'                                        e_max = max(eigs))
-#'                         })
+
+
+#'
+#' Based on eigenvalues (see `first-draft__stability.R`)...
+#'   * When the tradeoff is additive, the state is neutrally stable
+#'   * Everything else is stable
 #'
 #'
-#' print_big_nums(eta_sim_eigs)
 
 
 
@@ -308,12 +298,19 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1) {
 }
 
 
+if (.REDO_SIMS) {
+    # Takes just a few seconds
+    cond_coexist <- crossing(.V0 = c("restricted", "unrestricted"),
+                             .eta_sign = c(-1,1),
+                             .d1 = c(-0.1, 0.1)) %>%
+        filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
+        pmap(cond_coexist_test)
+    saveRDS(cond_coexist, rds("cond_coexist"))
+} else {
+    cond_coexist <- readRDS(rds("cond_coexist"))
+}
 
-cond_coexist <- crossing(.V0 = c("restricted", "unrestricted"),
-                         .eta_sign = c(-1,1),
-                         .d1 = c(-0.1, 0.1)) %>%
-    filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
-    pmap(cond_coexist_test)
+
 
 
 cond_coexist_df <- cond_coexist %>%
@@ -468,19 +465,11 @@ if (.RESAVE_PLOTS) {
 
 
 
-#' #'
-#' #' They're all stable except for  sub-additive and conflicting trait 1,
-#' #' which is neutrally stable.
-#' #'
-#' crossing(.V0 = c("restricted", "unrestricted"),
-#'          .eta_sign = c(-1,1),
-#'          .d1 = c(-0.1, 0.1)) %>%
-#'     filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
-#'     mutate(eigen = cond_coexist %>%
-#'                map(~ .x$jacs[[1]]) %>%
-#'                map(~ eigen(.x, only.values = TRUE)[["values"]]) %>%
-#'                map_dbl(~ if (is.complex(.x)) { NA_real_ } else { max(.x) }))
 #'
+#' They're all stable except for sub-additive and conflicting trait 1,
+#' which is neutrally stable (see `first-draft__stability.R`).
+#'
+
 
 
 
@@ -543,29 +532,11 @@ one_coexist_combo <- function(.d1, .eta, .add_var, .pb = NULL, .vary_d2 = FALSE)
 
 
 
+# ------------------------------------*
+# __ varying d1 and d2 ----
+# ------------------------------------*
 
-
-if (.REDO_SIMS) {
-    # Takes ~2.2 min w/ 3 threads
-    vary_d1_coexist_sims <- crossing(.d1 = seq(-0.15, 0.05, 0.05),
-                                    .eta = c(-1,1) * etas[[2]],
-                                    .add_var = 0.1) %>%
-        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
-        mutate(across(.fns = round, digits = 2))
-    pb <- progress_bar$new(format = " [:bar] :percent in :elapsed | eta: :eta",
-                           total = nrow(vary_d1_coexist_sims), clear = FALSE,
-                           show_after = 0)
-    set.seed(1472331523)
-    vary_d1_coexist_sims <- vary_d1_coexist_sims %>%
-        pmap(one_coexist_combo, .pb = pb)
-    saveRDS(vary_d1_coexist_sims, rds("vary_d1_coexist_sims"))
-    vary_d1_coexist_df <- map_dfr(vary_d1_coexist_sims, ~ .x[["NV"]])
-} else {
-    vary_d1_coexist_sims <- readRDS(rds("vary_d1_coexist_sims"))
-    vary_d1_coexist_df <- map_dfr(vary_d1_coexist_sims, ~ .x[["NV"]])
-}
-
-
+# Simulations varying both d values
 if (.REDO_SIMS) {
     # Takes ~61 min w/ 3 threads
     coexist_sims <- crossing(.d1 = seq(-0.25, 2, length.out = 10),
@@ -579,40 +550,25 @@ if (.REDO_SIMS) {
     set.seed(1558743552)
     coexist_sims <- coexist_sims %>%
         pmap(one_coexist_combo, .pb = pb, .vary_d2 = TRUE)
+    # Because we're not only varying d1:
+    for (i in 1:length(coexist_sims)) {
+        coexist_sims[[i]][["NV"]] <- rename(coexist_sims[[i]][["NV"]], d = d1)
+    }
     saveRDS(coexist_sims, rds("coexist_sims"))
-    coexist_df <- map_dfr(coexist_sims, ~ .x[["NV"]])
 } else {
     coexist_sims <- readRDS(rds("coexist_sims"))
-    coexist_df <- map_dfr(coexist_sims, ~ .x[["NV"]])
 }
 
 
 
-#'
-#' NOTE THAT FOR THIS SET OF SIMULATIONS, BOTH D1 AND D2 ARE CHANGED!
-#'
-
-coexist_spp_df <- coexist_df %>%
-    group_by(d1, eta, add_var, rep) %>%
+coexist_spp_df <- map_dfr(coexist_sims, ~ .x[["NV"]]) %>%
+    group_by(d, eta, add_var, rep) %>%
     summarize(n_spp = n()) %>%
     ungroup() %>%
-    rename(d = d1)
-
-
-
-
-coexist_var_trans <- function(.x) {
-    mutate(.x,
-           eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+    mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
                         labels = c("sub-additive", "super-additive")))
-}
-
-
-
-
 
 coexist_spp_p1 <- coexist_spp_df %>%
-    coexist_var_trans() %>%
     mutate(n_spp = n_spp / 100) %>%
     ggplot(aes(add_var, n_spp, color = d)) +
     geom_jitter(width = 0.001, height = 0, shape = 1, size = 0.5) +
@@ -626,7 +582,6 @@ coexist_spp_p1 <- coexist_spp_df %>%
 
 
 coexist_spp_p2 <- coexist_spp_df %>%
-    coexist_var_trans() %>%
     mutate(n_spp = n_spp / 100) %>%
     ggplot(aes(d, n_spp, color = add_var)) +
     geom_jitter(width = 0.02, height = 0, shape = 1, size = 0.5) +
@@ -640,26 +595,29 @@ coexist_spp_p2 <- coexist_spp_df %>%
 
 
 coexist_spp_p <- plot_grid(coexist_spp_p1, coexist_spp_p2,
-                           nrow = 1, labels = LETTERS[1:2], align = "vh")
+                           nrow = 1, labels = LETTERS[1:2], align = "vh",
+                           label_fontface = "plain")
 
+plot_grid(coexist_spp_p1 + theme(legend.position = "bottom"),
+          coexist_spp_p2 + theme(legend.position = "bottom"),
+          nrow = 1, labels = LETTERS[1:2], align = "vh",
+          label_fontface = "plain")
+
+
+coexist_spp_p1 +
+    theme(legend.position = c(0.9, 0.1),
+          legend.direction = "horizontal",
+          legend.justification = c(0, 1),
+          legend.key.height = unit(10, "pt"))
 
 
 if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6, 4, .prefix = "2-")
 
 
-
-
-
-
-# ------------------------------------*
-# __ stability ----
-# ------------------------------------*
-
-
 #'
-#' Code below shows that...
+#' Code in `first-draft__stability.R` shows that...
 #' * Most are stable, except for the neutrally stable equilibria when
-#'   d1 = 0.
+#'   d = 0.
 #' * Some reps had complex eigenvalues, none with complex
 #'   leading eigenvalues when very small imaginary components weren't allowed
 #'   (anything less than 1e-10).
@@ -667,172 +625,51 @@ if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6, 4, .prefix = "2-")
 #'   was plotted and didn't appear to have anything resembling fluctuations.
 #'
 #'
-coexist_sims_eigens <- map_dfr(1:length(coexist_sims),
-        function(i) {
-            eigs <- map_dbl(coexist_sims[[i]][["J"]],
-                        function(.x) {
-                            if (any(is.na(.x))) return(NA)
-                            return(max(Re(eigen(.x, only.values = TRUE)$values)))
-                        })
-            coexist_sims[[i]]$NV %>%
-                distinct(rep, d1, eta, add_var) %>%
-                arrange(rep) %>%
-                mutate(eigval = eigs)
-        })
-coexist_sims_eigens %>%
-    group_by(d1, eta, add_var) %>%
-    summarize(n_unstable = sum(eigval > 1), max_eigen = max(eigval)) %>%
+
+
+
+# ------------------------------------*
+# __ varying just d1 ----
+# ------------------------------------*
+
+
+
+
+# Simulations varying just d1
+if (.REDO_SIMS) {
+    # Takes ~2.2 min w/ 3 threads
+    vary_d1_coexist_sims <- crossing(.d1 = seq(-0.15, 0.05, 0.05),
+                                     .eta = c(-1,1) * etas[[2]],
+                                     .add_var = 0.1) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 2))
+    pb <- progress_bar$new(format = " [:bar] :percent in :elapsed | eta: :eta",
+                           total = nrow(vary_d1_coexist_sims), clear = FALSE,
+                           show_after = 0)
+    set.seed(1472331523)
+    vary_d1_coexist_sims <- vary_d1_coexist_sims %>%
+        pmap(one_coexist_combo, .pb = pb)
+    saveRDS(vary_d1_coexist_sims, rds("vary_d1_coexist_sims"))
+} else {
+    vary_d1_coexist_sims <- readRDS(rds("vary_d1_coexist_sims"))
+}
+
+vary_d1_coexist_spp_df <- map_dfr(vary_d1_coexist_sims, ~ .x[["NV"]]) %>%
+    group_by(d1, eta, add_var, rep) %>%
+    summarize(n_spp = n()) %>%
     ungroup() %>%
-    filter(n_unstable > 0) %>%
-    mutate(one_diff = max_eigen - 1) %>%
-    filter(one_diff > 1e-10) %>%
-    print_big_nums()
+    mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+                        labels = c("sub-additive", "super-additive")))
 
 
-
-
-# --------------------*
-# complex ----
-
-coexist_sims_eigen_vals_cmplx <- map_dfr(1:length(coexist_sims),
-    function(i) {
-        eig_comps <- map_dbl(coexist_sims[[i]][["J"]],
-                             function(.x) {
-                                 if (any(is.na(.x))) return(NA)
-                                 ev <- eigen(.x, only.values = TRUE)$values
-                                 if (is.complex(ev)) {
-                                     return(max(abs(Im(ev))))
-                                 } else return(NA_real_)
-                             })
-        names(eig_comps) <- NULL
-        cmplx_reps <- which(!is.na(eig_comps))
-        if (length(cmplx_reps) == 0) {
-            out <- coexist_sims[[i]]$NV %>%
-                .[1,] %>%
-                select(rep, d1, eta, add_var) %>%
-                mutate(cmplx = 0.0) %>%
-                .[0,]
-        } else {
-            out <- coexist_sims[[i]]$NV %>%
-                filter(rep %in% cmplx_reps) %>%
-                distinct(rep, d1, eta, add_var) %>%
-                mutate(cmplx = eig_comps[!is.na(eig_comps)])
-        }
-        return(out)
-    })
-coexist_sims_eigen_vals_cmplx %>%
-    arrange(desc(cmplx))
-
-
-
-
-coexist_sims_eigens_cmplx <- map_dfr(1:length(coexist_sims),
-        function(i) {
-            .t <- 1e-10
-            eig_comps <- map_int(coexist_sims[[i]][["J"]],
-                                 function(.x) {
-                                     if (any(is.na(.x))) return(NA)
-                                     ev <- eigen(.x, only.values = TRUE)$values
-                                     if (is.complex(ev)) {
-                                         if (all(abs(Im(ev)) < .t)) {
-                                             return(NA_integer_)
-                                         }
-                                         return(min(which(abs(Im(ev)) > .t)))
-                                     } else return(NA_integer_)
-                                 })
-            names(eig_comps) <- NULL
-            cmplx_reps <- which(!is.na(eig_comps))
-            if (length(cmplx_reps) == 0) {
-                out <- coexist_sims[[i]]$NV %>%
-                    .[1,] %>%
-                    select(rep, d1, eta, add_var) %>%
-                    mutate(cmplx = 1L) %>%
-                    .[0,]
-            } else {
-                out <- coexist_sims[[i]]$NV %>%
-                    filter(rep %in% cmplx_reps) %>%
-                    distinct(rep, d1, eta, add_var) %>%
-                    mutate(cmplx = eig_comps[!is.na(eig_comps)])
-            }
-            return(out)
-        })
-coexist_sims_eigens_cmplx %>%
-    filter(cmplx == min(cmplx)) %>%
-    group_by(d1, eta, add_var) %>%
-    summarize(n = n()) %>%
-    ungroup() %>%
-    print_big_nums()
-
-
-
-.d1 = 0.9; .eta = 0.6; .add_var = 0.01
-
-
-i <- map_lgl(coexist_sims,
-        ~ .x[["NV"]] %>%
-            .[1,] %>%
-            with(d1 == .d1 & eta == .eta & add_var == .add_var)) %>%
-    which()
-
-
-
-
-.d <- c(.d1, 0.1)
-.n <- 100
-
-.seed <- coexist_sims[[i]][["seed"]]
-set.seed(.seed)
-
-Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
-               add_var = rep(.add_var, .n),
-               spp_gap_t = 500L, final_t = 50e3L, n_reps = 12,
-               save_every = 10L,
-               n_threads = .N_THREADS, show_progress = FALSE)
-
-Z$call[["eta"]] <- eval(.eta)
-Z$call[["d"]] <- eval(.d)
-Z$call[["n"]] <- eval(.n)
-Z$call[["add_var"]] <- eval(rep(.add_var, .n))
-
-jacs <- jacobians(Z)
-first_complex <- map_int(jacs,
-        function(x) {
-            eigs <- eigen(x, only.values = TRUE)[["values"]]
-            if (is.complex(eigs) && any(abs(Im(eigs)) > 1e-10)) {
-                return(min(which(abs(Im(eigs)) > 1e-10)))
-            } else return(NA_integer_)
-        })
-# map_dbl(jacs,
-#         function(x) {
-#             eigs <- eigen(x, only.values = TRUE)[["values"]]
-#             max(Re(eigs))
-#         })
-
-
-Z %>%
-    .[["nv"]] %>%
-    # filter(rep %in% which(first_complex == 1), trait == 1) %>%
-    # filter(rep %in% which(first_complex == 3), trait == 1) %>%
-    filter(rep == 5) %>%
-    filter(trait == 1) %>%
-    filter(time > 75e3) %>%
-    filter(N > 2) %>% .[["N"]] %>% range() %>% `-`(2.922151 - 3.008999e-07)
-
-    ggplot(aes(time, N)) +
-    geom_line(aes(color = spp), na.rm = TRUE) +
-    facet_wrap(~ rep, nrow = 3) +
-    scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
-
-# Z %>%
-#     .[["nv"]] %>%
-#     filter(rep %in% which(first_complex == 3), trait == 1) %>%
-#     ggplot(aes(time, N)) +
-#     geom_line(aes(color = spp), na.rm = TRUE) +
-#     facet_wrap(~ rep, nrow = 3) +
-#     scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
-
-
-
+vary_d1_coexist_spp_df %>%
+    mutate(n_spp = n_spp / 100) %>%
+    ggplot(aes(d1, n_spp)) +
+    geom_jitter(width = 0.002, height = 0, shape = 1, size = 0.5) +
+    facet_wrap(~ eta, ncol = 1) +
+    scale_y_continuous("Proportion of species that survive",
+                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+    xlab(expression("Effect of trait 1 evolution on competition" ~ (italic(d[1]))))
 
 
 
