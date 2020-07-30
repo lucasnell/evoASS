@@ -533,7 +533,7 @@ one_coexist_combo <- function(.d1, .eta, .add_var, .pb = NULL, .vary_d2 = FALSE)
 
 
 # ------------------------------------*
-# __ varying d1 and d2 ----
+# __ vary d1 & d2 ----
 # ------------------------------------*
 
 # Simulations varying both d values
@@ -625,7 +625,7 @@ coexist_spp_p2 <- coexist_spp_df %>%
 
 
 # ------------------------------------*
-# __ varying just d1 ----
+# __ vary d1 only ----
 # ------------------------------------*
 
 
@@ -696,6 +696,84 @@ if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6.5, 4, .prefix = "2-")
 
 
 
+# ------------------------------------*
+# __ vary d1 & d2; V0 ~ U ----
+# ------------------------------------*
+
+
+
+#'
+#' NOTE: this function always changes both `d` values
+#'
+one_coexist_U_combo <- function(.d, .eta, .add_var, .pb = NULL) {
+
+    if (!is.null(.pb)) .pb$tick(0)
+
+    # .d = 0.15; .eta = etas[[2]]; .add_var = 0.01
+    # rm(.d, .eta, .add_var)
+
+    stopifnot(is.numeric(.d) && length(.d) == 1)
+
+    .d <- rep(.d, 2)
+    .n <- 100
+
+    .V0 <- matrix(runif(.n * 2, 0, 3), nrow = .n)
+
+    .seed <- sample.int(2^31 - 1, 1)
+    set.seed(.seed)
+
+    Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+                   V0 = .V0, sigma_V0 = 0,
+                   add_var = rep(.add_var, .n),
+                   spp_gap_t = 500L, final_t = 50e3L, n_reps = 12,
+                   save_every = 0L,
+                   n_threads = .N_THREADS, show_progress = FALSE)
+
+    Z$call[["eta"]] <- eval(.eta)
+    Z$call[["d"]] <- eval(.d)
+    Z$call[["n"]] <- eval(.n)
+    Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+
+    jacs <- jacobians(Z)
+
+    if (!is.null(.pb)) .pb$tick()
+
+    return(list(NV = Z$nv %>%
+                    mutate(trait = paste0("V", trait)) %>%
+                    spread(trait, geno) %>%
+                    mutate(d = .d[1], eta = .eta, add_var = .add_var),
+                J = jacs,
+                V0 = .V0,
+                seed = .seed))
+}
+
+
+# Simulations varying both d values
+if (.REDO_SIMS) {
+    # Takes ~XX min w/ 3 threads
+    t0 <- Sys.time()
+    coexist_U_sims <- crossing(.d = seq(-0.25, 2, length.out = 10),
+                             .eta = c(-1,1) * etas[[2]],
+                             .add_var = seq(0.01, 0.1, 0.01)) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 2))
+    pb <- progress_bar$new(format = " [:bar] :percent in :elapsed | eta: :eta",
+                           total = nrow(coexist_U_sims), clear = FALSE,
+                           show_after = 0)
+    set.seed(2014151565)
+    coexist_U_sims <- coexist_U_sims %>%
+        pmap(one_coexist_U_combo, .pb = pb)
+    saveRDS(coexist_U_sims, rds("coexist_U_sims"))
+    t1 <- Sys.time()
+    t1 - t0; rm(t0, t1)
+} else {
+    coexist_U_sims <- readRDS(rds("coexist_U_sims"))
+}
+
+
+
+
+
 
 
 
@@ -715,9 +793,13 @@ if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6.5, 4, .prefix = "2-")
 #' - Neutral evolution (d = 0)
 #' - Non-conflicting evolution (d = +0.01)
 #'
-#' For these simulations, q = 2, eta = -0.2
+#' ... for eta = -0.6 and +0.6
+#'
+#' For these simulations, q = 2
 #'
 
+
+.x <- tibble(.d = 0.01, .n = 10, .inv_N0 = 0.1, .eta_sign = 1)
 
 
 one_d_invasion <- function(.x) {
@@ -725,94 +807,170 @@ one_d_invasion <- function(.x) {
     .d <- .x[[".d"]][[1]]
     .n <- .x[[".n"]][[1]]
     .inv_N0 <- .x[[".inv_N0"]][[1]]
-
-    .eta <- -etas[[2]]
+    .eta <- .x[[".eta_sign"]][[1]] * etas[[2]]
 
     V0 <- stable_points(.eta) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
         rep(ceiling(.n / length(.))) %>%
-        .[1:.n]
+        .[1:.n] %>%
+        do.call(what = cbind) %>%
+        {colnames(.) <- NULL; .}
     N0 <- pop_sizes(.n, .eta, .d)
 
-    inv_df <- tibble(.v1 = stable_points(.eta)[["V1"]][1],
-                     .v2 = stable_points(.eta)[["V2"]][1] +
-                         sort(c(0, -0.1 * 1:8, 0.1 * 1:8))) %>%
+    v1h <- stable_points(.eta)[["V1"]][1]
+    v2h <- stable_points(.eta)[["V2"]][1]
+
+    inv_df <- map_dfr(1:8 * 0.1,
+                      function(.dist) {
+                          rbind(c(v1h, v2h + .dist),
+                                c(v1h, v2h - .dist),
+                                c(v1h + .dist, v2h),
+                                c(v1h - .dist, v2h),
+                                c(v1h + .dist / sqrt(2), v2h + .dist / sqrt(2)),
+                                c(v1h - .dist / sqrt(2), v2h - .dist / sqrt(2)),
+                                c(v1h + .dist / sqrt(2), v2h - .dist / sqrt(2)),
+                                c(v1h - .dist / sqrt(2), v2h + .dist / sqrt(2))) %>%
+                              {colnames(.) <- c(".v1", ".v2"); .} %>%
+                              as_tibble()
+                      }) %>%
+        add_row(.v1 = v1h, .v2 = v2h) %>%
+        filter(across(.fns = ~ . >= 0)) %>%
         pmap_dfr(function(.v1, .v2) {
             .inv <- quant_gen(q = 2, eta = .eta, d = .d, n = .n + 1,
-                              save_every = 0L, max_t = 50e3L, n_reps = 1,
+                              save_every = 0L, final_t = 50e3L, n_reps = 1,
                               N0 = c(N0, N0[1] * .inv_N0),
-                              V0 = c(V0, list(cbind(.v1, .v2))),
-                              start_t = 0, sigma_V0 = 0,
+                              V0 = cbind(V0, rbind(.v1, .v2)),
+                              spp_gap_t = 0, sigma_V0 = 0,
                               show_progress = FALSE) %>%
                 .[["nv"]] %>%
                 filter(trait == 1, spp == .n+1) %>%
                 nrow() %>%
                 `>=`(1) %>%
                 as.integer()
-            tibble(dist = .v2 - stable_points(.eta)[["V2"]][1], invaded = .inv)
+            tibble(dist = sqrt((.v1 - v1h)^2 + (.v2 - v2h)^2),
+                   invaded = .inv)
         }) %>%
-        mutate(d = .d, res_n = .n, inv_N0 = .inv_N0)
+        mutate(d = .d, res_n = .n, inv_N0 = .inv_N0, eta = .eta)
 
     return(inv_df)
 
 }
 
 
-# Takes ~ 30 sec w/ 3 threads
-invade_df <- crossing(.d = 0.01 * c(-1, 0, 1),
-                      .n = c(2, 10),
-                      .inv_N0 = c(0.01, 0.1, 1)) %>%
-    split(1:nrow(.)) %>%
-    mclapply(FUN = one_d_invasion, mc.cores = .N_THREADS)
-invade_df <- bind_rows(invade_df)
 
 
 
-invasion_caption <- "Successful invasion of an equilibrium community based on
-                     the invader's starting distance (in trait space)
-                     from the stable point.
-                     Columns of sub-panels separate whether evolution was
-                     conflicting, neutral, or non-conflicting.
-                     Rows of sub-panels separate the invaders' starting
-                     abundances ($N_{eq}$) in relation to the residents'
-                     abundances ($N_{res}$); all residents had the same
-                     abundance.
-                     The point color indicates the number of species present
-                     in the resident community."
 
 
-invasion_p <- invade_df %>%
-    mutate(invaded = factor(invaded, levels = 0:1, labels = c("no", "yes")),
-           d = factor(d, levels = 0.01 * c(-1, 0, 1),
-                      labels = c("'conflicting'", "'neutral'",
-                                 "'non-conflicting'")),
-           inv_N0 = factor(inv_N0, levels = c(0.01, 0.1, 1),
-                           labels = sprintf("N[inv] == %s", c("frac(N[res],100)",
-                                                              "frac(N[res],10)",
-                                                              "N[res]"))),
-           res_n = factor(res_n, levels = c(2, 10),
-                          labels = sprintf("%i species", c(2, 10)))) %>%
-    ggplot(aes(invaded, dist)) +
-    geom_hline(yintercept = 0, linetype = 2, size = 0.5, color = "gray70") +
-    geom_jitter(aes(color = res_n, fill = res_n),
-                height = 0, width = 0.25, shape = 21) +
-    facet_grid(inv_N0 ~ d, label = label_parsed) +
-    xlab("Successful invasion") +
-    ylab("Distance from stable point") +
-    scale_color_viridis_d("starting community size:", begin = 0.3,
-                          end = 0.7, option = "A") +
-    scale_fill_viridis_d("starting community size:", begin = 0.3,
-                         end = 0.7, option = "A", alpha = 0.5) +
-    theme(panel.spacing = unit(2, "lines"),
-          strip.text.y = element_text(angle = 0, margin = margin(0,0,0,l=6)),
-          legend.position = "top",
-          legend.title = element_text(size = 10)) +
-    coord_flip() +
-    NULL
 
 
-if (.RESAVE_PLOTS) save_plot(invasion_p, 5, 4.5, .prefix = "S2-")
+if (.REDO_SIMS) {
+    # Takes ~ 3 min w/ 3 threads
+    invade_df <- crossing(.d = 0.01 * c(-1, 0, 1),
+                          .n = c(2, 10),
+                          .inv_N0 = c(0.01, 0.1, 1),
+                          .eta_sign = c(-1, 1)) %>%
+        split(1:nrow(.)) %>%
+        mclapply(FUN = one_d_invasion, mc.cores = .N_THREADS)
+    invade_df <- bind_rows(invade_df)
+    saveRDS(invade_df, rds("invade_sims"))
+} else {
+    invade_df <- readRDS(rds("invade_sims"))
+}
+
+
+
+# invasion_caption <- "Successful invasion of an equilibrium community based on
+#                      the invader's starting distance (in trait space)
+#                      from the stable point.
+#                      Columns of sub-panels separate whether evolution was
+#                      conflicting, neutral, or non-conflicting.
+#                      Rows of sub-panels separate the invaders' starting
+#                      abundances ($N_{eq}$) in relation to the residents'
+#                      abundances ($N_{res}$); all residents had the same
+#                      abundance.
+#                      The point color indicates the number of species present
+#                      in the resident community."
+
+
+invasion_p_fun <- function(.eta) {
+    invade_df %>%
+        filter(eta == .eta) %>%
+        mutate(invaded = factor(invaded, levels = 0:1, labels = c("no", "yes")),
+               d = factor(d, levels = 0.01 * c(-1, 0, 1),
+                          labels = c("'conflicting'", "'neutral'",
+                                     "'non-conflicting'")),
+               id = sprintf("%s (%i spp)", invaded, res_n) %>%
+                   factor(levels = rev(c("yes (2 spp)", "no (2 spp)",
+                                         "yes (10 spp)", "no (10 spp)"))),
+               inv_N0 = factor(inv_N0, levels = c(0.01, 0.1, 1),
+                               labels = sprintf("N[inv] == %s", c("frac(N[res],100)",
+                                                                  "frac(N[res],10)",
+                                                                  "N[res]"))),
+               res_n = factor(res_n, levels = c(2, 10),
+                              labels = sprintf("%i species", c(2, 10)))) %>%
+        ggplot(aes(id, dist)) +
+        ggtitle(ifelse(.eta > 0, "super-additive", "sub-additive")) +
+        geom_vline(dat = tibble(xint = c("yes (2 spp)", "no (2 spp)",
+                                         "yes (10 spp)", "no (10 spp)")) %>%
+                       mutate(xint = factor(xint, levels = rev(xint)),
+                              lty = rep(1:2, 2) %>% factor()),
+                   aes(xintercept = xint, linetype = lty),
+                   size = 0.5, color = "gray70") +
+        geom_jitter(aes(color = res_n, fill = res_n),
+                    height = 0, width = 0.25, shape = 21) +
+        facet_grid(inv_N0 ~ d, label = label_parsed) +
+        xlab("Successful invasion") +
+        ylab("Distance from stable point") +
+        scale_color_viridis_d("starting community size:", begin = 0.3,
+                              end = 0.7, option = "A", guide = FALSE) +
+        scale_fill_viridis_d("starting community size:", begin = 0.3,
+                             end = 0.7, option = "A", alpha = 0.5, guide = FALSE) +
+        scale_linetype_manual(values = 1:2, guide = FALSE) +
+        theme(panel.spacing = unit(2, "lines"),
+              strip.text.y = element_text(angle = 0, margin = margin(0,0,0,l=6)),
+              legend.position = "top",
+              legend.title = element_text(size = 10),
+              plot.title = element_text(hjust = 0.5,
+                                        margin = margin(0,0,0,b=12))) +
+        coord_flip() +
+        NULL
+}
+
+
+
+invasion_ps <- map(c(-0.6, 0.6), invasion_p_fun)
+names(invasion_ps) <- c("sub", "super")
+
+invasion_ps[["sub"]]
+invasion_ps[["super"]]
+
+# LEFT OFF ----
+# ADD IN STARTING POSITIONS:
+
+v1h <- stable_points(.eta)[["V1"]][1]
+v2h <- stable_points(.eta)[["V2"]][1]
+
+inv_df <- map_dfr(1:8 * 0.1,
+                  function(.dist) {
+                      rbind(c(v1h, v2h + .dist),
+                            c(v1h, v2h - .dist),
+                            c(v1h + .dist, v2h),
+                            c(v1h - .dist, v2h),
+                            c(v1h + .dist / sqrt(2), v2h + .dist / sqrt(2)),
+                            c(v1h - .dist / sqrt(2), v2h - .dist / sqrt(2)),
+                            c(v1h + .dist / sqrt(2), v2h - .dist / sqrt(2)),
+                            c(v1h - .dist / sqrt(2), v2h + .dist / sqrt(2))) %>%
+                          {colnames(.) <- c(".v1", ".v2"); .} %>%
+                          as_tibble()
+                  }) %>%
+    add_row(.v1 = v1h, .v2 = v2h)
+
+
+
+
+# if (.RESAVE_PLOTS) save_plot(invasion_p, 5, 4.5, .prefix = "S2-")
 
 
 

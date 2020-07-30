@@ -166,7 +166,7 @@ quant_gen <- function(eta, d, q,
           ncol(eta) == 2) ||
          (inherits(eta, "numeric") && length(eta) == 1))) {
         # For 2-trait case and proper inputs, we choose starting points
-        # based on known stable points, return warning is sigma_V0 and sigma_V
+        # based on known stable points, return warning if sigma_V0 and sigma_V
         # are both 0
         if (sigma_V0 == 0 && sigma_V == 0) {
             warning(paste("\nSimulations start with species at stable",
