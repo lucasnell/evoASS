@@ -573,11 +573,20 @@ coexist_spp_p1 <- coexist_spp_df %>%
     ggplot(aes(add_var, n_spp, color = d)) +
     geom_jitter(width = 0.001, height = 0, shape = 1, size = 0.5) +
     facet_wrap(~ eta, ncol = 1) +
-    scale_color_viridis_c(expression(italic(d)),
-                          begin = 0.1, end = 0.85, option = "A") +
+    scale_color_viridis_c(expression(d[1] ~ "and" ~ d[2]),
+                          begin = 0.1, end = 0.85, option = "A",
+                          breaks = c(0, 1, 2)) +
     scale_y_continuous("Proportion of species that survive",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    xlab(expression("Additive genetic variance" ~ (italic(sigma))))
+    xlab(expression(sigma^2)) +
+    theme(legend.position = c(0.95, 0.55),
+          legend.direction = "horizontal",
+          legend.justification = c(1, 0),
+          legend.key.height = unit(6, "pt"),
+          legend.key.width = unit(12, "pt"),
+          legend.title = element_text(face = "bold.italic")) +
+    guides(color = guide_colorbar(title.position="top", title.hjust = 0.5,
+                                  title.vjust = -1, label.vjust = 2))
 
 
 
@@ -586,32 +595,19 @@ coexist_spp_p2 <- coexist_spp_df %>%
     ggplot(aes(d, n_spp, color = add_var)) +
     geom_jitter(width = 0.02, height = 0, shape = 1, size = 0.5) +
     facet_wrap(~ eta, ncol = 1) +
-    scale_color_viridis_c(expression(sigma),
-                          begin = 0.1, end = 0.85) +
+    scale_color_viridis_c(expression(italic(sigma)^2), begin = 0.1, end = 0.85,
+                          breaks = c(0.05, 0.1)) +
     scale_y_continuous("Proportion of species that survive",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    xlab(expression("Effect of evolution on competition" ~ (italic(d))))
-
-
-
-coexist_spp_p <- plot_grid(coexist_spp_p1, coexist_spp_p2,
-                           nrow = 1, labels = LETTERS[1:2], align = "vh",
-                           label_fontface = "plain")
-
-plot_grid(coexist_spp_p1 + theme(legend.position = "bottom"),
-          coexist_spp_p2 + theme(legend.position = "bottom"),
-          nrow = 1, labels = LETTERS[1:2], align = "vh",
-          label_fontface = "plain")
-
-
-coexist_spp_p1 +
-    theme(legend.position = c(0.9, 0.1),
+    xlab(expression(italic(d[1]) ~ "and" ~ italic(d[2]))) +
+    theme(legend.position = c(0.95, 0.55),
           legend.direction = "horizontal",
-          legend.justification = c(0, 1),
-          legend.key.height = unit(10, "pt"))
-
-
-if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6, 4, .prefix = "2-")
+          legend.justification = c(1, 0),
+          legend.key.height = unit(6, "pt"),
+          legend.key.width = unit(12, "pt"),
+          legend.title = element_text(face = "italic")) +
+    guides(color = guide_colorbar(title.position="top", title.hjust = 0.5,
+                                  title.vjust = -1, label.vjust = 2))
 
 
 #'
@@ -662,18 +658,36 @@ vary_d1_coexist_spp_df <- map_dfr(vary_d1_coexist_sims, ~ .x[["NV"]]) %>%
                         labels = c("sub-additive", "super-additive")))
 
 
-vary_d1_coexist_spp_df %>%
+coexist_spp_p3 <- vary_d1_coexist_spp_df %>%
     mutate(n_spp = n_spp / 100) %>%
     ggplot(aes(d1, n_spp)) +
-    geom_jitter(width = 0.002, height = 0, shape = 1, size = 0.5) +
+    geom_vline(data = tibble(xint = c(-0.1, 0), col = factor(1:2)),
+               aes(xintercept = xint, color = col), linetype = 2) +
+    geom_jitter(width = 0.002, height = 0, shape = 1, size = 1) +
     facet_wrap(~ eta, ncol = 1) +
+    scale_color_manual(NULL, values = c("firebrick", "dodgerblue"), guide = FALSE) +
     scale_y_continuous("Proportion of species that survive",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    xlab(expression("Effect of trait 1 evolution on competition" ~ (italic(d[1]))))
+    xlab(expression(italic(d[1]) ~ ("with" ~ italic(d[2]) == 0.1)))
 
 
 
 
+
+
+
+coexist_spp_p <- plot_grid(coexist_spp_p1,
+                           coexist_spp_p2 +
+                               theme(axis.title.y = element_blank()),
+                           coexist_spp_p3 +
+                               theme(axis.title.y = element_blank()),
+                           nrow = 1, labels = LETTERS[1:3], align = "vh",
+                           label_fontface = "plain")
+
+coexist_spp_p
+
+
+if (.RESAVE_PLOTS) save_plot(coexist_spp_p, 6.5, 4, .prefix = "2-")
 
 
 
