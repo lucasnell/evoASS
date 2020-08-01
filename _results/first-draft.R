@@ -230,7 +230,7 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "1-")
 
 
 
-one_coexist_combo <- function(.d1, .eta, .add_var, .pb = NULL, .vary_d2 = FALSE) {
+one_coexist_combo <- function(.d1, .eta, .add_var, .vary_d2, .pb = NULL) {
 
     if (!is.null(.pb)) .pb$tick(0)
 
@@ -382,7 +382,7 @@ if (.REDO_SIMS) {
                            show_after = 0)
     set.seed(1472331523)
     vary_d1_coexist_sims <- vary_d1_coexist_sims %>%
-        pmap(one_coexist_combo, .pb = pb)
+        pmap(one_coexist_combo, .pb = pb, .vary_d2 = FALSE)
     saveRDS(vary_d1_coexist_sims, rds("vary_d1_coexist_sims"))
 } else {
     vary_d1_coexist_sims <- readRDS(rds("vary_d1_coexist_sims"))
@@ -1013,15 +1013,203 @@ pop_sizes(3, 0, 1e-2)
 
 
 
+# =============================================================================*
+# =============================================================================*
 
-# STOCHASTICITY AND COEXISTENCE ----
+# Stochastic coexistence ----
+
+# =============================================================================*
+# =============================================================================*
+
+
+
+stoch_coexist_combo <- function(.d1, .eta, .add_var,
+                                .sigma_N, .sigma_V,
+                                .vary_d2, .pb = NULL) {
+
+    if (!is.null(.pb)) .pb$tick(0)
+
+    # .d1 = 0.15; .eta = etas[[2]]; .add_var = 0.01
+    # rm(.d1, .eta, .add_var)
+
+    if (.vary_d2) {
+        .d <- c(.d1, .d1)
+    } else .d <- c(.d1, 0.1)
+    .n <- 100
+
+    .seed <- sample.int(2^31 - 1, 1)
+    set.seed(.seed)
+
+    Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+                   add_var = rep(.add_var, .n),
+                   sigma_N = .sigma_N, sigma_V = .sigma_V,
+                   spp_gap_t = 500L, final_t = 50e3L, n_reps = 12,
+                   save_every = 0L,
+                   n_threads = .N_THREADS, show_progress = FALSE)
+
+    # (No point in returning jacobians for stochastic simulations.)
+
+    if (!is.null(.pb)) .pb$tick()
+
+    return(list(NV = Z$nv %>%
+                    mutate(d1 = .d1, eta = .eta, add_var = .add_var,
+                           sigma_N = .sigma_N, sigma_V = .sigma_V),
+                seed = .seed))
+}
+
+
+
+# Simulations varying both d values
+if (.REDO_SIMS) {
+    # Takes ~75 min w/ 3 threads
+    stoch_coexist_sims <- crossing(.d1 = seq(-0.25, 2, length.out = 10),
+                                   .eta = c(-1,1) * etas[[2]],
+                                   .add_var = c(0.01, 0.05, 0.1),
+                                   .sigma_N = c(0, 0.05, 0.1),
+                                   .sigma_V = c(0, 0.05, 0.1)) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 2))
+    pb <- progress_bar$new(format = " [:bar] :percent in :elapsed | eta: :eta",
+                           total = nrow(stoch_coexist_sims), clear = FALSE,
+                           show_after = 0)
+    set.seed(56965945)
+    stoch_coexist_sims <- stoch_coexist_sims %>%
+        pmap(stoch_coexist_combo, .pb = pb, .vary_d2 = TRUE)
+    # Because we're not only varying d1:
+    for (i in 1:length(stoch_coexist_sims)) {
+        stoch_coexist_sims[[i]][["NV"]] <- rename(stoch_coexist_sims[[i]][["NV"]], d = d1)
+    }
+    saveRDS(stoch_coexist_sims, rds("stoch_coexist_sims"))
+} else {
+    stoch_coexist_sims <- readRDS(rds("stoch_coexist_sims"))
+}
+
+
+stoch_coexist_spp_df <- map_dfr(stoch_coexist_sims, ~ .x[["NV"]]) %>%
+    group_by(d, eta, sigma_N, sigma_V, rep) %>%
+    summarize(n_spp = spp %>% unique() %>% length()) %>%
+    ungroup() %>%
+    mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+                        labels = c("sub-additive", "super-additive")))
+
+# # stoch_coexist_spp_p1 <-
+# stoch_coexist_spp_df %>%
+#     mutate(n_spp = n_spp / 100) %>%
+#     ggplot(aes(add_var, n_spp, color = d)) +
+#     geom_jitter(width = 0.001, height = 0, shape = 1, size = 0.5) +
+#     facet_wrap(~ eta, ncol = 1) +
+#     scale_color_viridis_c(expression(d[1] ~ "and" ~ d[2]),
+#                           begin = 0.1, end = 0.85, option = "A",
+#                           breaks = c(0, 1, 2)) +
+#     scale_y_continuous("Proportion of species that survive",
+#                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+#     xlab(expression(sigma^2)) +
+#     theme(legend.position = c(0.95, 0.55),
+#           legend.direction = "horizontal",
+#           legend.justification = c(1, 0),
+#           legend.key.height = unit(6, "pt"),
+#           legend.key.width = unit(12, "pt"),
+#           legend.title = element_text(face = "bold.italic")) +
+#     guides(color = guide_colorbar(title.position="top", title.hjust = 0.5,
+#                                   title.vjust = -1, label.vjust = 2))
+
+
+
+# stoch_coexist_spp_p2 <-
+stoch_coexist_spp_df %>%
+    mutate(sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
+                            labels = sprintf("sigma[N] == %.2f",
+                                             sort(unique(sigma_N)))),
+           sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
+                            labels = sprintf("sigma[V] == %.2f",
+                                             sort(unique(sigma_V))))) %>%
+    filter(eta == "sub-additive") %>%
+    mutate(n_spp = n_spp / 100) %>%
+    ggplot(aes(d, n_spp)) +
+    geom_hline(yintercept = 0, color = "gray80") +
+    geom_jitter(width = 0.02, height = 0, shape = 1, size = 0.5) +
+    facet_grid(sigma_N ~ sigma_V, labeller = label_parsed) +
+    scale_color_viridis_c(expression(italic(sigma)^2), begin = 0.1, end = 0.85,
+                          breaks = c(0.05, 0.1)) +
+    scale_y_continuous("Proportion of species that survive",
+                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+    xlab(expression(italic(d[1]) ~ "and" ~ italic(d[2]))) +
+    theme(legend.position = c(0.95, 0.55),
+          legend.direction = "horizontal",
+          legend.justification = c(1, 0),
+          legend.key.height = unit(6, "pt"),
+          legend.key.width = unit(12, "pt"),
+          legend.title = element_text(face = "italic")) +
+    guides(color = guide_colorbar(title.position="top", title.hjust = 0.5,
+                                  title.vjust = -1, label.vjust = 2))
+
+
+
+
+
+# Simulations varying just d1
+if (.REDO_SIMS) {
+    # Takes ~22 min w/ 3 threads
+    stoch_vary_d1_coexist_sims <- crossing(.d1 = seq(-0.15, 0.05, 0.05),
+                                     .eta = c(-1,1) * etas[[2]],
+                                     .add_var = c(0.01, 0.05, 0.1),
+                                     .sigma_N = c(0, 0.05, 0.1),
+                                     .sigma_V = c(0, 0.05, 0.1)) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 2))
+    pb <- progress_bar$new(format = " [:bar] :percent in :elapsed | eta: :eta",
+                           total = nrow(stoch_vary_d1_coexist_sims), clear = FALSE,
+                           show_after = 0)
+    set.seed(679702122)
+    stoch_vary_d1_coexist_sims <- stoch_vary_d1_coexist_sims %>%
+        pmap(stoch_coexist_combo, .pb = pb, .vary_d2 = FALSE)
+    saveRDS(stoch_vary_d1_coexist_sims, rds("stoch_vary_d1_coexist_sims"))
+} else {
+    stoch_vary_d1_coexist_sims <- readRDS(rds("stoch_vary_d1_coexist_sims"))
+}
+
+stoch_vary_d1_coexist_spp_df <- map_dfr(stoch_vary_d1_coexist_sims,
+                                        ~ .x[["NV"]]) %>%
+    group_by(d1, eta, sigma_N, sigma_V, add_var, rep) %>%
+    summarize(n_spp = spp %>% unique() %>% length()) %>%
+    ungroup() %>%
+    mutate(eta = factor(eta, levels = c(-1, 1) * etas[[2]],
+                        labels = c("sub-additive", "super-additive")))
+
+stoch_vary_d1_coexist_spp_df %>%
+    mutate(sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
+                            labels = sprintf("sigma[N] == %.2f",
+                                             sort(unique(sigma_N)))),
+           sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
+                            labels = sprintf("sigma[V] == %.2f",
+                                             sort(unique(sigma_V)))),
+           add_var = factor(add_var, levels = sort(unique(add_var)))) %>%
+    filter(eta == "sub-additive") %>%
+    mutate(n_spp = n_spp / 100) %>%
+    group_by(d1, add_var, sigma_N, sigma_V) %>%
+    summarize(n_spp = median(n_spp)) %>%
+    ungroup() %>%
+    ggplot(aes(d1, n_spp, color = add_var)) +
+    # geom_vline(data = tibble(xint = c(-0.1, 0), col = factor(1:2)),
+    #            aes(xintercept = xint, color = col), linetype = 2) +
+    geom_hline(yintercept = 0, color = "gray80") +
+    # geom_point(position = position_dodge(width = 0.02), shape = 19, size = 2) +
+    geom_line(size = 0.75) +
+    facet_grid(sigma_N ~ sigma_V, labeller = label_parsed) +
+    # scale_color_manual(NULL, values = c("firebrick", "dodgerblue"), guide = FALSE) +
+    scale_color_viridis_d(expression(italic(sigma[i])^2), begin = 0.1, end = 0.85) +
+    scale_y_continuous("Proportion of species that survive",
+                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+    xlab(expression(italic(d[1]) ~ ("with" ~ italic(d[2]) == 0.1))) +
+    guides(color = guide_legend(override.aes = list(shape = 19, size = 2)))
+
 
 
 set.seed(4235668)
 X <- quant_gen(eta = 0.6, d = c(-0.1, 0.1), q = 2, n = 10,
                spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
                # sigma_N = 0.1,
-               sigma_V = 0.1,
+               # sigma_V = 0.1,
                n_reps = 10)
 set.seed(4235669)
 Y <- quant_gen(eta = 0.6, d = -0.1, q = 2, n = 10,
@@ -1033,7 +1221,7 @@ set.seed(4235670)
 Z <- quant_gen(eta = 0.6, d = 0.1, q = 2, n = 10,
                spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
                # sigma_N = 0.1,
-               sigma_V = 0.1,
+               sigma_V = 0.2,
                n_reps = 10)
 
 Nts <- function(.QG, .title = NULL) {
