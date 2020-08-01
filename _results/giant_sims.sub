@@ -1,0 +1,36 @@
+# giant_sims.sub
+
+# "Giant" simulations for `sauron`
+
+universe = vanilla
+log = giant_sims_$(Process).log
+error = giant_sims_$(Process).err
+
+executable = giant_sims.sh
+arguments = $(Process)
+
+output = giant_sims_$(Process).out
+
+#
+# Specify that HTCondor should transfer files to and from the
+#  computer where each job runs. The last of these lines *would* be
+#  used if there were any other files needed for the executable to run.
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = http://proxy.chtc.wisc.edu/SQUID/chtc/R361.tar.gz, packages.tar.gz, giant_sims.R
+
+## IMPORTANT! Require execute servers that have CentOS 7
+requirements = (OpSysMajorVer == 7)
+
+#
+# Tell HTCondor what amount of compute resources
+#  each job will need on the computer where it runs.
+request_cpus = 12
+# MB:
+request_memory = 16000
+# KB:
+request_disk = 1000000
+
+
+# Tell HTCondor to run 9 instances of this job:
+queue 9
