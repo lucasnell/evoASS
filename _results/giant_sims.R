@@ -12,7 +12,7 @@ library(tidyr)
 library(purrr)
 library(magrittr)
 
-.N_THREADS <- 2
+.N_THREADS <- 12
 
 #'
 #' These simulations are split into 9 sets.
@@ -22,18 +22,25 @@ args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(1909893419, 554504146, 884616499, 803234389, 1158971242,
-           934673902, 1632225031, 1867003471, 651436069)
+seeds <- c(2060700723, 1566391961, 1923119972, 1175811491,
+           1593314814, 1144339430, 498391848, 1109400396,
+           2134260226, 807927094, 443439576, 1329227999)
 
 
-one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V) {
+one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
+
+    # .d = 0.5; .eta = 0.5; .add_var = 0.05; .sigma_N = 0.5; .sigma_V = 0.5; .vary_d2 = TRUE
 
     .n <- 100
+
+    if (.vary_d2) {
+        .ds <- rep(.d, 2)
+    } else .ds <- c(.d, 0.1)
 
     .seed <- sample.int(2^31 - 1, 1)
     set.seed(.seed)
 
-    Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+    Z <- quant_gen(q = 2, eta = .eta, d = .ds, n = .n,
                    add_var = rep(.add_var, .n),
                    spp_gap_t = 500L, final_t = 50e3L, n_reps = 12,
                    sigma_N = .sigma_N, sigma_V = .sigma_V,
@@ -42,35 +49,55 @@ one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V) {
 
     if (.sigma_N == 0 && .sigma_V == 0) {
         Z$call[["eta"]] <- eval(.eta)
-        Z$call[["d"]] <- eval(.d)
+        Z$call[["d"]] <- eval(.ds)
         Z$call[["n"]] <- eval(.n)
         Z$call[["add_var"]] <- eval(rep(.add_var, .n))
         jacs <- jacobians(Z)
     } else jacs <- NULL
 
 
-    return(list(NV = Z$nv %>%
-                    mutate(trait = paste0("V", trait)) %>%
-                    spread(trait, geno) %>%
+    if ("pheno" %in% colnames(Z$nv)) {
+        .NV <- Z$nv %>%
+            mutate(trait = paste0("V", trait)) %>%
+            nest(value = c(geno, pheno)) %>%
+            spread(trait, value) %>%
+            unnest(c(V1, V2), names_sep = "_") %>%
+            rename(V1 = V1_geno,
+                   V2 = V2_geno,
+                   Vp1 = V1_pheno,
+                   Vp2 = V2_pheno)
+    } else {
+        .NV <- Z$nv %>%
+            mutate(trait = paste0("V", trait)) %>%
+            spread(trait, geno)
+    }
+
+    return(list(NV = .NV %>%
                     mutate(d = .d, eta = .eta, add_var = .add_var,
-                           sigma_N = .sigma_N, sigma_V = .sigma_V),
+                           sigma_N = .sigma_N, sigma_V = .sigma_V,
+                           vary_d2 = .vary_d2),
                 J = jacs,
                 seed = .seed))
 }
 
-giant_sims <- crossing(.d = seq(-0.25, 2, length.out = 10),
-                       .add_var = seq(0.01, 0.1, 0.01),
-                       .eta = -1:1 * 0.6,
-                       .sigma_N = c(0, 0.05, 0.1),
-                       .sigma_V = c(0, 0.05, 0.1)) %>%
+giant_sims <- crossing(.d = c(seq(-0.15, 0.05, 0.025),
+                              seq(-0.25, 2, length.out = 10)),
+                       .add_var = c(0.01, 0.05, 0.1),
+                       .eta = c(-1, 1) * 0.6,
+                       .sigma_N = c(0, 0.05, 0.1, 0.2, 0.3),
+                       .sigma_V = c(0, 0.05, 0.1, 0.2, 0.3),
+                       .vary_d2 = c(TRUE, FALSE)) %>%
     # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
-    mutate(across(.fns = round, digits = 2))
+    mutate(across(where(is.numeric), .fns = round, digits = 3)) %>%
+    # (It's better to remove redundant options after rounding)
+    distinct(across(everything())) %>%
+    # varying just d1 isn't interesting above 0.05:
+    filter(!( !.vary_d2 & .d > 0.05))
 
 
-i_rows <- ((i-1) * (nrow(giant_sims) / 9) + 1):(i * (nrow(giant_sims) / 9))
+i_rows <- ((i-1) * (nrow(giant_sims) / 12) + 1):(i * (nrow(giant_sims) / 12))
 
-giant_sims <- giant_sims %>%
-    .[i_rows,]
+giant_sims <- giant_sims[i_rows,]
 
 set.seed(seeds[i])
 giant_sims <- giant_sims %>%

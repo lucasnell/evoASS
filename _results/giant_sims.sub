@@ -27,10 +27,10 @@ requirements = (OpSysMajorVer == 7)
 #  each job will need on the computer where it runs.
 request_cpus = 12
 # MB:
-request_memory = 16000
+request_memory = 1000
 # KB:
-request_disk = 1000000
+request_disk = 100000
 
 
-# Tell HTCondor to run 9 instances of this job:
-queue 9
+# Tell HTCondor to run 12 instances of this job:
+queue 12
