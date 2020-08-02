@@ -720,7 +720,7 @@ perturb.quant_gen <- function(obj,
             split(1:nrow(.)) %>%
             lapply(cbind)
         Vp0 <- c(Vp0, Vp)
-    } else Vp0 <- c(V0, Vp)
+    } else Vp0 <- V0
 
 
     # these are useful below
@@ -735,13 +735,14 @@ perturb.quant_gen <- function(obj,
 
     # Based on `...`, original call, or defaults (in that order)
     args <- lapply(names(formals(quant_gen)), get_par)
+    names(args) <- names(formals(quant_gen))
 
     # based on inputs to this function
     args[["final_t"]] <- final_t
     args[["save_every"]] <- save_every
     args[["spp_gap_t"]] <- spp_gap_t
     args[["sigma_V0"]] <- sigma_V0
-    args[["V0"]] <- V0
+    args[["V0"]] <- do.call(cbind, V0)  # to matrix for checking
     args[["N0"]] <- N0
     args[["n_reps"]] <- 1
     args[["n_threads"]] <- 1
@@ -753,6 +754,7 @@ perturb.quant_gen <- function(obj,
     args[["C"]] <- C_and_D[["C"]]
     args[["D"]] <- C_and_D[["D"]]
 
+    args[["V0"]] <- V0  # turn back to list
     args[["Vp0"]] <- Vp0  # has to be added after `check_quant_gen_args`
 
     # Not needed for cpp version
@@ -762,18 +764,25 @@ perturb.quant_gen <- function(obj,
 
     new_obj <- get_quant_gen_output(new_obj, NULL, save_every, q, args$sigma_V)
 
-    out_NV <- bind_rows(obj$nv %>%
-                            mutate(period = "before"),
-                        new_obj$nv %>%
-                            mutate(period = "after",
-                                   time = time + max(obj$nv[["time"]])))
+    if ("time" %in% colnames(new_obj$nv)) {
+        out_NV <- bind_rows(obj$nv %>%
+                                mutate(period = "before"),
+                            new_obj$nv %>%
+                                mutate(period = "after",
+                                       time = time + max(obj$nv[["time"]])))
+    } else {
+        out_NV <- bind_rows(obj$nv %>%
+                                mutate(period = "before"),
+                            new_obj$nv %>%
+                                mutate(period = "after"))
+    }
 
     out_obj <- structure(list(nv = out_NV,
                               calls = list(orig = obj$call, perturb = call_)),
                      class = "perturb_qg")
 
 
-    return(out)
+    return(out_obj)
 
 
 }

@@ -8,3 +8,6 @@ inst/doc
 _output
 *.html
 *.rds
+*.err
+*.out
+*.log
