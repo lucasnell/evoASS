@@ -1174,23 +1174,36 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
 
         for (uint32_t i = 0; i < n_reps; i++) {
             total_n_spp += rep_infos[i].N.size();
+            if (rep_infos[i].N.empty()) total_n_spp++;
         }
         nv.set_size(total_n_spp, 3 + 2 * q);
         uint32_t j = 0;
         for (uint32_t i = 0; i < n_reps; i++) {
             Rcpp::checkUserInterrupt();
             const OneRepInfo& info(rep_infos[i]);
-            for (uint32_t k = 0; k < info.N.size(); k++) {
-                nv(j+k,0) = i + 1;      // rep
-                nv(j+k,1) = k + 1;      // species
-                nv(j+k,2) = info.N[k];  // N
+            if (!info.N.empty()) {
+                for (uint32_t k = 0; k < info.N.size(); k++) {
+                    nv(j+k,0) = i + 1;      // rep
+                    nv(j+k,1) = k + 1;      // species
+                    nv(j+k,2) = info.N[k];  // N
+                    // V and Vp:
+                    for (uint32_t l = 0; l < q; l++) {
+                        nv(j+k, 3+l) = info.V[k](l);
+                        nv(j+k, 3+q+l) = info.Vp[k](l);
+                    }
+                }
+                j += info.N.size();
+            } else {
+                nv(j,0) = i + 1;      // rep
+                nv(j,1) = 0;          // species
+                nv(j,2) = 0;          // N
                 // V and Vp:
                 for (uint32_t l = 0; l < q; l++) {
-                    nv(j+k, 3+l) = info.V[k](l);
-                    nv(j+k, 3+q+l) = info.Vp[k](l);
+                    nv(j, 3+l) = arma::datum::nan;
+                    nv(j, 3+q+l) = arma::datum::nan;
                 }
+                j++;
             }
-            j += info.N.size();
         }
 
     }

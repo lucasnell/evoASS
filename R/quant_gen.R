@@ -82,7 +82,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
             gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
             extract(key, c("type", "trait"), type_fmt) %>%
             spread(type, value) %>%
-            mutate(across(c(rep, spp, trait),
+            mutate(across(c("rep", "spp", "trait"),
                           function(x) as.integer(x) %>%
                               factor(levels = 1:max(.)))) %>%
             select(rep, spp, trait, everything()) %>%
