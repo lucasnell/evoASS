@@ -2,8 +2,6 @@
 #'
 #' This file does a "giant"  number of simulations across multiple parameters.
 #'
-#' In all these simulations, both `d` values are changed.
-#'
 #'
 
 library(sauron)
