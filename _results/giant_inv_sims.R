@@ -30,20 +30,24 @@ seeds <- c(668394673,  53842794,  1053078634, 777531456,
            2026768533, 152103205, 1786315847, 182943636)
 
 
-one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d) {
+one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d1) {
 
-    # .sigma_V = 0.05; .sigma_N = 0.0; .eta = -0.6; .d = -0.1
+    # .sigma_V = 0.05; .sigma_N = 0.0; .eta = -0.6; .d1 = -0.1
 
     Z <- crossing(.v1 = seq(0, 3, 0.1),
                   .v2 = seq(0, 3, 0.1)) %>%
         pmap_dfr(function(.v1, .v2) {
-            X <- quant_gen(eta = .eta, d = .d, q = 2, n = 2,
+            ..seed <- sample.int(2^31-1, 1)
+            set.seed(..seed)
+            X <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
                            V0 = cbind(t(stable_points(.eta)[1,]),
                                       c(.v1, .v2)),
                            sigma_V0 = 0,
-                           N0 = c(pop_sizes(1, .eta, .d), 1),
-                           spp_gap_t = 0L, final_t = 20e3L, save_every = 0L,
-                           sigma_V = .sigma_V, add_var = rep(0.05, 2),
+                           N0 = c(1, 1),
+                           spp_gap_t = 1e3L, final_t = 20e3L, save_every = 0L,
+                           sigma_V = .sigma_V,
+                           sigma_N = .sigma_N,
+                           add_var = rep(0.05, 2),
                            n_reps = 96, n_threads = .N_THREADS,
                            show_progress = FALSE)
             X$nv %>%
@@ -53,10 +57,10 @@ one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d) {
                           res = any(spp == 1)) %>%
                 select(-rep) %>%
                 summarise(across(.fns = sum)) %>%
-                mutate(V1 = .v1, V2 = .v2)
+                mutate(V1 = .v1, V2 = .v2, seed = ..seed)
         }) %>%
         mutate(sigma_V = .sigma_V, sigma_N = .sigma_N,
-               eta = .eta, d = .d)
+               eta = .eta, d1 = .d1)
 
 }
 
@@ -65,7 +69,7 @@ one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d) {
 giant_sims <- crossing(.sigma_V = seq(0, 0.2, 0.05),
                           .sigma_N = seq(0, 0.2, 0.05),
                           .eta = c(-0.6, 0.6),
-                          .d = seq(-0.1, 0.05, 0.01)) %>%
+                          .d1 = seq(-0.1, 0.05, 0.01)) %>%
     # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
     mutate(across(where(is.numeric), .fns = round, digits = 2))
 
@@ -82,6 +86,4 @@ giant_sims <- giant_sims %>%
 
 
 saveRDS(giant_sims, sprintf("giant_inv_sims_%i.rds", i - 1L))
-
-
 
