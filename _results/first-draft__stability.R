@@ -1,3 +1,6 @@
+
+
+
 # load packages
 suppressPackageStartupMessages({
     library(sauron)
@@ -158,7 +161,8 @@ crossing(.V0 = c("restricted", "unrestricted"),
     mutate(eigen = cond_coexist %>%
                map(~ .x$jacs[[1]]) %>%
                map(~ eigen(.x, only.values = TRUE)[["values"]]) %>%
-               map_dbl(~ if (is.complex(.x)) { NA_real_ } else { max(.x) }))
+               map_dbl(~ if (is.complex(.x)) { NA_real_ } else { max(.x) })) %>%
+    print_big_nums()
 
 
 
@@ -178,197 +182,133 @@ crossing(.V0 = c("restricted", "unrestricted"),
 # =============================================================================*
 
 
-
-
-vary_d1_coexist_sims <- readRDS(rds("vary_d1_coexist_sims"))
-
-vary_d1_coexist_df <- map_dfr(vary_d1_coexist_sims, ~ .x[["NV"]])
-
-
-
-coexist_sims <- readRDS(rds("coexist_sims"))
-
-coexist_df <- map_dfr(coexist_sims, ~ .x[["NV"]])
-
-
-
-
-
-
-
 #'
 #' Code below shows that...
 #' * Most are stable, except for the neutrally stable equilibria when
-#'   d = 0.
+#'   `d1 + d2` is close to zero.
 #' * Some reps had complex eigenvalues, none with complex
 #'   leading eigenvalues when very small imaginary components weren't allowed
 #'   (anything less than 1e-10).
-#'   A rep with a complex 15th eigenvalue (the closest to leading I could find)
-#'   was plotted and didn't appear to have anything resembling fluctuations.
+#'   A rep with a complex 2nd eigenvalue was plotted and didn't appear to
+#'   have anything resembling fluctuations.
 #'
 #'
-coexist_sims_eigens <- map_dfr(1:length(coexist_sims),
-                               function(i) {
-                                   eigs <- map_dbl(coexist_sims[[i]][["J"]],
-                                                   function(.x) {
-                                                       if (any(is.na(.x))) return(NA)
-                                                       return(max(Re(eigen(.x, only.values = TRUE)$values)))
-                                                   })
-                                   coexist_sims[[i]]$NV %>%
-                                       distinct(rep, d1, eta, add_var) %>%
-                                       arrange(rep) %>%
-                                       mutate(eigval = eigs)
-                               })
-coexist_sims_eigens %>%
-    group_by(d1, eta, add_var) %>%
-    summarize(n_unstable = sum(eigval > 1), max_eigen = max(eigval)) %>%
+#'
+#'
+# Takes ~1 min
+giant_sim_jacs <- map_dfr(0:11,
+                          function(i) {
+                              fn <- rds(sprintf("giant_sims/giant_sims_%i", i))
+                              .d <- readRDS(fn)
+                              map_dfr(.d,
+                                      function(.x) {
+                                          .x[["NV"]][1,] %>%
+                                              select(d, eta, add_var, sigma_N,
+                                                     sigma_V, vary_d2) %>%
+                                              mutate(J = list(.x[["J"]]),
+                                                     seed = .x[["seed"]])
+                                      })
+                      })
+
+# Makes no sense to talk about Jacobians when there's stochasticity
+giant_sim_jacs <- giant_sim_jacs %>%
+    filter(sigma_V == 0, sigma_N == 0) %>%
+    select(-sigma_V, -sigma_N)
+
+# Compute eigenvalues and remove Jacobians from tibble
+giant_sim_jacs <- giant_sim_jacs %>%
+    mutate(eigens = map(J, ~ map(.x, function(z) {
+        eigen(z, only.values = TRUE)[["values"]]
+    }))) %>%
+    select(-J) %>%
+    unnest(eigens)
+
+# Add info about eigenvalues
+giant_sim_jacs <- giant_sim_jacs %>%
+    mutate(max_eigen = map_dbl(eigens, ~ max(Re(.x))),
+           which_complex = map_int(eigens, function(x) {
+               maxIm <- max(abs(Im(x)))
+               if (maxIm > 1e-10) {
+                   return(min(which(abs(Im(x)) == maxIm)))
+               } else return(NA_integer_)
+           }))
+
+
+#'
+#' Only a few reps have eigenvalues > 1, and these are very close to 1.
+#' Thus I'm saying these are neutrally stable.
+#' (Everything else is stable.)
+#'
+giant_sim_jacs %>%
+    group_by(d, eta, add_var, vary_d2) %>%
+    summarize(max_eigen = max(max_eigen)) %>%
     ungroup() %>%
-    filter(n_unstable > 0) %>%
-    mutate(one_diff = max_eigen - 1) %>%
-    filter(one_diff > 1e-10) %>%
-    print_big_nums()
+    filter(max_eigen > 1) %>%
+    mutate(above1 = max_eigen - 1)
+
+
+#'
+#' When `d = 1.5`, `eta = 0.6`, `add_var = 0.05`, and `vary_d2 = TRUE`,
+#' 3 reps return a complex 2nd eigenvalue.
+#' I'm going to plot these below.
+#'
+#'
+giant_sim_jacs %>%
+    filter(!is.na(which_complex)) %>%
+    filter(which_complex == min(which_complex)) %>%
+    mutate(max_im = map_dbl(eigens, ~ max(abs(Im(.x)))))
 
 
 
 
-# --------------------*
-# complex ----
-
-coexist_sims_eigen_vals_cmplx <- map_dfr(1:length(coexist_sims),
-                                         function(i) {
-                                             eig_comps <- map_dbl(coexist_sims[[i]][["J"]],
-                                                                  function(.x) {
-                                                                      if (any(is.na(.x))) return(NA)
-                                                                      ev <- eigen(.x, only.values = TRUE)$values
-                                                                      if (is.complex(ev)) {
-                                                                          return(max(abs(Im(ev))))
-                                                                      } else return(NA_real_)
-                                                                  })
-                                             names(eig_comps) <- NULL
-                                             cmplx_reps <- which(!is.na(eig_comps))
-                                             if (length(cmplx_reps) == 0) {
-                                                 out <- coexist_sims[[i]]$NV %>%
-                                                     .[1,] %>%
-                                                     select(rep, d1, eta, add_var) %>%
-                                                     mutate(cmplx = 0.0) %>%
-                                                     .[0,]
-                                             } else {
-                                                 out <- coexist_sims[[i]]$NV %>%
-                                                     filter(rep %in% cmplx_reps) %>%
-                                                     distinct(rep, d1, eta, add_var) %>%
-                                                     mutate(cmplx = eig_comps[!is.na(eig_comps)])
-                                             }
-                                             return(out)
-                                         })
-coexist_sims_eigen_vals_cmplx %>%
-    arrange(desc(cmplx))
+.d = 1.5
+.eta = 0.6
+.add_var = 0.05
+.sigma_N = 0
+.sigma_V = 0
+.vary_d2 = TRUE
+.seed <- 858577784
 
 
-
-
-coexist_sims_eigens_cmplx <- map_dfr(1:length(coexist_sims),
-                                     function(i) {
-                                         .t <- 1e-10
-                                         eig_comps <- map_int(coexist_sims[[i]][["J"]],
-                                                              function(.x) {
-                                                                  if (any(is.na(.x))) return(NA)
-                                                                  ev <- eigen(.x, only.values = TRUE)$values
-                                                                  if (is.complex(ev)) {
-                                                                      if (all(abs(Im(ev)) < .t)) {
-                                                                          return(NA_integer_)
-                                                                      }
-                                                                      return(min(which(abs(Im(ev)) > .t)))
-                                                                  } else return(NA_integer_)
-                                                              })
-                                         names(eig_comps) <- NULL
-                                         cmplx_reps <- which(!is.na(eig_comps))
-                                         if (length(cmplx_reps) == 0) {
-                                             out <- coexist_sims[[i]]$NV %>%
-                                                 .[1,] %>%
-                                                 select(rep, d1, eta, add_var) %>%
-                                                 mutate(cmplx = 1L) %>%
-                                                 .[0,]
-                                         } else {
-                                             out <- coexist_sims[[i]]$NV %>%
-                                                 filter(rep %in% cmplx_reps) %>%
-                                                 distinct(rep, d1, eta, add_var) %>%
-                                                 mutate(cmplx = eig_comps[!is.na(eig_comps)])
-                                         }
-                                         return(out)
-                                     })
-coexist_sims_eigens_cmplx %>%
-    filter(cmplx == min(cmplx)) %>%
-    group_by(d1, eta, add_var) %>%
-    summarize(n = n()) %>%
-    ungroup() %>%
-    print_big_nums()
-
-
-
-.d1 = 0.9; .eta = 0.6; .add_var = 0.01
-
-
-i <- map_lgl(coexist_sims,
-             ~ .x[["NV"]] %>%
-                 .[1,] %>%
-                 with(d1 == .d1 & eta == .eta & add_var == .add_var)) %>%
-    which()
-
-
-
-
-.d <- c(.d1, 0.1)
 .n <- 100
 
-.seed <- coexist_sims[[i]][["seed"]]
+if (.vary_d2) {
+    .ds <- rep(.d, 2)
+} else .ds <- c(.d, 0.1)
+
 set.seed(.seed)
 
-Z <- quant_gen(q = 2, eta = .eta, d = .d, n = .n,
+Z <- quant_gen(q = 2, eta = .eta, d = .ds, n = .n,
                add_var = rep(.add_var, .n),
                spp_gap_t = 500L, final_t = 50e3L, n_reps = 12,
-               save_every = 10L,
+               sigma_N = .sigma_N, sigma_V = .sigma_V,
+               save_every = 1000L,
                n_threads = .N_THREADS, show_progress = FALSE)
 
-Z$call[["eta"]] <- eval(.eta)
-Z$call[["d"]] <- eval(.d)
-Z$call[["n"]] <- eval(.n)
-Z$call[["add_var"]] <- eval(rep(.add_var, .n))
-
-jacs <- jacobians(Z)
-first_complex <- map_int(jacs,
-                         function(x) {
-                             eigs <- eigen(x, only.values = TRUE)[["values"]]
-                             if (is.complex(eigs) && any(abs(Im(eigs)) > 1e-10)) {
-                                 return(min(which(abs(Im(eigs)) > 1e-10)))
-                             } else return(NA_integer_)
-                         })
-# map_dbl(jacs,
-#         function(x) {
-#             eigs <- eigen(x, only.values = TRUE)[["values"]]
-#             max(Re(eigs))
-#         })
+if (.sigma_N == 0 && .sigma_V == 0) {
+    Z$call[["eta"]] <- eval(.eta)
+    Z$call[["d"]] <- eval(.ds)
+    Z$call[["n"]] <- eval(.n)
+    Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+    jacs <- jacobians(Z)
+} else jacs <- NULL
 
 
-Z %>%
-    .[["nv"]] %>%
-    # filter(rep %in% which(first_complex == 1), trait == 1) %>%
-    # filter(rep %in% which(first_complex == 3), trait == 1) %>%
-    filter(rep == 5) %>%
-    filter(trait == 1) %>%
-    filter(time > 75e3) %>%
-    filter(N > 2) %>% .[["N"]] %>% range() %>% `-`(2.922151 - 3.008999e-07)
+map_int(jacs, function(x) {
+    z <- abs(Im(eigen(x, only.values = TRUE)[["values"]]))
+    min(which(z == max(z)))
+})
 
-ggplot(aes(time, N)) +
+
+
+Z$nv %>%
+    filter(rep == 12, trait == 1) %>%
+    # filter(time > 90e3) %>%
+    ggplot(aes(time, N)) +
     geom_line(aes(color = spp), na.rm = TRUE) +
     facet_wrap(~ rep, nrow = 3) +
     scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
 
-# Z %>%
-#     .[["nv"]] %>%
-#     filter(rep %in% which(first_complex == 3), trait == 1) %>%
-#     ggplot(aes(time, N)) +
-#     geom_line(aes(color = spp), na.rm = TRUE) +
-#     facet_wrap(~ rep, nrow = 3) +
-#     scale_color_viridis_d(begin = 0.1, end = 0.9, guide = FALSE)
+
 
 
