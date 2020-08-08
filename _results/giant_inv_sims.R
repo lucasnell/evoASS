@@ -53,8 +53,8 @@ one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d1) {
             X$nv %>%
                 filter(trait == 1) %>%
                 group_by(rep) %>%
-                summarize(inv = any(spp == 2),
-                          res = any(spp == 1)) %>%
+                summarize(inv = any(spp == 2, na.rm = TRUE),
+                          res = any(spp == 1, na.rm = TRUE)) %>%
                 select(-rep) %>%
                 summarise(across(.fns = sum)) %>%
                 mutate(V1 = .v1, V2 = .v2, seed = ..seed)
