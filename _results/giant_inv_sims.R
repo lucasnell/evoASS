@@ -4,6 +4,7 @@
 #' looking for how well species invade a 1-species community.
 #'
 #'
+#' Only d1 is changed for all these simulations
 #'
 
 suppressPackageStartupMessages({
@@ -26,52 +27,69 @@ args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(668394673,  53842794,  1053078634, 777531456,
-           2026768533, 152103205, 1786315847, 182943636)
+seeds <- c(33760259, 663300953, 402391345, 929713555, 876514906, 1752800108,
+           89582964, 588225256, 1514374912, 229810552, 1021600543, 37930441,
+           1339604796, 690847888, 888588478, 197076395, 1900259017, 863080501)
 
 
-one_sim_combo <- function(.sigma_V, .sigma_N, .eta, .d1) {
+one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
 
     # .sigma_V = 0.05; .sigma_N = 0.0; .eta = -0.6; .d1 = -0.1
 
-    Z <- crossing(.v1 = seq(0, 3, 0.1),
-                  .v2 = seq(0, 3, 0.1)) %>%
-        pmap_dfr(function(.v1, .v2) {
-            ..seed <- sample.int(2^31-1, 1)
-            set.seed(..seed)
-            X <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
-                           V0 = cbind(t(stable_points(.eta)[1,]),
-                                      c(.v1, .v2)),
-                           sigma_V0 = 0,
-                           N0 = c(1, 1),
-                           spp_gap_t = 1e3L, final_t = 20e3L, save_every = 0L,
-                           sigma_V = .sigma_V,
-                           sigma_N = .sigma_N,
-                           add_var = rep(0.05, 2),
-                           n_reps = 96, n_threads = .N_THREADS,
-                           show_progress = FALSE)
-            X$nv %>%
-                filter(trait == 1) %>%
-                group_by(rep) %>%
-                summarize(inv = any(spp == 2, na.rm = TRUE),
-                          res = any(spp == 1, na.rm = TRUE)) %>%
-                select(-rep) %>%
-                summarise(across(.fns = sum)) %>%
-                mutate(V1 = .v1, V2 = .v2, seed = ..seed)
-        }) %>%
+    # These simulations are totally deterministic, so no need to run >1 time
+    if (.sigma_V == 0 && .sigma_N == 0) {
+        .nreps <- 1
+        .N_THREADS <- 1
+    } else .nreps <- 96
+
+    one_V12_combo <- function(.v1, .v2) {
+        ..seed <- sample.int(2^31-1, 1)
+        set.seed(..seed)
+        X <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
+                       V0 = cbind(t(stable_points(.eta)[1,]),
+                                  c(.v1, .v2)),
+                       sigma_V0 = 0,
+                       N0 = c(1, 1),
+                       spp_gap_t = 1e3L, final_t = 20e3L, save_every = 0L,
+                       sigma_V = .sigma_V,
+                       sigma_N = .sigma_N,
+                       add_var = rep(0.05, 2),
+                       n_reps = .nreps, n_threads = .N_THREADS,
+                       show_progress = FALSE)
+        # X$nv %>%
+        #     filter(trait == 1) %>%
+        #     group_by(rep) %>%
+        #     summarize(inv = any(spp == 2, na.rm = TRUE),
+        #               res = any(spp == 1, na.rm = TRUE)) %>%
+        #     select(-rep) %>%
+        #     summarise(across(.fns = mean)) %>%
+        #     mutate(V1 = .v1, V2 = .v2, seed = ..seed)
+        X$seed = ..seed
+        return(X)
+    }
+
+    Z <- crossing(V1 = seq(0, 4, 0.2),
+                  V2 = seq(0, 4, 0.2)) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 1)) %>%
         mutate(sigma_V = .sigma_V, sigma_N = .sigma_N,
                eta = .eta, d1 = .d1)
+    Z$qg = pmap(list(.v1 = Z$V1, .v2 = Z$V2), one_V12_combo)
+
+    return(Z)
 
 }
 
 
 
-giant_sims <- crossing(.sigma_V = seq(0, 0.2, 0.05),
-                          .sigma_N = seq(0, 0.2, 0.05),
-                          .eta = c(-0.6, 0.6),
-                          .d1 = seq(-0.1, 0.05, 0.01)) %>%
+giant_sims <- crossing(.eta = c(-0.6, 0.6),
+                       .d1 = c(-0.1, -0.05, 0),
+                       .sigma_V = c(seq(0, 0.02, 0.005),
+                                    seq(0.05, 0.2, 0.05)),
+                       .sigma_N = c(seq(0, 0.02, 0.005),
+                                    seq(0.05, 0.2, 0.05))) %>%
     # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
-    mutate(across(where(is.numeric), .fns = round, digits = 2))
+    mutate(across(.fns = round, digits = 3))
 
 n <- nrow(giant_sims)
 k <- length(seeds)
