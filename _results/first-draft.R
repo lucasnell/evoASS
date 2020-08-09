@@ -541,7 +541,9 @@ cond_coexist_sc_p <- cond_coexist_df %>%
     coord_equal(xlim = c(0, 3), ylim = c(0, 3)) +
     ylab("Trait 2") +
     xlab("Trait 1") +
-    theme(plot.margin = margin(0,0,0,b=6))
+    theme(plot.margin = margin(0,0,0,b=6),
+          plot.title = element_text(hjust = 0.5,
+                                    margin = margin(0,0,0,b=6)))
 
 
 # Time series of abundances
@@ -567,7 +569,9 @@ cc_N_p_list <- map(c("non-conflicting", "conflicting"),
                                                              c(-3, 0, 3)))) +
                        xlab("Time (× 1,000)") +
                        theme(plot.margin = margin(0,0,t=10,b=10),
-                             axis.title.x = element_blank())
+                             axis.title.x = element_blank(),
+                             plot.title = element_text(hjust = 0.5,
+                                                       margin = margin(0,0,0,b=6)))
 )
 
 
@@ -621,7 +625,9 @@ cc_V_p_list <- map(c("non-conflicting", "conflicting"),
                        scale_shape_manual(values = 0:2, guide = FALSE) +
                        scale_y_continuous("Trait value", limits = c(-0.2, NA)) +
                        xlab("Time (× 1,000)") +
-                       theme(plot.margin = margin(0,0,0,t=10))
+                       theme(plot.margin = margin(0,0,0,t=10),
+                             plot.title = element_text(hjust = 0.5,
+                                                       margin = margin(0,0,0,b=6)))
 )
 
 names(cc_V_p_list) <- c("non-conflicting", "conflicting")
@@ -634,9 +640,14 @@ names(cc_V_p_list) <- c("non-conflicting", "conflicting")
 
 
 cond_coexist_ps <- map(c("non-conflicting", "conflicting"),
-                       ~ plot_grid(cond_coexist_sc_p,
-                                   plot_grid(cc_N_p_list[[.x]],
-                                             cc_V_p_list[[.x]],
+                       ~ plot_grid(cond_coexist_sc_p +
+                                       xlab(sprintf("Trait 1\n(%s)", .x)) +
+                                       ylab("(non-conflicting)\nTrait 2") +
+                                       ggtitle("Starting conditions"),
+                                   plot_grid(cc_N_p_list[[.x]] +
+                                                 ggtitle("Abundance time series"),
+                                             cc_V_p_list[[.x]] +
+                                                 ggtitle("Trait time series"),
                                              ncol = 1, rel_heights = c(1, 2),
                                              align = "v", axis = "lr",
                                              labels = LETTERS[2:3],
@@ -651,9 +662,9 @@ names(cond_coexist_ps) <- c("non-conflicting", "conflicting")
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(cond_coexist_ps[["non-conflicting"]], 6.5, 6.5,
+    save_plot(cond_coexist_ps[["non-conflicting"]], 6.5, 7,
               .name = "S1-cond_coexist_non-conflicting")
-    save_plot(cond_coexist_ps[["conflicting"]], 6.5, 6.5,
+    save_plot(cond_coexist_ps[["conflicting"]], 6.5, 7,
               .name = "3-cond_coexist_conflicting")
 }
 
@@ -909,6 +920,7 @@ map_dbl(filling_sims, ~ .x[3]) %>% range()
 
 
 
+
 pop_sizes(3, 0, 1e-2)
 
 
@@ -1006,8 +1018,6 @@ stoch_vary_d1_coexist_spp_df <- grab_sims(.d = seq(-0.15, 0.05, 0.025),
 .x <- "sub-additive"
 .y <- FALSE
 
-
-
 stoch_vary_d1_coexist_spp_df %>%
     filter(eta == .x) %>%
     filter(vary_d2 == .y) %>%
@@ -1033,7 +1043,7 @@ stoch_vary_d1_coexist_spp_df %>%
     scale_shape_manual(values = c(1, 4), guide = FALSE) +
     scale_size_manual(values = c(1, 3), guide = FALSE) +
     scale_y_continuous("Proportion of species that survive",
-                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+                       breaks = c(0, 0.4, 0.8), limits = c(-0.01, 1)) +
     scale_x_continuous(ifelse(.y,
                               expression(italic(d[1]) ~ "and" ~ italic(d[2])),
                               expression(italic(d[1]) ~
@@ -1048,25 +1058,286 @@ stoch_vary_d1_coexist_spp_df %>%
 
 
 
-set.seed(4235668)
-X <- quant_gen(eta = 0.6, d = c(-0.1, 0.1), q = 2, n = 10,
-               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
-               # sigma_N = 0.1,
-               # sigma_V = 0.1,
-               n_reps = 10)
-set.seed(4235669)
-Y <- quant_gen(eta = 0.6, d = -0.1, q = 2, n = 10,
-               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
-               # sigma_N = 0.1,
-               sigma_V = 0.1,
-               n_reps = 10)
-set.seed(4235670)
-Z <- quant_gen(eta = 0.6, d = 0.1, q = 2, n = 10,
-               spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
-               # sigma_N = 0.1,
-               sigma_V = 0.2,
-               n_reps = 10)
 
+
+
+# ----------------------------------------------------------------*
+# giant_inv_sims ----
+# ----------------------------------------------------------------*
+
+#'
+#' For each set of parameter values, how many (out of 96 total) resulted in
+#' the invading (`inv`) and the resident (`res`) species surviving?\
+#'
+
+if (.REDO_SIMS) {
+    # This takes ~ 1 hr with 3 threads:
+    giant_inv_sims <- map_dfr(0:17,
+                              function(i) {
+                                  fn <- paste0("giant_inv_sims/giant_inv_sims_", i)
+                                  X <- readRDS(rds(fn))
+                                  extract_qg <- function(j) {
+                                      X[["qg"]][[j]]$nv %>%
+                                          filter(trait == 1) %>%
+                                          group_by(rep) %>%
+                                          summarize(inv = any(spp == 2, na.rm = TRUE),
+                                                    res = any(spp == 1, na.rm = TRUE),
+                                                    ext = any(is.na(spp)),
+                                                    total = 1) %>%
+                                          ungroup() %>%
+                                          select(-rep) %>%
+                                          summarise(across(.fns = sum))
+                                  }
+                                  # This part takes ~ 4 min per `i`
+                                  X[["qg"]] <- mclapply(1:nrow(X), extract_qg,
+                                                        mc.cores = .N_THREADS)
+                                  X <- X %>%
+                                      unnest(qg)
+                                  print(i)
+                                  return(X)
+                              })
+    saveRDS(giant_inv_sims, rds("giant_inv_sims_outcomes"))
+} else {
+    giant_inv_sims <-  rds("giant_inv_sims_outcomes")
+}
+
+
+
+
+
+
+#'
+#' These were the parameter values simulated (800 total combinations):
+#'
+#' ```
+#' crossing(.eta = c(-0.6, 0.6),
+#'          .d1 = c(-0.1, -0.05, 0),
+#'          .sigma_V = c(seq(0, 0.02, 0.005),
+#'                       seq(0.05, 0.2, 0.05)),
+#'          .sigma_N = c(seq(0, 0.02, 0.005),
+#'                       seq(0.05, 0.2, 0.05)))
+#' ```
+
+
+
+giant_inv_p_vars <- function(.x) {
+    mutate(.x,
+           d1 = factor(d1, levels = sort(unique(d1)),
+                      labels = sprintf("d[1] == %.2f", sort(unique(d1)))),
+           sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
+                      labels = sprintf("sigma[V] == %.2f", sort(unique(sigma_V)))),
+           sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
+                      labels = sprintf("sigma[N] == %.2f", sort(unique(sigma_N))))
+           )
+}
+
+
+
+# giant_inv_sims %>%
+#     filter(sigma_N == 0, sigma_V == 0.15, eta > 0, d1 == 0, V1 == 2, V2 == 0.1)
+#
+# giant_inv_sims %>%
+#     filter(sigma_N == 0, sigma_V == 0, eta > 0, d1 == 0, V1 > V2, inv == res) %>%
+#     ggplot(aes(V1, V2)) +
+#     geom_point() +
+#     coord_equal(xlim = c(0, 3), ylim = c(0, 3))
+#
+#
+# .v1 <- 2
+# .v2 <- 0.1
+# .d1 <- 0
+# .eta <- 0.6
+# .sigma_V <- 0.15
+# .sigma_N <- 0
+# ..seed <- 587296203
+#
+# X <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
+#                V0 = cbind(t(stable_points(.eta)[1,]),
+#                           c(.v1, .v2)),
+#                sigma_V0 = 0,
+#                N0 = c(1, 1),
+#                spp_gap_t = 1e3L, final_t = 20e3L, save_every = 10L,
+#                sigma_V = 0,
+#                sigma_N = 0,
+#                add_var = rep(0.05, 2),
+#                n_reps = 1,
+#                show_progress = FALSE)
+#
+# set.seed(..seed)
+# Y <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
+#                V0 = cbind(t(stable_points(.eta)[1,]),
+#                           c(.v1, .v2)),
+#                sigma_V0 = 0,
+#                N0 = c(1, 1),
+#                spp_gap_t = 1e3L, final_t = 20e3L, save_every = 10L,
+#                sigma_V = .sigma_V,
+#                sigma_N = .sigma_N,
+#                add_var = rep(0.05, 2),
+#                n_reps = 96, n_threads = .N_THREADS,
+#                show_progress = TRUE)
+#
+#
+# X %>%
+#     .[["nv"]] %>%
+#     filter(trait == 1) %>%
+#     ggplot(aes(time, N, color = spp)) +
+#     geom_line() +
+#     scale_color_manual(values = c("dodgerblue", "firebrick"))
+#
+# Y %>%
+#     .[["nv"]] %>%
+#     filter(trait == 1) %>%
+#     filter(time == max(time)) %>%
+#     group_by(rep) %>%
+#     summarize(inv = any(spp == 2, na.rm = TRUE),
+#               res = any(spp == 1, na.rm = TRUE)) %>%
+#     select(-rep) %>%
+#     summarise(across(.fns = sum))
+#
+#
+# Y %>%
+#     .[["nv"]] %>%
+#     filter(trait == 1) %>%
+#     ggplot(aes(time, log1p(N), color = spp)) +
+#     geom_line(alpha = 0.5) +
+#     scale_color_manual(values = c("dodgerblue", "firebrick"))
+#
+#
+#
+# Y %>%
+#     .[["nv"]] %>%
+#     filter(trait == 1) %>%
+#     group_by(rep) %>%
+#     summarize(inv = any(spp == 2, na.rm = TRUE),
+#               res = any(spp == 1, na.rm = TRUE)) %>%
+#     select(-rep) %>%
+#     summarise(across(.fns = sum))
+#
+#
+#
+# giant_inv_sims %>%
+#     filter(V1 == 2, V2 == 0.1, eta == 0.6, d1 == 0, sigma_N == 0) %>%
+#     select(-eta, -d1, -V1, -V2, -sigma_N) %>%
+#     as.data.frame()
+
+
+
+
+.eta <- -0.6
+
+# sigma_V_p <-
+giant_inv_sims %>%
+    filter(eta == .eta) %>%
+    filter(sigma_N == 0) %>%
+    giant_inv_p_vars() %>%
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = inv / total)) +
+    geom_point(data = stable_points(.eta), shape = 4,
+               size = 2, color = "gray50") +
+    facet_grid(d1 ~ sigma_V, label = label_parsed) +
+    scale_fill_viridis_c("Proportion of\ntimes invaded", option = "C") +
+    scale_x_continuous("(varying)\nTrait 1", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    coord_equal() +
+    theme(strip.text = element_text(size = 9),
+          strip.text.y = element_text(angle = 0),
+          panel.border = element_rect(size = 0.5, fill = NA))
+
+# sigma_N_p <-
+giant_inv_sims %>%
+    filter(eta == .eta) %>%
+    filter(sigma_V == 0) %>%
+    giant_inv_p_vars() %>%
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = inv / total)) +
+    geom_point(data = stable_points(.eta), shape = 4,
+               size = 2, color = "gray50") +
+    facet_grid(d1 ~ sigma_N, label = label_parsed) +
+    scale_fill_viridis_c("Proportion of\ntimes invaded", option = "C") +
+    scale_x_continuous("(varying)\nTrait 1", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    coord_equal() +
+    theme(strip.text = element_text(size = 9),
+          strip.text.y = element_text(angle = 0))
+
+
+crossing(eta = c(-0.6, 0.6),
+         d1 = c(-0.1, -0.05, 0),
+         sigma_V = c(seq(0, 0.02, 0.005),
+                      seq(0.05, 0.2, 0.05)),
+         sigma_N = c(seq(0, 0.02, 0.005),
+                      seq(0.05, 0.2, 0.05))) %>%
+    filter(eta == .eta) %>%
+    filter(sigma_V == 0) %>%
+    filter(d1 == -0.1)
+
+
+
+giant_inv_sims %>%
+    filter(eta == .eta) %>%
+    filter(sigma_V == 0.0) %>%
+    mutate(across(c("inv", "res", "ext"), ~ .x / total)) %>%
+    group_by(d1, V1, V2) %>%
+    mutate(across(c("inv", "res", "ext"), ~ .x - .x[sigma_N == 0])) %>%
+    ungroup() %>%
+    filter(sigma_N > 0) %>%
+    giant_inv_p_vars() %>%
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = inv)) +
+    geom_point(data = stable_points(.eta), shape = 4,
+               size = 2, color = "gray50") +
+    facet_grid(d1 ~ sigma_N, label = label_parsed) +
+    scale_fill_gradient2("Effect of\nstochasticity:",
+                         low = viridisLite::inferno(6)[2],
+                         mid = "white",
+                         high = viridisLite::inferno(6)[4],
+                         midpoint = 0,
+                         limits = c(-1, 1)) +
+    scale_x_continuous("(varying)\nTrait 1", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    coord_equal() +
+    theme(strip.text = element_text(size = 9),
+          strip.text.y = element_text(angle = 0),
+          panel.border = element_rect(size = 0.5, fill = NA))
+
+
+giant_inv_sims %>%
+    filter(eta == .eta) %>%
+    filter(sigma_N == 0) %>%
+    mutate(across(c("inv", "res", "ext"), ~ .x / total)) %>%
+    group_by(d1, V1, V2) %>%
+    mutate(across(c("inv", "res", "ext"), ~ .x - .x[sigma_V == 0])) %>%
+    ungroup() %>%
+    filter(sigma_V > 0) %>%
+    giant_inv_p_vars() %>%
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = inv)) +
+    geom_point(data = stable_points(.eta), shape = 4,
+               size = 2, color = "gray50") +
+    facet_grid(d1 ~ sigma_V, label = label_parsed) +
+    scale_fill_gradient2("Effect of\nstochasticity:",
+                         low = viridisLite::inferno(6)[2],
+                         mid = "white",
+                         high = viridisLite::inferno(6)[4],
+                         midpoint = 0,
+                         limits = c(-1, 1)) +
+    scale_x_continuous("Trait 1\n(varying)", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    coord_equal() +
+    theme(strip.text = element_text(size = 9),
+          strip.text.y = element_text(angle = 0),
+          panel.spacing = unit(0, "lines"),
+          panel.border = element_rect(size = 0.5, fill = NA))
+
+
+
+# ----------------------------------------------------------------*
+# More targeted simulations looking for when stochasticity might
+# increase the chances for coexistence:
+# ----------------------------------------------------------------*
+
+
+# Functions to quickly plot time series:
 Nts <- function(.QG, .title = NULL) {
     .QG$nv %>%
         filter(trait == 1) %>%
@@ -1125,17 +1396,99 @@ Vpts <- function(.QG, .title = NULL) {
         scale_color_viridis_d(begin = 0.1, end = 0.9, option = "C", guide = FALSE)
 }
 
-Nts(X, expression(- {} + {}))
-Nts(Y, expression(- {} - {}))
-Nts(Z, expression(+ {} + {}))
+X <- quant_gen(eta = -0.6, d = c(-0.1, 0.1), q = 2, n = 2,
+               V0 = cbind(t(stable_points(-0.6)[1,]),
+                          c(2, 2)),
+               sigma_V0 = 0,
+               N0 = c(pop_sizes(1, -0.6, c(-0.1, 0.1)), 1),
+               spp_gap_t = 0L, final_t = 10e3L, save_every = 1L,
+               sigma_V = 0.1, add_var = rep(0.05, 2),
+               n_reps = 24, n_threads = .N_THREADS, show_progress = FALSE)
 
-Vts(X, expression(- {} + {}))
-Vts(Y, expression(- {} - {}))
-Vts(Z, expression(+ {} + {}))
+X$nv %>%
+    filter(trait == 1) %>%
+    group_by(rep) %>%
+    filter(time == max(time)) %>%
+    summarize(inv = any(spp == 2),
+              repl = inv & !any(spp == 1)) %>%
+    select(-rep) %>%
+    summarise(across(.fns = sum))
 
 
-Vpts(X, expression(- {} + {}))
-Vpts(Y, expression(- {} - {}))
-Vpts(Z, expression(+ {} + {}))
+X %>% Nts()
+
+
+
+
+
+# set.seed(4235669)
+# Y <- quant_gen(eta = 0.6, d = -0.1, q = 2, n = 10,
+#                spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
+#                # sigma_N = 0.1,
+#                sigma_V = 0.1,
+#                n_reps = 10)
+# set.seed(4235670)
+# Z <- quant_gen(eta = 0.6, d = 0.1, q = 2, n = 10,
+#                spp_gap_t = 100L, final_t = 1e3L, save_every = 1L,
+#                # sigma_N = 0.1,
+#                sigma_V = 0.2,
+#                n_reps = 10)
+#
+#
+#
+# Nts(X, expression(- {} + {}))
+# Nts(Y, expression(- {} - {}))
+# Nts(Z, expression(+ {} + {}))
+#
+# Vts(X, expression(- {} + {}))
+# Vts(Y, expression(- {} - {}))
+# Vts(Z, expression(+ {} + {}))
+#
+#
+# Vpts(X, expression(- {} + {}))
+# Vpts(Y, expression(- {} - {}))
+# Vpts(Z, expression(+ {} + {}))
+
+
+
+sigma_VN_coexist_fun <- function(.sigma_V, .sigma_N, .eta, .d) {
+
+    # .sigma_V = 0.05; .sigma_N = 0.0; .eta = -0.6; .d = -0.1
+
+    Z <- crossing(.v1 = seq(0, 3, 0.1),
+                  .v2 = seq(0, 3, 0.1)) %>%
+        pmap_dfr(function(.v1, .v2) {
+            X <- quant_gen(eta = .eta, d = .d, q = 2, n = 2,
+                           V0 = cbind(t(stable_points(.eta)[1,]),
+                                      c(.v1, .v2)),
+                           sigma_V0 = 0,
+                           N0 = c(pop_sizes(1, .eta, .d), 1),
+                           spp_gap_t = 0L, final_t = 10e3L, save_every = 0L,
+                           sigma_V = .sigma_V, add_var = rep(0.05, 2),
+                           n_reps = 24, n_threads = .N_THREADS,
+                           show_progress = FALSE)
+            X$nv %>%
+                filter(trait == 1) %>%
+                group_by(rep) %>%
+                summarize(inv = any(spp == 2),
+                          res = any(spp == 1)) %>%
+                select(-rep) %>%
+                summarise(across(.fns = sum)) %>%
+                mutate(V1 = .v1, V2 = .v2)
+        }) %>%
+        mutate(sigma_V = .sigma_V, sigma_N = .sigma_N,
+               eta = .eta, d = .d)
+
+}
+
+
+crossing(.sigma_V = seq(0, 0.2, 0.05),
+         .sigma_N = seq(0, 0.2, 0.05),
+         .eta = c(-0.6, 0.6),
+         .d = seq(-0.1, 0.05, 0.01)) %>%
+    # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+    mutate(across(where(is.numeric), .fns = round, digits = 2))
+
+
 
 
