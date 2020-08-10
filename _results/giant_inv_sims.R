@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
     library(tidyr)
     library(purrr)
     library(magrittr)
+    library(parallel)
 })
 options(dplyr.summarise.inform = FALSE)
 
@@ -105,3 +106,27 @@ giant_sims <- giant_sims %>%
 
 saveRDS(giant_sims, sprintf("giant_inv_sims_%i.rds", i - 1L))
 
+
+
+
+
+extract_qg <- function(j) {
+    giant_sims[["qg"]][[j]]$nv %>%
+        filter(trait == 1) %>%
+        group_by(rep) %>%
+        summarize(inv = any(spp == 2, na.rm = TRUE),
+                  res = any(spp == 1, na.rm = TRUE),
+                  ext = any(is.na(spp)),
+                  total = 1) %>%
+        ungroup() %>%
+        select(-rep) %>%
+        summarize(across(.fns = sum))
+}
+
+giant_sims[["qg"]] <- mclapply(1:nrow(giant_sims), extract_qg,
+                               mc.cores = .N_THREADS)
+
+giant_sims <- unnest(giant_sims, qg)
+
+
+saveRDS(giant_sims, sprintf("giant_inv_sims_outcomes_%i.rds", i - 1L))
