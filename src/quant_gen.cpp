@@ -1183,9 +1183,9 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
             const OneRepInfo& info(rep_infos[i]);
             if (!info.N.empty()) {
                 for (uint32_t k = 0; k < info.N.size(); k++) {
-                    nv(j+k,0) = i + 1;      // rep
-                    nv(j+k,1) = k + 1;      // species
-                    nv(j+k,2) = info.N[k];  // N
+                    nv(j+k,0) = i + 1;          // rep
+                    nv(j+k,1) = info.spp[k];    // species
+                    nv(j+k,2) = info.N[k];      // N
                     // V and Vp:
                     for (uint32_t l = 0; l < q; l++) {
                         nv(j+k, 3+l) = info.V[k](l);

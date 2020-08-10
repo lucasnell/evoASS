@@ -56,7 +56,7 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
 # Turns the raw output from `quant_gen_cpp` into a `quant_gen` object
 #
 #
-get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
+get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
 
     type_fmt <- "([[:alnum:]]+)_([[:digit:]]+)"
 
@@ -69,8 +69,9 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
             extract(key, c("type", "trait"), type_fmt) %>%
             spread(type, value) %>%
             mutate(across(c(rep, time, spp, trait), as.integer)) %>%
-            mutate(across(c(rep, spp, trait),
-                          ~ factor(.x, levels = 1:max(.x)))) %>%
+            mutate(rep = factor(rep, levels = 1:max(rep)),
+                   spp = factor(spp, levels = 1:n),
+                   trait = factor(trait, levels = 1:q)) %>%
             select(rep, time, spp, trait, everything()) %>%
             arrange(rep, time, spp, trait) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
@@ -82,9 +83,10 @@ get_quant_gen_output <- function(qg, call_, save_every, q, sigma_V) {
             gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
             extract(key, c("type", "trait"), type_fmt) %>%
             spread(type, value) %>%
-            mutate(across(c("rep", "spp", "trait"),
-                          function(x) as.integer(x) %>%
-                              factor(levels = 1:max(.)))) %>%
+            mutate(across(c(rep, spp, trait), as.integer)) %>%
+            mutate(rep = factor(rep, levels = 1:max(rep)),
+                   spp = factor(spp, levels = 1:n),
+                   trait = factor(trait, levels = 1:q)) %>%
             select(rep, spp, trait, everything()) %>%
             arrange(rep, spp, trait) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
@@ -224,7 +226,7 @@ quant_gen <- function(eta, d, q,
                         n_threads = n_threads)
 
 
-    qg_obj <- get_quant_gen_output(qg, call_, save_every, q, sigma_V)
+    qg_obj <- get_quant_gen_output(qg, call_, save_every, q, n, sigma_V)
 
     return(qg_obj)
 }
@@ -762,7 +764,7 @@ perturb.quant_gen <- function(obj,
 
     new_obj <- do.call(quant_gen_cpp, args)
 
-    new_obj <- get_quant_gen_output(new_obj, NULL, save_every, q, args$sigma_V)
+    new_obj <- get_quant_gen_output(new_obj, NULL, save_every, q, n, args$sigma_V)
 
     if ("time" %in% colnames(new_obj$nv)) {
         out_NV <- bind_rows(obj$nv %>%
