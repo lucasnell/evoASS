@@ -18,19 +18,19 @@ suppressPackageStartupMessages({
 options(dplyr.summarise.inform = FALSE)
 
 
-.N_THREADS <- 12
+.N_THREADS <- 24
 
 #'
-#' These simulations are split into 9 sets.
+#' These simulations are split into 14 sets.
 #' Which set this one should conduct depends on the input to this script.
 #'
 args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(33760259, 663300953, 402391345, 929713555, 876514906, 1752800108,
-           89582964, 588225256, 1514374912, 229810552, 1021600543, 37930441,
-           1339604796, 690847888, 888588478, 197076395, 1900259017, 863080501)
+seeds <- c(1280110023, 1495207627, 1498302243, 2130331764, 1690270557,
+           1549075458, 60195195, 1011752989, 1161028888, 1996432322,
+           1368231661, 995793232, 583914362, 1948427904)
 
 
 one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
@@ -85,10 +85,8 @@ one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
 
 giant_sims <- crossing(.eta = c(-0.6, 0.6),
                        .d1 = c(-0.1, -0.05, 0),
-                       .sigma_V = c(seq(0, 0.02, 0.005),
-                                    seq(0.05, 0.2, 0.05)),
-                       .sigma_N = c(seq(0, 0.02, 0.005),
-                                    seq(0.05, 0.2, 0.05))) %>%
+                       .sigma_V = seq(0, 0.3, 0.05),
+                       .sigma_N = seq(0, 0.3, 0.05)) %>%
     # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
     mutate(across(.fns = round, digits = 3))
 
