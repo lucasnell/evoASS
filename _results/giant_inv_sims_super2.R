@@ -21,7 +21,7 @@ suppressPackageStartupMessages({
 options(dplyr.summarise.inform = FALSE)
 
 
-.N_THREADS <- 24
+.N_THREADS <- 12
 
 #'
 #' These simulations are split into 7 sets.
@@ -108,10 +108,13 @@ extract_qg <- function(j) {
         group_by(rep) %>%
         summarize(inv = any(spp == 2, na.rm = TRUE),
                   res = any(spp == 1, na.rm = TRUE),
-                  ext = any(is.na(spp)),
+                  coexist = inv & res,
+                  replace = inv & !res,
+                  reject = !inv & res,
+                  extinct = any(is.na(spp)),
                   total = 1) %>%
         ungroup() %>%
-        select(-rep) %>%
+        select(-rep, -inv, -res) %>%
         summarize(across(.fns = sum))
 }
 

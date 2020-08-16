@@ -4,11 +4,13 @@
 #'
 #'
 
-library(sauron)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(magrittr)
+suppressPackageStartupMessages({
+    library(sauron)
+    library(dplyr)
+    library(tidyr)
+    library(purrr)
+    library(magrittr)
+})
 
 .N_THREADS <- 12
 
@@ -20,14 +22,15 @@ args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(2060700723, 1566391961, 1923119972, 1175811491,
-           1593314814, 1144339430, 498391848, 1109400396,
-           2134260226, 807927094, 443439576, 1329227999)
+seeds <- c(1159880,    918587938,  989618742,  823547947,  208775242,
+           202281776,  1216982849, 1922659773, 1345931774, 1189106803,
+           1837936015, 123497759,  247275244,  2008137723, 1551317634,
+           1080656309, 1996156365, 1880620967)
 
 
 one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
 
-    # .d = 0.5; .eta = 0.5; .add_var = 0.05; .sigma_N = 0.5; .sigma_V = 0.5; .vary_d2 = TRUE
+    # .d = 0.5; .eta = 0.5; .add_var = 0.05; .sigma_N = 0.5; .sigma_V = 0; .vary_d2 = TRUE
 
     .n <- 100
 
@@ -68,6 +71,8 @@ one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
         .NV <- Z$nv %>%
             mutate(trait = paste0("V", trait)) %>%
             spread(trait, geno)
+        .NV$Vp1 <- NA_real_
+        .NV$Vp2 <- NA_real_
     }
 
     return(list(NV = .NV %>%
@@ -81,7 +86,7 @@ one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
 giant_sims <- crossing(.d = c(seq(-0.15, 0.05, 0.025),
                               seq(-0.25, 2, length.out = 10)),
                        .add_var = c(0.01, 0.05, 0.1),
-                       .eta = c(-1, 1) * 0.6,
+                       .eta = -1:1 * 0.6,
                        .sigma_N = c(0, 0.05, 0.1, 0.2, 0.3),
                        .sigma_V = c(0, 0.05, 0.1, 0.2, 0.3),
                        .vary_d2 = c(TRUE, FALSE)) %>%
@@ -93,7 +98,9 @@ giant_sims <- crossing(.d = c(seq(-0.15, 0.05, 0.025),
     filter(!( !.vary_d2 & .d > 0.05))
 
 
-i_rows <- ((i-1) * (nrow(giant_sims) / 12) + 1):(i * (nrow(giant_sims) / 12))
+nk <- nrow(giant_sims) / length(seeds)
+
+i_rows <- ((i-1) * nk + 1):(i * nk)
 
 giant_sims <- giant_sims[i_rows,]
 

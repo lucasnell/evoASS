@@ -18,7 +18,7 @@ suppressPackageStartupMessages({
 options(dplyr.summarise.inform = FALSE)
 
 
-.N_THREADS <- 24
+.N_THREADS <- 12
 
 #'
 #' These simulations are split into 14 sets.
@@ -28,9 +28,11 @@ args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(1280110023, 1495207627, 1498302243, 2130331764, 1690270557,
-           1549075458, 60195195, 1011752989, 1161028888, 1996432322,
-           1368231661, 995793232, 583914362, 1948427904)
+seeds <- c(59216118,   1280899470, 622695939, 1353361042, 932153264,
+           11604304,   287490872,  812266457, 568809856,  1677486659,
+           359484764,  608880009,  988489336, 511646556,  1202440059,
+           1415272918, 1837787217, 103617745, 1533722557, 627536732,
+           451508055)
 
 
 one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
@@ -83,7 +85,7 @@ one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
 
 
 
-giant_sims <- crossing(.eta = c(-0.6, 0.6),
+giant_sims <- crossing(.eta = -1:1 * 0.6,
                        .d1 = c(-0.1, -0.05, 0),
                        .sigma_V = seq(0, 0.3, 0.05),
                        .sigma_N = seq(0, 0.3, 0.05)) %>%
@@ -106,18 +108,19 @@ saveRDS(giant_sims, sprintf("giant_inv_sims_%i.rds", i - 1L))
 
 
 
-
-
 extract_qg <- function(j) {
     giant_sims[["qg"]][[j]]$nv %>%
         filter(trait == 1) %>%
         group_by(rep) %>%
         summarize(inv = any(spp == 2, na.rm = TRUE),
                   res = any(spp == 1, na.rm = TRUE),
-                  ext = any(is.na(spp)),
+                  coexist = inv & res,
+                  replace = inv & !res,
+                  reject = !inv & res,
+                  extinct = any(is.na(spp)),
                   total = 1) %>%
         ungroup() %>%
-        select(-rep) %>%
+        select(-rep, -inv, -res) %>%
         summarize(across(.fns = sum))
 }
 
