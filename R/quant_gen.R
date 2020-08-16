@@ -299,7 +299,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 #' @inheritParams adapt_dyn
 #' @param return_geom Logical for whether to return a `ggplot2` `geom_*` object for
 #'     plotting rather than a `tibble`. Defaults to `FALSE`.
-#' @param line_n Number of points to use for lines. Defaults to `1000`.
+#' @param line_n Number of points to use for lines. Defaults to `1001`.
 #' @param ... Other arguments to pass to the call to `geom_point` or `geom_path`.
 #'
 #' @return A `tibble` if `return_geom` is `FALSE`, and a  `geom_*` object if it's `TRUE`.
@@ -312,7 +312,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 #' @importFrom ggplot2 aes
 #'
 stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
-                          return_geom = FALSE, line_n = 1000, ...) {
+                          return_geom = FALSE, line_n = 1001, ...) {
     stopifnot((inherits(eta, "matrix") && is.numeric(eta)) ||
                   inherits(eta, "numeric"))
     if (inherits(eta, "matrix")) {
@@ -336,8 +336,9 @@ stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
         geom <- geom_point(data = pts, aes(V1, V2), ...)
     } else {
         radius <- sqrt((r0 / f) - 1)
-        pts <- tibble(V1 = seq(0, radius, length.out = line_n),
-                      V2 = sqrt(radius ^2 - V1^2))
+        radians <- seq(0, 0.5, length.out = line_n) * pi
+        pts <- tibble(V1 = radius * sin(radians),
+                      V2 = radius * cos(radians))
         if (!return_geom) return(pts)
         geom <- geom_path(data = pts, aes(V1, V2), ...)
     }
