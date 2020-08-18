@@ -11,3 +11,7 @@ _output
 *.err
 *.out
 *.log
+
+_results/results-plots
+
+_results/results-rds

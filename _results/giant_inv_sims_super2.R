@@ -24,20 +24,19 @@ options(dplyr.summarise.inform = FALSE)
 .N_THREADS <- 12
 
 #'
-#' These simulations are split into 7 sets.
+#' These simulations are split into 14 sets.
 #' Which set this one should conduct depends on the input to this script.
 #'
 args <- commandArgs(trailingOnly = TRUE)
 i <- as.integer(args[[1]]) + 1L
 
 
-seeds <- c(1721377756, 475139442, 683847556, 846947188,
-           282136409, 215494285, 1338715051)
+seeds <- c(2008137723, 1551317634, 1080656309, 1996156365, 1880620967,
+           59216118,   1280899470, 622695939,  1353361042, 932153264,
+           11604304,   287490872,  812266457,  568809856)
 
 
-one_sim_combo <- function(.d1, .sigma_V, .sigma_N) {
-
-    .eta = 0.6
+one_sim_combo <- function(.eta, .d1, .sigma_V, .sigma_N) {
 
     # .sigma_V = 0.05; .sigma_N = 0.0; .eta = -0.6; .d1 = -0.1
 
@@ -47,12 +46,14 @@ one_sim_combo <- function(.d1, .sigma_V, .sigma_N) {
         .N_THREADS <- 1
     } else .nreps <- 96
 
+    sp <- stable_points(.eta)
+    sp <- sp[nrow(sp),]
+
     one_V12_combo <- function(.v1, .v2) {
         ..seed <- sample.int(2^31-1, 1)
         set.seed(..seed)
         X <- quant_gen(eta = .eta, d = c(.d1, 0.1), q = 2, n = 2,
-                       V0 = cbind(t(stable_points(.eta)[2,]),
-                                  c(.v1, .v2)),
+                       V0 = cbind(t(sp), c(.v1, .v2)),
                        sigma_V0 = 0,
                        N0 = c(1, 1),
                        spp_gap_t = 1e3L, final_t = 20e3L, save_every = 0L,
@@ -80,7 +81,8 @@ one_sim_combo <- function(.d1, .sigma_V, .sigma_N) {
 
 
 
-giant_sims <- crossing(.d1 = c(-0.1, -0.05, 0),
+giant_sims <- crossing(.eta = 0:1 * 0.6,
+                       .d1 = c(-0.1, -0.05, 0),
                        .sigma_V = seq(0, 0.3, 0.05),
                        .sigma_N = seq(0, 0.3, 0.05)) %>%
     # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
