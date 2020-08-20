@@ -964,7 +964,15 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
     arrange(time) %>%
     ggplot(aes(V1, V2, color = spp)) +
     geom_path(aes(group = id)) +
-    facet_wrap(~ rep, nrow = 4) +
+    geom_point(data = cond_coexist_stoch_df %>%
+                   filter(d1 == "conflicting",
+                          sigma_N == 0,
+                          sigma_V == 0.1) %>%
+                   filter(trait_space == "v") %>%
+                   group_by(spp) %>%
+                   summarize(V1 = V1[time == min(time)][1],
+                             V2 = V2[time == min(time)][1])) +
+    facet_wrap(~ rep, nrow = 3) +
     coord_equal(xlim = c(0, 3.11), ylim = c(0, 3.11)) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
     ylab("(non-conflicting)\nTrait 2") +
@@ -975,7 +983,7 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
 
 if (.RESAVE_PLOTS) {
     save_plot(cond_coexist_stoch_p, 6, 4, .prefix = "4-")
-    save_plot(cc_sigmaV_sit_v_p, 6, 7.5, .prefix = "S2-")
+    save_plot(cc_sigmaV_sit_v_p, 6, 5, .prefix = "S2-")
 }
 
 
@@ -989,7 +997,7 @@ if (.RESAVE_PLOTS) {
 # =============================================================================*
 # =============================================================================*
 
-# S6-S9 Stoch. - # species ----
+# S3 Stoch. - # species ----
 
 # =============================================================================*
 # =============================================================================*
@@ -1014,6 +1022,9 @@ stoch_coexist_spp_df <- grab_sims(.d = seq(-0.25, 2, length.out = 10),
 stoch_coexist_p_fun <- function(.x) {
     stoch_coexist_spp_df %>%
         filter(eta == .x) %>%
+        filter(sigma_N %in% c(0, 0.1, 0.2),
+               sigma_V %in% c(0, 0.1, 0.2),
+               add_var == 0.05) %>%
         mutate(sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
                                 labels = sprintf("sigma[N] == %.2f",
                                                  sort(unique(sigma_N)))),
@@ -1023,15 +1034,17 @@ stoch_coexist_p_fun <- function(.x) {
                add_var = factor(add_var, levels = sort(unique(add_var))),
                extinct = factor(n_spp == 0)) %>%
         mutate(n_spp = n_spp / 100) %>%
-        ggplot(aes(d, n_spp, color = add_var)) +
+        # ggplot(aes(d, n_spp, color = add_var)) +
+        ggplot(aes(d, n_spp)) +
         geom_hline(yintercept = 0, color = "gray80") +
         geom_vline(xintercept = 0, color = "gray80") +
         geom_jitter(aes(shape = extinct, size = extinct),
+                    color = "dodgerblue",
                     width = 0.02, height = 0) +
         ggtitle(.x) +
         facet_grid(sigma_N ~ sigma_V, labeller = label_parsed) +
-        scale_color_viridis_d(expression(italic(sigma[i])^2),
-                              begin = 0.1, end = 0.85) +
+        # scale_color_viridis_d(expression(italic(sigma[i])^2),
+        #                       begin = 0.1, end = 0.85) +
         scale_shape_manual(values = c(1, 4), guide = FALSE) +
         scale_size_manual(values = c(0.5, 2), guide = FALSE) +
         scale_y_continuous("Proportion of species that survive",
@@ -1039,8 +1052,8 @@ stoch_coexist_p_fun <- function(.x) {
         scale_x_continuous(expression(italic(d[1]) ~ "and" ~ italic(d[2])),
                            breaks = c(0, 1, 2)) +
         guides(color = guide_legend(override.aes = list(size = 2, shape = 19))) +
-        theme(strip.text.y = element_text(angle = 0),
-              legend.position = "top",
+        theme(strip.text = element_text(size = 10),
+              strip.text.y = element_text(angle = 0),
               plot.title = element_text(hjust = 0.5,
                                         margin = margin(0,0,0,b=12))) +
         NULL
@@ -1053,15 +1066,6 @@ names(stoch_coexist_ps) <- c("sub", "add", "super")
 # stoch_coexist_ps[["sub"]]
 # stoch_coexist_ps[["add"]]
 # stoch_coexist_ps[["super"]]
-
-if (.RESAVE_PLOTS) {
-    save_plot(stoch_coexist_ps[["sub"]], 6, 6,
-              .name = "S6-stoch_coexist_d1-d2_sub")
-    save_plot(stoch_coexist_ps[["add"]], 6, 6,
-              .name = "S7-stoch_coexist_d1-d2_add")
-    save_plot(stoch_coexist_ps[["super"]], 6, 6,
-              .name = "S8-stoch_coexist_d1-d2_super")
-}
 
 
 
@@ -1085,6 +1089,9 @@ stoch_coexist_d1_p_fun <- function(.x) {
 
     stoch_vary_d1_coexist_spp_df %>%
         filter(eta == .x) %>%
+        filter(sigma_N %in% c(0, 0.1, 0.2),
+               sigma_V %in% c(0, 0.1, 0.2),
+               add_var == 0.05) %>%
         mutate(sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
                                 labels = sprintf("sigma[N] == %.2f",
                                                  sort(unique(sigma_N)))),
@@ -1094,15 +1101,16 @@ stoch_coexist_d1_p_fun <- function(.x) {
                add_var = factor(add_var, levels = sort(unique(add_var))),
                extinct = factor(n_spp == 0)) %>%
         mutate(n_spp = n_spp / 100) %>%
-        ggplot(aes(d, n_spp, color = add_var)) +
+        # ggplot(aes(d, n_spp, color = add_var)) +
+        ggplot(aes(d, n_spp)) +
         ggtitle(.x) +
         geom_hline(yintercept = 0, color = "gray80") +
         geom_vline(xintercept = 0, color = "gray80") +
         geom_jitter(aes(shape = extinct, size = extinct), width = 0.002,
-                    height = 0) +
+                    height = 0, color = "firebrick") +
         facet_grid(sigma_N ~ sigma_V, labeller = label_parsed) +
-        scale_color_viridis_d(expression(italic(sigma[i])^2),
-                              begin = 0.1, end = 0.85) +
+        # scale_color_viridis_d(expression(italic(sigma[i])^2),
+        #                       begin = 0.1, end = 0.85) +
         scale_shape_manual(values = c(1, 4), guide = FALSE) +
         scale_size_manual(values = c(1, 3), guide = FALSE) +
         scale_y_continuous("Proportion of species that survive",
@@ -1111,7 +1119,7 @@ stoch_coexist_d1_p_fun <- function(.x) {
                                           ("with" ~ italic(d[2]) == 0.1)),
                            breaks = c(-0.1, 0)) +
         guides(color = guide_legend(override.aes = list(shape = 19, size = 2))) +
-        theme(panel.background = element_rect(color = "black"),
+        theme(strip.text = element_text(size = 10),
               strip.text.y = element_text(angle = 0),
               legend.position = "top",
               plot.title = element_text(hjust = 0.5,
@@ -1127,15 +1135,39 @@ names(stoch_coexist_d1_ps) <- c("sub", "add", "super")
 # stoch_coexist_d1_ps[["add"]]
 # stoch_coexist_d1_ps[["super"]]
 
+stoch_coexist_ps <- map(stoch_coexist_ps,
+                        ~.x + theme(axis.title.y = element_blank(),
+                                    strip.text.y = element_blank()))
+stoch_coexist_d1_ps <- map(stoch_coexist_d1_ps,
+                           ~.x + theme(axis.title.y = element_blank(),
+                                       axis.text.y = element_blank()))
+for (f in c("sub", "add")) {
+    stoch_coexist_ps[[f]] <- stoch_coexist_ps[[f]] +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_blank())
+    stoch_coexist_d1_ps[[f]] <- stoch_coexist_d1_ps[[f]] +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_blank())
+}
+for (f in c("add", "super")) {
+    stoch_coexist_ps[[f]] <- stoch_coexist_ps[[f]] +
+        theme(strip.text.x = element_blank())
+    stoch_coexist_d1_ps[[f]] <- stoch_coexist_d1_ps[[f]] +
+        theme(strip.text.x = element_blank())
+}
+
+stoch_coexist_p <- ggarrange(stoch_coexist_ps[["sub"]],
+          stoch_coexist_d1_ps[["sub"]],
+          stoch_coexist_ps[["add"]],
+          stoch_coexist_d1_ps[["add"]],
+          stoch_coexist_ps[["super"]],
+          stoch_coexist_d1_ps[["super"]],
+          ncol = 2, left = "Proportion of species that survive",
+          draw = FALSE)
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(stoch_coexist_d1_ps[["sub"]], 6, 6,
-              .name = "S9-stoch_coexist_d1_sub")
-    save_plot(stoch_coexist_d1_ps[["add"]], 6, 6,
-              .name = "S10-stoch_coexist_d1_add")
-    save_plot(stoch_coexist_d1_ps[["super"]], 6, 6,
-              .name = "S11-stoch_coexist_d1_super")
+    save_plot(stoch_coexist_p, 6.5, 7, .prefix = "S3-")
 }
 
 
@@ -1143,10 +1175,11 @@ if (.RESAVE_PLOTS) {
 
 
 
+
 # =============================================================================*
 # =============================================================================*
 
-# Stoch. - heatmaps ----
+# 5,S4,S5 Stoch. - heatmaps ----
 
 # =============================================================================*
 # =============================================================================*
@@ -1163,7 +1196,7 @@ giant_inv_sims <- map_dfr(0:20,
                               readRDS(fn)
                           })
 
-giant_inv_sims_s2 <- map_dfr(0:6,
+giant_inv_sims_s2 <- map_dfr(0:13,
                           function(i) {
                               fn <- rds(paste0("giant_inv_sims_super2/",
                                                "giant_inv_sims_super2_",
@@ -1248,7 +1281,8 @@ inv_sims_one_p_fun <- function(.eta,
                                .par = "coexist",
                                fill_scale = NULL) {
 
-    # .par = "replace"
+    # .par = "replace"; .eta = 0.6; .super2 = TRUE; fill_scale = NULL
+    # rm(.par, .eta)
 
     .par <- match.arg(.par, c("coexist", "replace", "reject", "extinct"))
 
@@ -1315,9 +1349,10 @@ inv_sims_one_p_fun <- function(.eta,
             geom_point(data = stable_points(.eta), aes(shape = factor(V1)),
                        size = 2, color = "black")
     } else {
+        i <- ifelse(.super2, 1001, 1)
         p <- p +
-            stable_points(.eta, return_geom = TRUE, linetype = 3, size = 1) +
-            geom_point(data = stable_points(.eta)[1,], shape = 16,
+            stable_points(.eta, return_geom = TRUE, color = "gray50", size = 1) +
+            geom_point(data = stable_points(.eta)[i,], shape = 16,
                        size = 2, color = "black")
     }
     if (!is.null(fill_scale)) {
@@ -1329,13 +1364,14 @@ inv_sims_one_p_fun <- function(.eta,
         scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
         scale_shape_manual(values = .shapes, guide = FALSE) +
         coord_equal() +
-        theme(strip.text = element_text(size = 10),
+        theme(strip.text = element_text(size = 8),
               strip.text.y = element_text(angle = 0, hjust = 0,
                                           margin = margin(0,0,0,l=3)),
               strip.text.x = element_text(margin = margin(0,0,0,b=3)),
               panel.border = element_rect(size = 0.5, fill = NA),
               plot.title = element_text(size = 12, hjust = 0.5,
                                         margin = margin(0,0,0,b=6)),
+              legend.title = element_text(size = 10),
               plot.margin = margin(0,0,0,0))
 
 }
@@ -1346,7 +1382,8 @@ inv_sims_p_fun <- function(..par,
                            .fill_high = inferno(6)[5],
                            .fill_limits = c(-1, 1)) {
 
-    # ..par <- "coexist"
+    # ..par = "coexist"; .fill_low = inferno(6)[3];
+    # .fill_high = inferno(6)[5]; .fill_limits = c(-1, 1)
 
     .fill_scale <- scale_fill_gradient2(expression("Effect of" ~ sigma[V]),
                                         low = .fill_low,
@@ -1357,40 +1394,80 @@ inv_sims_p_fun <- function(..par,
 
     ..par <- match.arg(..par, c("coexist", "replace", "reject", "extinct"))
 
-    plots <- map2(c(-1:1, 1) * etas[[2]], c(rep(FALSE, 3), TRUE),
+    plots <- map(-1:1 * etas[[2]],
                   ~ inv_sims_one_p_fun(.eta = .x,
-                                       .super2 = .y,
                                        .par = ..par,
                                        fill_scale = .fill_scale) +
                       theme(axis.title = element_blank()))
-    names(plots) <- c("sub", "add", "super", "super2")
+    names(plots) <- c("sub", "add", "super")
+
+    legend <- get_legend(plots[[1]])
+
+    plots <- map(plots, ~ .x + theme(legend.position = "none"))
+    plots[[1]] <- plots[[1]] +
+        ggtitle("sub-additive")
+    plots[[2]] <- plots[[2]] +
+        ggtitle("additive") +
+        theme(strip.text.x = element_blank())
+    plots[[3]] <- plots[[3]] +
+        ggtitle("super-additive") +
+        theme(strip.text.x = element_blank())
+
+
+
+    plot_grid(plot_grid(textGrob("Trait 2 (non-conflicting)", rot = 90, x = 2),
+                        plot_grid(plotlist = plots, ncol = 1,
+                                  align = "vh", axis = "tblr"),
+                        legend,
+                        rel_widths = c(0.03, 1, 0.25), nrow = 1),
+              textGrob("Trait 1 (varying)", hjust = 0.9, vjust = 0),
+              ncol = 1, rel_heights = c(1, 0.07))
+
+}
+
+
+
+# Same thing but for "super 2" sims
+inv_sims_super2_p_fun <- function(..par,
+                                  .fill_low = inferno(6)[3],
+                                  .fill_high = inferno(6)[5],
+                                  .fill_limits = c(-1, 1)) {
+
+    .fill_scale <- scale_fill_gradient2(expression("Effect of" ~ sigma[V]),
+                                        low = .fill_low,
+                                        mid = "white",
+                                        high = .fill_high,
+                                        midpoint = 0,
+                                        limits = .fill_limits)
+
+    ..par <- match.arg(..par, c("coexist", "replace", "reject", "extinct"))
+
+    plots <- map(0:1 * etas[[2]],
+                  ~ inv_sims_one_p_fun(.eta = .x,
+                                       .super2 = TRUE,
+                                       .par = ..par,
+                                       fill_scale = .fill_scale) +
+                      theme(axis.title = element_blank()))
+    names(plots) <- c("add", "super")
 
     legend <- get_legend(plots[[1]])
 
     plots <- map(plots, ~ .x + theme(legend.position = "none"))
     plots[[1]] <- plots[[1]] +
         ggtitle("sub-additive") +
-        theme(strip.text.y = element_blank())
+        theme(plot.margin = margin(0,0,0,b=12))
     plots[[2]] <- plots[[2]] +
-        ggtitle("additive")
-    plots[[3]] <- plots[[3]] +
-        ggtitle("super-additive") +
-        theme(strip.text.y = element_blank(),
-                   strip.text.x = element_blank())
-    plots[[4]] <- plots[[4]] +
-        ggtitle("super-additive") +
-        theme(strip.text.x = element_blank())
+        ggtitle("additive") +
+        theme(strip.text.x = element_blank(),
+              plot.margin = margin(0,0,0,t=12))
 
-    plot_grid(plot_grid(textGrob(expression("Trait 2 (non-conflicting;"
-                                            ~ d[2] == 0.1 * ")"), rot = 90),
-                        plot_grid(plotlist = plots, nrow = 2,
+    plot_grid(plot_grid(textGrob("Trait 2 (non-conflicting)", rot = 90, x = 1),
+                        plot_grid(plotlist = plots, ncol = 1,
                                   align = "vh", axis = "tblr"),
                         legend,
-                        rel_widths = c(0.07, 1, 0.14), nrow = 1),
+                        rel_widths = c(0.07, 1, 0.25), nrow = 1),
               textGrob("Trait 1 (varying)", hjust = 0.9, vjust = 0),
               ncol = 1, rel_heights = c(1, 0.07))
-
-
 }
 
 
@@ -1411,16 +1488,29 @@ inv_sims_ps[["extinct"]] <- inv_sims_p_fun("extinct",
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(inv_sims_ps[["coexist"]], 8, 9, .name = "4-")
-    save_plot(inv_sims_ps[["replace"]], 8, 9, .name = "5-")
-    save_plot(inv_sims_ps[["extinct"]], 8, 9, .name = "6-")
+    save_plot(inv_sims_ps[["coexist"]], 5, 9, .name = "5-inv_sims_hm_coexist")
+    save_plot(inv_sims_ps[["replace"]], 5, 9, .name = "S4-inv_sims_hm_replace")
+    save_plot(inv_sims_ps[["extinct"]], 5, 9, .name = "S5-inv_sims_hm_extinct")
 }
 
 
 
 
 
+inv_sims_super2_ps <- list()
+inv_sims_super2_ps[["coexist"]] <- inv_sims_super2_p_fun("coexist")
+inv_sims_super2_ps[["replace"]] <- inv_sims_super2_p_fun("replace",
+                                                         .fill_low = viridis(6)[3],
+                                                         .fill_high = viridis(6)[5])
+inv_sims_super2_ps[["extinct"]] <- inv_sims_super2_p_fun("extinct",
+                                                         .fill_low = "red",
+                                                         .fill_high = "gray60",
+                                                         .fill_limits = c(0, 0.15))
 
+
+# inv_sims_super2_ps[["coexist"]]
+# inv_sims_super2_ps[["replace"]]
+# inv_sims_super2_ps[["extinct"]]
 
 
 
