@@ -885,6 +885,9 @@ int one_quant_gen__(OneRepInfo& info,
                     pcg64& eng,
                     Progress& prog_bar) {
 
+    // To keep mean of V distribution 1
+    double mu_V = - (sigma_V * sigma_V) / 2;
+
 
     normal_distr distr = normal_distr(0, 1);
 
@@ -895,7 +898,7 @@ int one_quant_gen__(OneRepInfo& info,
             for (uint32_t j = 0; j < V0[i].n_elem; j++) {
                 V0[i][j] = trunc_rnorm_(V0[i][j], sigma_V0, eng);
                 Vp0[i][j] = V0[i][j];
-                if (sigma_V > 0) Vp0[i][j] *= std::exp(distr(eng) * sigma_V);
+                if (sigma_V > 0) Vp0[i][j] *= std::exp(distr(eng) * sigma_V + mu_V);
             }
         }
     }
@@ -907,7 +910,7 @@ int one_quant_gen__(OneRepInfo& info,
         Vp0 = V0;
         if (sigma_V > 0) {
             for (uint32_t i = 0; i < Vp0.size(); i++) {
-                for (double& v : Vp0[i]) v *= std::exp(distr(eng) * sigma_V);
+                for (double& v : Vp0[i]) v *= std::exp(distr(eng) * sigma_V + mu_V);
             }
         }
     }
