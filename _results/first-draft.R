@@ -29,7 +29,7 @@ cc <- function(.x) {
 # whether to re-do simulations (use rds files otherwise)
 .REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- FALSE
+.RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
 .N_THREADS <- 3
 
@@ -526,7 +526,7 @@ if (.REDO_SIMS) {
                              .d1 = c(-0.1, 0.1)) %>%
         filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
         pmap(cond_coexist_test)
-    # saveRDS(cond_coexist, rds("cond_coexist"))
+    saveRDS(cond_coexist, rds("cond_coexist"))
 
     # Takes ~3.5 min
     set.seed(351367879)
@@ -536,7 +536,7 @@ if (.REDO_SIMS) {
                              .sigma_V = c(0.05, 0.1, 0.2)) %>%
         filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
         pmap(cond_coexist_test)
-    # saveRDS(cond_coexist_sV, rds("cond_coexist_sV"))
+    saveRDS(cond_coexist_sV, rds("cond_coexist_sV"))
 
     # Takes ~1.7 min
     set.seed(602553504)
@@ -546,7 +546,7 @@ if (.REDO_SIMS) {
                              .sigma_N = c(0.05, 0.1, 0.2)) %>%
         filter(!(.V0 == "restricted" & .eta_sign < 0)) %>%
         pmap(cond_coexist_test)
-    # saveRDS(cond_coexist_sN, rds("cond_coexist_sN"))
+    saveRDS(cond_coexist_sN, rds("cond_coexist_sN"))
 
 } else {
     cond_coexist <- readRDS(rds("cond_coexist"))

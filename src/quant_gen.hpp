@@ -144,14 +144,12 @@ public:
         sel_str__(ss_mat, Vp, N, f, a0, C, r0, D);
         // Then include additive genetic variance when adding to trait values:
         if (sigma_V > 0) {
-            // To keep mean of V distribution 1
-            double mu_V = - (sigma_V * sigma_V) / 2;
             for (uint32_t i = 0; i < V.size(); i++) {
                 for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
                     V[i][j] += (add_var[i] * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
                     // including stochasticity:
-                    Vp[i][j] = V[i][j] * std::exp(rand_norm(eng) * sigma_V + mu_V);
+                    Vp[i][j] = V[i][j] * std::exp(rand_norm(eng) * sigma_V);
                 }
             }
         } else {
