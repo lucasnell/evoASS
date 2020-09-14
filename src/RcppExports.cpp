@@ -231,8 +231,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // quant_gen_cpp
-arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::deque<arma::vec>& V0, const std::deque<arma::vec>& Vp0, const std::deque<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const std::deque<double>& add_var, const double& sigma_V0, const double& sigma_N, const double& sigma_V, const uint32_t& spp_gap_t, const uint32_t& final_t, const double& min_N, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
-RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP Vp0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP add_varSEXP, SEXP sigma_V0SEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP spp_gap_tSEXP, SEXP final_tSEXP, SEXP min_NSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_threadsSEXP) {
+arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::deque<arma::vec>& V0, const std::deque<arma::vec>& Vp0, const std::deque<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const std::deque<double>& add_var, const double& sigma_V0, const double& sigma_N, const double& sigma_V, const uint32_t& spp_gap_t, const uint32_t& final_t, const double& min_N, const bool& adjust_mu_V, const bool& lnorm_V, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
+RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP Vp0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP add_varSEXP, SEXP sigma_V0SEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP spp_gap_tSEXP, SEXP final_tSEXP, SEXP min_NSEXP, SEXP adjust_mu_VSEXP, SEXP lnorm_VSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -252,10 +252,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const uint32_t& >::type spp_gap_t(spp_gap_tSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type final_t(final_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type adjust_mu_V(adjust_mu_VSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type lnorm_V(lnorm_VSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type show_progress(show_progressSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, save_every, show_progress, n_threads));
+    rcpp_result_gen = Rcpp::wrap(quant_gen_cpp(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, adjust_mu_V, lnorm_V, save_every, show_progress, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -269,6 +271,42 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type mu(muSEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma(sigmaSEXP);
     rcpp_result_gen = Rcpp::wrap(trunc_rnorm_cpp(N, mu, sigma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// trunc_rnorm_mu_cpp
+std::vector<double> trunc_rnorm_mu_cpp(const std::vector<double>& mu, const double& sigma);
+RcppExport SEXP _sauron_trunc_rnorm_mu_cpp(SEXP muSEXP, SEXP sigmaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma(sigmaSEXP);
+    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_mu_cpp(mu, sigma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// trunc_rnorm_sigma_cpp
+std::vector<double> trunc_rnorm_sigma_cpp(const double& mu, const std::vector<double>& sigma);
+RcppExport SEXP _sauron_trunc_rnorm_sigma_cpp(SEXP muSEXP, SEXP sigmaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const double& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sigma(sigmaSEXP);
+    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_sigma_cpp(mu, sigma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// trunc_rnorm_mu_sigma_cpp
+std::vector<double> trunc_rnorm_mu_sigma_cpp(const std::vector<double>& mu, const std::vector<double>& sigma);
+RcppExport SEXP _sauron_trunc_rnorm_mu_sigma_cpp(SEXP muSEXP, SEXP sigmaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sigma(sigmaSEXP);
+    rcpp_result_gen = Rcpp::wrap(trunc_rnorm_mu_sigma_cpp(mu, sigma));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -332,8 +370,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sauron_jacobian_cpp", (DL_FUNC) &_sauron_jacobian_cpp, 9},
     {"_sauron_unq_spp_cpp", (DL_FUNC) &_sauron_unq_spp_cpp, 2},
     {"_sauron_group_spp_cpp", (DL_FUNC) &_sauron_group_spp_cpp, 2},
-    {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 19},
+    {"_sauron_quant_gen_cpp", (DL_FUNC) &_sauron_quant_gen_cpp, 21},
     {"_sauron_trunc_rnorm_cpp", (DL_FUNC) &_sauron_trunc_rnorm_cpp, 3},
+    {"_sauron_trunc_rnorm_mu_cpp", (DL_FUNC) &_sauron_trunc_rnorm_mu_cpp, 2},
+    {"_sauron_trunc_rnorm_sigma_cpp", (DL_FUNC) &_sauron_trunc_rnorm_sigma_cpp, 2},
+    {"_sauron_trunc_rnorm_mu_sigma_cpp", (DL_FUNC) &_sauron_trunc_rnorm_mu_sigma_cpp, 2},
     {"_sauron_F_t_cpp", (DL_FUNC) &_sauron_F_t_cpp, 7},
     {"_sauron_F_it_cpp", (DL_FUNC) &_sauron_F_it_cpp, 8},
     {"_sauron_using_openmp", (DL_FUNC) &_sauron_using_openmp, 0},

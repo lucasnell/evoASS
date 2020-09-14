@@ -105,6 +105,8 @@ public:
                  const double& min_N,
                  const double& sigma_N,
                  const double& sigma_V,
+                 const double& mu_V,
+                 const bool& lnorm_V,
                  pcg64& eng) {
 
         /*
@@ -149,7 +151,11 @@ public:
                     V[i][j] += (add_var[i] * ss_mat(j,i));
                     if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
                     // including stochasticity:
-                    Vp[i][j] = V[i][j] * std::exp(rand_norm(eng) * sigma_V);
+                    if (lnorm_V) {
+                        Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V + mu_V);
+                    } else {
+                        Vp[i][j] = trunc_rnorm_(Vp[i][j], sigma_V, eng);
+                    }
                 }
             }
         } else {

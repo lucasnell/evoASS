@@ -72,3 +72,38 @@ theme_black = function(base_size = 12, base_family = "") {
 
 }
 
+
+
+#' Random deviates from truncated normal distribution
+#'
+#' Note: truncated at zero.
+#'
+#' @param n Number of deviates.
+#' @param mu Mean of distribution.
+#' @param sigma Standard deviation of distribution.
+#'
+#' @return
+#' @export
+#'
+trnorm <- function(n, mu, sigma) {
+
+    stopifnot(inherits(mu, "numeric") && inherits(sigma, "numeric"))
+    stopifnot(length(mu) %in% c(1, n))
+    stopifnot(length(sigma) %in% c(1, n))
+
+    ml <- length(mu)
+    sl <- length(sigma)
+
+    if (ml == 1 && sl == 1) {
+        out <- trunc_rnorm_cpp(n, mu, sigma)
+    } else if (ml > 1 && sl == 1) {
+        out <- trunc_rnorm_mu_cpp(mu, sigma)
+    } else if (ml == 1 && sl > 1) {
+        out <- trunc_rnorm_sigma_cpp(mu, sigma)
+    } else {
+        out <- trunc_rnorm_mu_sigma_cpp(mu, sigma)
+    }
+
+    return(out)
+
+}

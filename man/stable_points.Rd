@@ -11,7 +11,7 @@ stable_points(
   a0 = 0.5,
   r0 = 0.5,
   return_geom = FALSE,
-  line_n = 1000,
+  line_n = 1001,
   ...
 )
 
@@ -31,7 +31,7 @@ Should be a single number or a symmetrical, numeric, \code{q} by \code{q} matrix
 \item{return_geom}{Logical for whether to return a \code{ggplot2} \verb{geom_*} object for
 plotting rather than a \code{tibble}. Defaults to \code{FALSE}.}
 
-\item{line_n}{Number of points to use for lines. Defaults to \code{1000}.}
+\item{line_n}{Number of points to use for lines. Defaults to \code{1001}.}
 
 \item{...}{Other arguments to pass to the call to \code{geom_point} or \code{geom_path}.}
 }

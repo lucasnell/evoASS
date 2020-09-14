@@ -9,34 +9,37 @@ quant_gen(
   eta,
   d,
   q,
-  n = 100,
-  V0 = rep(list(matrix(0, q, 1)), n),
+  n = 10,
+  V0 = NULL,
   N0 = rep(1, n),
   f = 0.1,
   a0 = 0.5,
   r0 = 0.5,
   add_var = rep(0.01, n),
-  perturb_sd = 1,
+  sigma_V0 = 1,
   sigma_N = 0,
   sigma_V = 0,
-  n_reps = 100,
-  start_t = 0,
-  max_t = 1000000L,
+  n_reps = 10,
+  spp_gap_t = 5000L,
+  final_t = 20000L,
   min_N = 1e-04,
-  save_every = 10000L,
+  adjust_mu_V = FALSE,
+  lnorm_V = TRUE,
+  save_every = 10L,
   show_progress = TRUE,
   n_threads = 1
 )
 
 \method{perturb}{quant_gen}(
   obj,
-  max_t,
+  final_t,
   save_every,
-  start_t = 0,
-  perturb_sd = 0,
+  spp_gap_t = 0,
+  sigma_V0 = 0,
   new_V = NULL,
   new_Vp = NULL,
   new_N = NULL,
+  which_rep = 1,
   ...
 )
 }
@@ -69,7 +72,10 @@ matrix row or column.}
 
 \item{add_var}{Vector of additive genetic variances for all starting species.}
 
-\item{perturb_sd}{Standard deviation of the perturbation.}
+\item{sigma_V0}{Standard deviation for normal distribution from which
+starting trait values can be derived.
+Set to 0 for species to start with the exact values of traits
+specified in \code{V0}.}
 
 \item{sigma_N}{Standard deviation for stochasticity in population dynamics.}
 
@@ -77,11 +83,20 @@ matrix row or column.}
 
 \item{n_reps}{Number of reps to perform.}
 
-\item{start_t}{Number of starting iterations (before the perturbation).}
+\item{spp_gap_t}{Time period between each species introduction.}
 
-\item{max_t}{Maximum time simulated.}
+\item{final_t}{Length of final time period where all species are together.}
 
 \item{min_N}{Minimum N that's considered extant.}
+
+\item{adjust_mu_V}{Logical for whether to adjust the mean of the lognormal
+distribution that creates stochasticity in trait values so that
+the mean of the transformed distribution (i.e.,
+\code{exp(~ N(mu, sigma_V))}) is 1.}
+
+\item{lnorm_V}{Logical for whether the distribution for stochasticity in
+evolution should be lognormal. The alternative is a normal distribution.
+Defaults to \code{TRUE}.}
 
 \item{save_every}{Number of time steps between when saving information for output.}
 
@@ -96,6 +111,8 @@ Defaults to \code{NULL}, which causes no new species to be add.}
 
 \item{new_N}{Numeric vector of new species to add. Defaults to \code{NULL}, which
 causes no new species to be add.}
+
+\item{which_rep}{Integer for which repetition to perturb.}
 
 \item{...}{Other parameters to pass to \code{quant_gen}.}
 }

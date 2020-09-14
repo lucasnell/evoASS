@@ -209,8 +209,8 @@ group_spp_cpp <- function(V, precision) {
 #'
 #' @noRd
 #'
-quant_gen_cpp <- function(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, save_every, show_progress, n_threads) {
-    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, save_every, show_progress, n_threads)
+quant_gen_cpp <- function(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, adjust_mu_V, lnorm_V, save_every, show_progress, n_threads) {
+    .Call(`_sauron_quant_gen_cpp`, n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V0, sigma_N, sigma_V, spp_gap_t, final_t, min_N, adjust_mu_V, lnorm_V, save_every, show_progress, n_threads)
 }
 
 #' Normal distribution truncated above zero.
@@ -221,6 +221,18 @@ quant_gen_cpp <- function(n_reps, V0, Vp0, N0, f, a0, C, r0, D, add_var, sigma_V
 #'
 trunc_rnorm_cpp <- function(N, mu, sigma) {
     .Call(`_sauron_trunc_rnorm_cpp`, N, mu, sigma)
+}
+
+trunc_rnorm_mu_cpp <- function(mu, sigma) {
+    .Call(`_sauron_trunc_rnorm_mu_cpp`, mu, sigma)
+}
+
+trunc_rnorm_sigma_cpp <- function(mu, sigma) {
+    .Call(`_sauron_trunc_rnorm_sigma_cpp`, mu, sigma)
+}
+
+trunc_rnorm_mu_sigma_cpp <- function(mu, sigma) {
+    .Call(`_sauron_trunc_rnorm_mu_sigma_cpp`, mu, sigma)
 }
 
 F_t_cpp <- function(V, N, f, a0, C, r0, D) {

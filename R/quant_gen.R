@@ -6,16 +6,21 @@
 #
 check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
                                  sigma_V0, sigma_N, sigma_V, n_reps,
-                                 spp_gap_t, final_t, min_N, save_every,
-                                 show_progress, n_threads) {
+                                 spp_gap_t, final_t, min_N, adjust_mu_V,
+                                 lnorm_V,
+                                 save_every, show_progress, n_threads) {
 
 
     stopifnot(sapply(list(eta, d, q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
                           n_reps, spp_gap_t, final_t, save_every,
                           n_threads, N0), is.numeric))
     stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
-                          n_reps, spp_gap_t, final_t, save_every, n_threads),
+                          n_reps, spp_gap_t, final_t, adjust_mu_V,
+                          lnorm_V,
+                          save_every, n_threads),
                      length) == 1)
+    stopifnot(inherits(adjust_mu_V, "logical"))
+    stopifnot(inherits(lnorm_V, "logical"))
     stopifnot(inherits(V0, "matrix") && is.numeric(V0))
     stopifnot(all(V0 >= 0))
     stopifnot(nrow(V0) == q && ncol(V0) == n)
@@ -116,6 +121,13 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
 #' @param sigma_V Standard deviation for stochasticity in trait evolution.
 #' @param add_var Vector of additive genetic variances for all starting species.
 #' @param spp_gap_t Time period between each species introduction.
+#' @param adjust_mu_V Logical for whether to adjust the mean of the lognormal
+#'     distribution that creates stochasticity in trait values so that
+#'     the mean of the transformed distribution (i.e.,
+#'     `exp(~ N(mu, sigma_V))`) is 1.
+#' @param lnorm_V Logical for whether the distribution for stochasticity in
+#'     evolution should be lognormal. The alternative is a normal distribution.
+#'     Defaults to `TRUE`.
 #' @param n_threads Number of cores to use. Defaults to 1.
 #' @inheritParams adapt_dyn
 #'
@@ -152,6 +164,8 @@ quant_gen <- function(eta, d, q,
                       spp_gap_t = 5e3L,
                       final_t = 20e3L,
                       min_N = 1e-4,
+                      adjust_mu_V = FALSE,
+                      lnorm_V = TRUE,
                       save_every = 10L,
                       show_progress = TRUE,
                       n_threads = 1) {
@@ -198,8 +212,9 @@ quant_gen <- function(eta, d, q,
 
     args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
                                  sigma_V0, sigma_N, sigma_V, n_reps,
-                                 spp_gap_t, final_t, min_N, save_every,
-                                 show_progress, n_threads)
+                                 spp_gap_t, final_t, min_N, adjust_mu_V,
+                                 lnorm_V,
+                                 save_every, show_progress, n_threads)
 
     C <- args$C
     D <- args$D
@@ -221,6 +236,8 @@ quant_gen <- function(eta, d, q,
                         spp_gap_t = spp_gap_t,
                         final_t = final_t,
                         min_N = min_N,
+                        adjust_mu_V = adjust_mu_V,
+                        lnorm_V = lnorm_V,
                         save_every = save_every,
                         show_progress = show_progress,
                         n_threads = n_threads)

@@ -881,10 +881,22 @@ int one_quant_gen__(OneRepInfo& info,
                     const uint32_t& spp_gap_t,
                     const uint32_t& final_t,
                     const double& min_N,
+                    const bool& adjust_mu_V,
+                    const bool& lnorm_V,
                     const uint32_t& save_every,
                     pcg64& eng,
                     Progress& prog_bar) {
 
+
+    /*
+     If using a lognormal distribution for evolution stochasticity
+     and if `adjust_mu_V == TRUE`,
+     this keeps the mean of the transformed distribution equal to 1.
+     `mu_V` isn't used when a lognormal distribution isn't used, so we'll
+     adjust it even when a `lnorm_V == TRUE`.
+     */
+    double mu_V = 0;
+    if (adjust_mu_V) mu_V -= (sigma_V * sigma_V) / 2;
 
     normal_distr distr = normal_distr(0, 1);
 
@@ -895,7 +907,13 @@ int one_quant_gen__(OneRepInfo& info,
             for (uint32_t j = 0; j < V0[i].n_elem; j++) {
                 V0[i][j] = trunc_rnorm_(V0[i][j], sigma_V0, eng);
                 Vp0[i][j] = V0[i][j];
-                if (sigma_V > 0) Vp0[i][j] *= std::exp(distr(eng) * sigma_V);
+                if (sigma_V > 0) {
+                    if (lnorm_V) {
+                        Vp0[i][j] *= std::exp(distr(eng) * sigma_V + mu_V);
+                    } else {
+                        Vp0[i][j] = trunc_rnorm_(Vp0[i][j], sigma_V, eng);
+                    }
+                }
             }
         }
     }
@@ -906,8 +924,16 @@ int one_quant_gen__(OneRepInfo& info,
     if (Vp0.size() == 0) {
         Vp0 = V0;
         if (sigma_V > 0) {
-            for (uint32_t i = 0; i < Vp0.size(); i++) {
-                for (double& v : Vp0[i]) v *= std::exp(distr(eng) * sigma_V);
+            if (lnorm_V) {
+                for (uint32_t i = 0; i < Vp0.size(); i++) {
+                    for (double& v : Vp0[i]) {
+                        v *= std::exp(distr(eng) * sigma_V + mu_V);
+                    }
+                }
+            } else {
+                for (uint32_t i = 0; i < Vp0.size(); i++) {
+                    for (double& v : Vp0[i]) v = trunc_rnorm_(v, sigma_V, eng);
+                }
             }
         }
     }
@@ -957,7 +983,7 @@ int one_quant_gen__(OneRepInfo& info,
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, D, min_N,
-                                sigma_N, sigma_V, eng);
+                                sigma_N, sigma_V, mu_V, lnorm_V, eng);
 
         // Add new species if necessary:
         new_spp = (t + 1) == (info.n * spp_gap_t);
@@ -998,7 +1024,7 @@ int one_quant_gen__(OneRepInfo& info,
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, D, min_N,
-                                sigma_N, sigma_V, eng);
+                                sigma_N, sigma_V, mu_V, lnorm_V, eng);
 
         if (save_every > 0 &&
             (t % save_every == 0 || (t+1) == final_t || all_gone)) {
@@ -1045,6 +1071,8 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const uint32_t& spp_gap_t,
                         const uint32_t& final_t,
                         const double& min_N,
+                        const bool& adjust_mu_V,
+                        const bool& lnorm_V,
                         const uint32_t& save_every,
                         const bool& show_progress,
                         const uint32_t& n_threads) {
@@ -1103,8 +1131,9 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
         eng.seed(seeds[i][0], seeds[i][1]);
         int status = one_quant_gen__(rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
                                      add_var, sigma_V0, sigma_N, sigma_V,
-                                     spp_gap_t, final_t, min_N, save_every,
-                                     eng, prog_bar);
+                                     spp_gap_t, final_t, min_N, adjust_mu_V,
+                                     lnorm_V,
+                                     save_every, eng, prog_bar);
 
         if (active_thread == 0 && status != 0) interrupted = true;
     }

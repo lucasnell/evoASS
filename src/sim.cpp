@@ -25,6 +25,52 @@ std::vector<double> trunc_rnorm_cpp(const uint32_t& N,
 }
 
 
+/*
+ Same as above, but uses a vector of `mu`
+ */
+//[[Rcpp::export]]
+std::vector<double> trunc_rnorm_mu_cpp(const std::vector<double>& mu,
+                                       const double& sigma) {
+
+    std::vector<double> out;
+    out.reserve(mu.size());
+    for (const double& x : mu) out.push_back(trunc_rnorm_(x, sigma));
+
+    return out;
+}
+/*
+ Same as above, but uses a vector of `sigma`
+ */
+//[[Rcpp::export]]
+std::vector<double> trunc_rnorm_sigma_cpp(const double& mu,
+                                          const std::vector<double>& sigma) {
+
+    std::vector<double> out;
+    out.reserve(sigma.size());
+    for (const double& x : sigma) out.push_back(trunc_rnorm_(mu, x));
+
+    return out;
+}
+/*
+ Same as above, but uses a vector of `mu` and `sigma`
+ */
+//[[Rcpp::export]]
+std::vector<double> trunc_rnorm_mu_sigma_cpp(const std::vector<double>& mu,
+                                             const std::vector<double>& sigma) {
+
+    uint32_t n = mu.size();
+    if (sigma.size() != n) stop("sigma.size() != mu.size()");
+
+    std::vector<double> out;
+    out.reserve(n);
+    for (uint32_t i = 0; i < n; i++) {
+        out.push_back(trunc_rnorm_(mu[i], sigma[i]));
+    }
+
+    return out;
+}
+
+
 
 /*
  Fitness at time t for all species
