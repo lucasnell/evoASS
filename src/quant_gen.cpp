@@ -877,7 +877,7 @@ int one_quant_gen__(OneRepInfo& info,
                     std::deque<double> add_var,
                     const double& sigma_V0,
                     const double& sigma_N,
-                    const double& sigma_V,
+                    const std::vector<double>& sigma_V,
                     const uint32_t& spp_gap_t,
                     const uint32_t& final_t,
                     const double& min_N,
@@ -888,6 +888,9 @@ int one_quant_gen__(OneRepInfo& info,
                     Progress& prog_bar) {
 
 
+    uint32_t n = N0.size();
+    uint32_t q = V0.front().n_elem;
+
     /*
      If using a lognormal distribution for evolution stochasticity
      and if `adjust_mu_V == TRUE`,
@@ -895,23 +898,27 @@ int one_quant_gen__(OneRepInfo& info,
      `mu_V` isn't used when a lognormal distribution isn't used, so we'll
      adjust it even when a `lnorm_V == TRUE`.
      */
-    double mu_V = 0;
-    if (adjust_mu_V) mu_V -= (sigma_V * sigma_V) / 2;
+    std::vector<double> mu_V(q, 0);
+    if (adjust_mu_V) {
+        for (uint32_t j = 0; j < q; j++) {
+            mu_V[j] -= (sigma_V[j] * sigma_V[j]) / 2;
+        }
+    }
 
     normal_distr distr = normal_distr(0, 1);
 
     // adding stochasticity to starting genotypes (and phenotypes if desired)
     if (sigma_V0 > 0) {
-        Vp0 = V0;
-        for (uint32_t i = 0; i < V0.size(); i++) {
-            for (uint32_t j = 0; j < V0[i].n_elem; j++) {
+        Vp0 = V0; // mostly just to resize `Vp0`
+        for (uint32_t i = 0; i < n; i++) {
+            for (uint32_t j = 0; j < q; j++) {
                 V0[i][j] = trunc_rnorm_(V0[i][j], sigma_V0, eng);
                 Vp0[i][j] = V0[i][j];
-                if (sigma_V > 0) {
+                if (sigma_V[j] > 0) {
                     if (lnorm_V) {
-                        Vp0[i][j] *= std::exp(distr(eng) * sigma_V + mu_V);
+                        Vp0[i][j] *= std::exp(distr(eng) * sigma_V[j] + mu_V[j]);
                     } else {
-                        Vp0[i][j] = trunc_rnorm_(Vp0[i][j], sigma_V, eng);
+                        Vp0[i][j] = trunc_rnorm_(Vp0[i][j], sigma_V[j], eng);
                     }
                 }
             }
@@ -923,16 +930,16 @@ int one_quant_gen__(OneRepInfo& info,
      */
     if (Vp0.size() == 0) {
         Vp0 = V0;
-        if (sigma_V > 0) {
-            if (lnorm_V) {
-                for (uint32_t i = 0; i < Vp0.size(); i++) {
-                    for (double& v : Vp0[i]) {
-                        v *= std::exp(distr(eng) * sigma_V + mu_V);
+        for (uint32_t j = 0; j < q; j++) {
+            if (sigma_V[j] > 0) {
+                if (lnorm_V) {
+                    for (uint32_t i = 0; i < n; i++) {
+                        Vp0[i][j] *= std::exp(distr(eng) * sigma_V[j] + mu_V[j]);
                     }
-                }
-            } else {
-                for (uint32_t i = 0; i < Vp0.size(); i++) {
-                    for (double& v : Vp0[i]) v = trunc_rnorm_(v, sigma_V, eng);
+                } else {
+                    for (uint32_t i = 0; i < n; i++) {
+                        Vp0[i][j] = trunc_rnorm_(Vp0[i][j], sigma_V[j], eng);
+                    }
                 }
             }
         }
@@ -1067,7 +1074,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const std::deque<double>& add_var,
                         const double& sigma_V0,
                         const double& sigma_N,
-                        const double& sigma_V,
+                        const std::vector<double>& sigma_V,
                         const uint32_t& spp_gap_t,
                         const uint32_t& final_t,
                         const double& min_N,

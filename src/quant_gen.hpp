@@ -104,27 +104,29 @@ public:
                  const arma::mat& D,
                  const double& min_N,
                  const double& sigma_N,
-                 const double& sigma_V,
-                 const double& mu_V,
+                 const std::vector<double>& sigma_V,
+                 const std::vector<double>& mu_V,
                  const bool& lnorm_V,
                  pcg64& eng) {
+
+        uint32_t current_n = V.size(); // current # species (`n` is total added)
 
         /*
          This is for iterations where species will be later added, but
          all species that were already added have gone extinct:
          */
-        if (V.size() == 0) return true;
+        if (current_n == 0) return true;
 
         /*
          Update abundances
          */
         // Setting up vector of extinct clones (if any):
         std::vector<uint32_t> extinct;
-        extinct.reserve(V.size());
+        extinct.reserve(current_n);
         // Fill in density dependences:
         A_VN_<std::vector<double>>(A, Vp, N, a0, D);
         // Fill in abundances:
-        for (uint32_t i = 0; i < A.size(); i++) {
+        for (uint32_t i = 0; i < current_n; i++) {
             double r = r_V_<arma::vec>(Vp[i], f, C, r0);
             if (sigma_N <= 0) {
                 N[i] *= std::exp(r - A[i]);
@@ -134,7 +136,7 @@ public:
         }
 
         // If everything is gone, clear vectors and stop simulations:
-        if (extinct.size() == N.size()) {
+        if (extinct.size() == current_n) {
             rm_all();
             return true;
         }
@@ -144,29 +146,12 @@ public:
          */
         // Fill in selection-strength matrix:
         sel_str__(ss_mat, Vp, N, f, a0, C, r0, D);
-        // Then include additive genetic variance when adding to trait values:
-        if (sigma_V > 0) {
-            for (uint32_t i = 0; i < V.size(); i++) {
-                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
-                    V[i][j] += (add_var[i] * ss_mat(j,i));
-                    if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
-                    // including stochasticity:
-                    if (lnorm_V) {
-                        Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V + mu_V);
-                    } else {
-                        Vp[i][j] = trunc_rnorm_(Vp[i][j], sigma_V, eng);
-                    }
-                }
-            }
-        } else {
-            for (uint32_t i = 0; i < V.size(); i++) {
-                for (uint32_t j = 0; j < Vp[i].n_elem; j++) {
-                    V[i][j] += (add_var[i] * ss_mat(j,i));
-                    if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
-                    Vp[i][j] = V[i][j];
-                }
-            }
-        }
+
+        /*
+         Then include additive genetic variance when adding to trait values.
+         Also add stochasticity to phenotypes if necessary.
+         */
+        change_V(sigma_V, mu_V, lnorm_V, eng);
 
         /*
          Remove extinct clones (starting at the back):
@@ -237,6 +222,59 @@ private:
     arma::mat ss_mat;       // Selection strength
     uint32_t q;             // # traits
     normal_distr rand_norm = normal_distr(0, 1);
+
+
+    inline void change_V(const std::vector<double>& sigma_V,
+                         const std::vector<double>& mu_V,
+                         const bool& lnorm_V,
+                         pcg64& eng) {
+        for (uint32_t j = 0; j < q; j++) {
+            if (sigma_V[j] > 0) {
+                if (lnorm_V) {
+                    change_V_lnorm(sigma_V, mu_V, j, eng);
+                } else {
+                    change_V_norm(sigma_V, j, eng);
+                }
+            } else {
+                change_V_determ(j);
+            }
+        }
+        return;
+    }
+
+    inline void change_V_lnorm(const std::vector<double>& sigma_V,
+                               const std::vector<double>& mu_V,
+                               const uint32_t& j,
+                               pcg64& eng) {
+        for (uint32_t i = 0; i < V.size(); i++) {
+            V[i][j] += (add_var[i] * ss_mat(j,i));
+            if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
+            Vp[i][j] = V[i][j];
+            // including stochasticity:
+            Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V[j] + mu_V[j]);
+        }
+        return;
+    }
+
+    inline void change_V_norm(const std::vector<double>& sigma_V,
+                              const uint32_t& j,
+                              pcg64& eng) {
+        for (uint32_t i = 0; i < V.size(); i++) {
+            V[i][j] += (add_var[i] * ss_mat(j,i));
+            if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
+            Vp[i][j] = trunc_rnorm_(V[i][j], sigma_V[j], eng);
+        }
+        return;
+    }
+
+    inline void change_V_determ(const uint32_t& j) {
+        for (uint32_t i = 0; i < V.size(); i++) {
+            V[i][j] += (add_var[i] * ss_mat(j,i));
+            if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
+            Vp[i][j] = V[i][j];
+        }
+        return;
+    }
 
 
     void rm_species(const uint32_t& idx) {

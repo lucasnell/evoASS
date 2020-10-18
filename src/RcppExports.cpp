@@ -231,7 +231,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // quant_gen_cpp
-arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::deque<arma::vec>& V0, const std::deque<arma::vec>& Vp0, const std::deque<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const std::deque<double>& add_var, const double& sigma_V0, const double& sigma_N, const double& sigma_V, const uint32_t& spp_gap_t, const uint32_t& final_t, const double& min_N, const bool& adjust_mu_V, const bool& lnorm_V, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
+arma::mat quant_gen_cpp(const uint32_t& n_reps, const std::deque<arma::vec>& V0, const std::deque<arma::vec>& Vp0, const std::deque<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const std::deque<double>& add_var, const double& sigma_V0, const double& sigma_N, const std::vector<double>& sigma_V, const uint32_t& spp_gap_t, const uint32_t& final_t, const double& min_N, const bool& adjust_mu_V, const bool& lnorm_V, const uint32_t& save_every, const bool& show_progress, const uint32_t& n_threads);
 RcppExport SEXP _sauron_quant_gen_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP Vp0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP add_varSEXP, SEXP sigma_V0SEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP spp_gap_tSEXP, SEXP final_tSEXP, SEXP min_NSEXP, SEXP adjust_mu_VSEXP, SEXP lnorm_VSEXP, SEXP save_everySEXP, SEXP show_progressSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -248,7 +248,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::deque<double>& >::type add_var(add_varSEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma_V0(sigma_V0SEXP);
     Rcpp::traits::input_parameter< const double& >::type sigma_N(sigma_NSEXP);
-    Rcpp::traits::input_parameter< const double& >::type sigma_V(sigma_VSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sigma_V(sigma_VSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type spp_gap_t(spp_gap_tSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type final_t(final_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);

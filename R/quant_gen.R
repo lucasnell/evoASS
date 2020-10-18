@@ -14,11 +14,12 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
     stopifnot(sapply(list(eta, d, q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
                           n_reps, spp_gap_t, final_t, save_every,
                           n_threads, N0), is.numeric))
-    stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
+    stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N,
                           n_reps, spp_gap_t, final_t, adjust_mu_V,
                           lnorm_V,
                           save_every, n_threads),
                      length) == 1)
+    stopifnot(length(sigma_V) %in% c(1, q))
     stopifnot(inherits(adjust_mu_V, "logical"))
     stopifnot(inherits(lnorm_V, "logical"))
     stopifnot(inherits(V0, "matrix") && is.numeric(V0))
@@ -176,6 +177,19 @@ quant_gen <- function(eta, d, q,
         call_[1] <- as.call(quote(quant_gen()))
     }
 
+
+    args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
+                                 sigma_V0, sigma_N, sigma_V, n_reps,
+                                 spp_gap_t, final_t, min_N, adjust_mu_V,
+                                 lnorm_V,
+                                 save_every, show_progress, n_threads)
+
+    C <- args$C
+    D <- args$D
+    n_threads <- args$n_threads
+
+    if (length(sigma_V) == 1) sigma_V <- rep(sigma_V, q)
+
     if (is.null(V0) &&
         q == 2 &&
         ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
@@ -184,7 +198,7 @@ quant_gen <- function(eta, d, q,
         # For 2-trait case and proper inputs, we choose starting points
         # based on known stable points, return warning if sigma_V0 and sigma_V
         # are both 0
-        if (sigma_V0 == 0 && sigma_V == 0) {
+        if (sigma_V0 == 0 && all(sigma_V) == 0) {
             warning(paste("\nSimulations start with species at stable",
                           "points, and you aren't providing stochasticity in",
                           "either the starting values or via phenotypes.",
@@ -198,7 +212,7 @@ quant_gen <- function(eta, d, q,
             do.call(what = cbind)
     } else if (is.null(V0)) {
         # Otherwise start at zero:
-        if (sigma_V0 == 0 && sigma_V == 0) {
+        if (sigma_V0 == 0 && all(sigma_V) == 0) {
             warning(paste("\nSimulations start with species having all traits",
                           "at zero, and you aren't providing stochasticity in",
                           "either the starting values or via phenotypes.",
@@ -208,17 +222,6 @@ quant_gen <- function(eta, d, q,
         }
         V0 <- matrix(0, q, n)
     }
-
-
-    args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
-                                 sigma_V0, sigma_N, sigma_V, n_reps,
-                                 spp_gap_t, final_t, min_N, adjust_mu_V,
-                                 lnorm_V,
-                                 save_every, show_progress, n_threads)
-
-    C <- args$C
-    D <- args$D
-    n_threads <- args$n_threads
 
     qg <- quant_gen_cpp(n_reps = n_reps,
                         V0 = split(t(V0), 1:ncol(V0)),
