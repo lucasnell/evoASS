@@ -1,0 +1,546 @@
+---
+title: "Evolution stochasticity converts additive tradeoffs to sub-additive"
+author: "Lucas A. Nell"
+date: "9/14/2020"
+tables: true
+graphics: true
+colorlinks: false
+mathspec: true
+linestretch: 2
+output: 
+  bookdown::pdf_document2: 
+    highlight: haddock
+    toc: false
+    numbered_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+    library(knitr)
+    library(tidyverse)
+    library(sauron)
+    library(cowplot)
+    library(egg)
+})
+
+knitr::opts_chunk$set(echo = FALSE, cache = FALSE, eval = TRUE, 
+                      warning = FALSE, message = FALSE, 
+                      dev = "cairo_pdf")
+theme_set(theme_classic() + 
+              theme(legend.background = element_blank(),
+                    strip.background = element_blank(),
+                    plot.margin = margin(0.5, 0.5, 0.5, 2),
+                    strip.text = element_text(size = 10),
+                    panel.spacing = unit(0.5, "lines")))
+
+if (!isTRUE(getOption('knitr.in.progress'))) {
+    options("device" = "quartz")
+    grDevices::graphics.off()
+}
+options(dplyr.summarise.inform = FALSE)
+# Clean captions
+cc <- function(.x) {
+    .x <- gsub("\n", " ", .x)
+    .x <- gsub("\\s+", " ", .x)
+    return(.x)
+}
+```
+
+
+
+## Introduction
+
+Here, I describe the issue I'm having when tradeoffs are additive and 
+we add stochasticity to evolution.
+Without stochasticity, species evolve to have any axis-value
+combination that yields a position on the neutral ring.
+With it, species evolve to have intermediate
+values of both axes (i.e., they evolve to the center of the neutral ring).
+This is similar to what happens when tradeoffs are sub-additive.
+In fact, the axis values that species evolve to under this situation appear to 
+be the values that are approached as $\eta$ approaches zero from the negative
+side.
+
+My goal here is to outline the weirdness of this issue and ask what you
+recommend I do about it in the paper.
+I'm just not sure how to talk about this in the paper, as it appears to
+be an artifact of plugging the random variables into nonlinear equations.
+
+
+## Equations
+
+
+This issue happens regardless of the number of species, so I'm
+using only one so that we can ignore conflicting vs ameliorative evolution
+(i.e., the $\mathbf{D}$ matrix).
+First, here are the relevant equations for the one-species, two-axis case:
+
+\begin{equation*}
+\begin{split}
+    F_{t+1} &= \exp \left\{
+        r_0 - f ( \ddot{v}_{1,t}^2 + 2 \eta \, \ddot{v}_{1,t} \, \ddot{v}_{2,t} + \ddot{v}_{2,t}^2 ) -
+        \alpha_0 \, \textrm{e}^{ - \ddot{v}_{1,t}^2 - \ddot{v}_{2,t}^2 } \, N_t
+    \right\} \\
+    \ddot{v}_{k,t+1} &= v_{k,t+1} \; \text{e}^{\varepsilon_V} \\
+    \varepsilon_V &\sim \text{N}( 0, \, \sigma^2_V) \\
+    v_{1,t+1} &= v_{1,t} + 2 \; \sigma^2
+    \left[
+        \alpha_0 \; N_t \;
+            \textrm{e}^{-\ddot{v}_{1,t}^2 - \ddot{v}_{2,t}^2} \; \ddot{v}_{1,t}
+        - f \; ( \ddot{v}_{1,t} + \eta \; \ddot{v}_{2,t} )
+    \right] \\
+    v_{2,t+1} &= v_{2,t} + 2 \; \sigma^2
+    \left[
+        \alpha_0 \; N_t \;
+            \textrm{e}^{-\ddot{v}_{2,t}^2 - \ddot{v}_{1,t}^2} \; \ddot{v}_{2,t}
+        - f \; ( \ddot{v}_{2,t} + \eta \; \ddot{v}_{1,t} )
+    \right] \\
+    \textrm{.}
+\end{split}
+\end{equation*}
+
+
+where we have the following parameters:
+
+
+\begin{tabular}{ll}  
+\toprule
+Parameter    & Description \\
+\midrule
+$F$                 & fitness \\
+$r_0$               & baseline growth rate \\
+$f$                 & cost of increasing axes on the growth rate \\
+$\ddot{v}_{k,t}$    & axis $k$ phenotype at time $t$ \\
+$v_{k,t}$           & axis $k$ genotype at time $t$ \\
+$\eta$              & non-additive tradeoff \\
+$\alpha_0$          & baseline density dependence \\
+$N$                 & population abundance \\
+$\varepsilon_V$     & axis-evolution stochasticity \\
+$\sigma^2_V$        & variance for axis-evolution stochasticity \\
+$\sigma^2$          & additive genetic variance \\
+\bottomrule
+\end{tabular}
+
+
+
+\textbf{\emph{Note:}} Changing the $\mu$ parameter for the lognormal distribution to
+$\frac{ - \sigma^2_V }{ 2 }$ so that 
+$\text{E}(\text{e}^{\varepsilon_V}) = 1$
+has no effect.
+
+
+
+## Selection
+
+The figure below shows the direction and relative magnitude of selection
+under the simulation scenario used throughout.
+
+
+```{r parameters}
+
+# d1 = d2 = 0
+D <- matrix(0, 2, 2)
+
+# eta = 0
+C <- diag(2)
+
+# Defaults from `quant_gen`
+f <- formals(quant_gen)$f
+a0 <- formals(quant_gen)$a0
+r0 <- formals(quant_gen)$r0
+
+# Equilibrium abundance for deterministic sims:
+N <- 10.91963
+
+```
+
+
+```{r ss-fig-caption}
+ss_cap <- "
+Direction of selection strength for a two-axis, one species community
+with additive tradeoffs.
+Arrow length is proportional to the strength of selection for the axis
+values at the base of the arrow.
+The gray ring indicates the neutrally stable equilibrium.
+"
+```
+```{r selection-strength, fig.width=4, fig.height=4, fig.cap=cc(ss_cap)}
+
+dir_df <- crossing(.v1 = seq(0, 4, 0.4),
+                   .v2 = seq(0, 4, 0.4)) %>%
+    mutate(across(.fns = round, digits = 3)) %>%
+    pmap_dfr(function(.v1, .v2) {
+        ss <- sauron:::sel_str_cpp(rbind(.v1, .v2), N, f, a0, C, r0, D)
+        tibble(V1 = .v1, V2 = .v2, V1_delta = ss[1,1], V2_delta = ss[2,1])
+    })
+
+dir_df %>%
+    ggplot(aes(V1, V2)) +
+    stable_points(0, return_geom = TRUE, color = "gray70") +
+    geom_segment(aes(xend = V1 + 0.1 * V1_delta, yend = V2 + 0.1 * V2_delta),
+                 arrow = arrow(length = unit(0.05, "inches"))) +
+    scale_fill_viridis_c() +
+    scale_x_continuous("Axis 1", breaks = c(0, 2, 4)) +
+    scale_y_continuous("Axis 2", breaks = c(0, 2, 4)) +
+    coord_equal() +
+    NULL
+```
+
+
+
+## Stochasticity of various forms
+
+
+In these simulations, there is just one species with two axes and non-additive
+tradeoffs.
+The species genotype starts on the upper part of the neutral ring, and
+its abundance is the equilibrium abundance as calculated based on 
+the default parameters (e.g., $f$, $r_0$, $\alpha_0$).
+Abundance does not change in these simulations, as I wanted to remove that
+as a potential part of the problem.
+(It turns out not to affect the outcomes.)
+
+
+I simulated stochasticity in two forms. 
+The first is described above, where
+phenotypes are the product of the genotype and a lognormal random variable.
+This form is called "$\times$ lnorm" in figures below.
+The second form of stochasticity is called "+ rnorm" because it's where
+phenotypes are genotypes plus a normal random variable 
+(truncated to be $\ge 0$).
+
+
+I also simulated for high and low levels of stochasticity.
+For the lognormal form of stochasticity, I chose $\sigma_V$ of 0.1 and 0.2.
+I simulated the normal form multiple times to choose values of $\sigma_V$
+that produced approximately the same standard deviation between genotypes
+and phenotypes as for the lognormal form with $\sigma_V$ of 0.1 and 0.2.
+The values chosen were 0.13 and 0.29.
+
+
+These simulations show the problem for the lognormal form of stochasticity:
+it inextricably moves toward the middle point on the ring
+(Figure \@ref(fig:stoch-forms-sims-fig)A,B).
+This is most pronounced for a high $\sigma_V$.
+It doesn't just occur for the lognormal distribution, though.
+The normal distribution moves the species toward the middle point, though
+it's slower.
+When I increased $\sigma_V$ to 0.5 for the normal distribution, it looked
+pretty similar to the lognormal distribution at 0.2.
+Thus the normal distribution does the same thing, but the deviance between
+genotype and phenotype has to be greater for it to do so.
+
+
+We can also see that both forms of stochasticity caused the distance from 
+the origin to be greater than the ideal value 
+(Figure \@ref(fig:stoch-forms-sims-fig)C).
+I believe this is because selection pushes much stronger from the origin
+to the ring than from outside the ring to the ring 
+(Figure \@ref(fig:selection-strength)).
+Thus when phenotypes are inside the ring, selection causes
+genotypes to overshoot the ring.
+
+
+
+
+
+```{r sim-function}
+
+
+#' Function to run simulations
+#'
+#' @param .method Which method for stochasticity. `1`: genotype * lnorm,
+#'     `2`: genotype + norm.
+#' @param .sigma_V Sigma parameter for simulations. 
+#'     Note that this isn't necessarily the resulting standard deviation.
+#' @param .stoch Length-2 vector indicating which axes receive stochasticity.
+#' @param maxt Number of simulation time steps.
+#' @param .start Indicates starting axis values.
+#'
+Vstoch_sim <- function(.method,
+                       .sigma_V,
+                       .stoch = c(TRUE, TRUE),
+                       maxt = 2e3,
+                       .start = "over") {
+    
+    V_test <- matrix(0, maxt+1, 4)
+    
+    if (is.character(.start)) {
+        .start <- match.arg(.start, c("over", "under"))
+        if (.start == "over") {
+            V_test[1,1:2] <- c(0.4, sqrt(4-0.4^2))
+        } else V_test[1,1:2] <- c(sqrt(4-0.4^2), 0.4)
+    } else if (is.numeric(.start) && length(.start) == 2) {
+        V_test[1,1:2] <- .start
+    } else stop(".start must be char or length-2 numeric")
+    
+    # stoch_fun <- list(function(x) x * rlnorm(2, - .sigma_V^2 / 2, .sigma_V),
+    stoch_fun <- list(function(x) x * rlnorm(2, 0, .sigma_V),
+                      function(x) trnorm(2, x, sqrt(exp(.sigma_V^2) - 1)))
+    stoch_fun <- stoch_fun[[.method]]
+    
+    V_test[1,3:4] <- stoch_fun(V_test[1,1:2])
+    
+    if (!.stoch[1]) V_test[1,3] <- V_test[1,1]
+    if (!.stoch[2]) V_test[1,4] <- V_test[1,2]
+    
+    for (t in 1:maxt) {
+    
+        deltaV <- 0.05 * sauron:::sel_str_cpp(cbind(V_test[t,3:4]), N, f, a0, 
+                                              C, r0, D)
+        
+        V_test[t+1,1:2] <- pmax(0, V_test[t,1:2] + deltaV[,ncol(deltaV)])
+        V_test[t+1,3:4] <- stoch_fun(V_test[t+1,1:2])
+    
+        if (!.stoch[1]) V_test[t+1,3] <- V_test[t+1,1]
+        if (!.stoch[2]) V_test[t+1,4] <- V_test[t+1,2]
+    
+    }
+    
+    colnames(V_test) <- c("V1", "V2", "Vp1", "Vp2")
+    
+    out <- as_tibble(V_test) %>%
+        mutate(time = (1:n()) - 1L) %>% 
+        select(time, everything())
+    
+    return(out)
+}
+
+# Test for SD between phenotype and genotype
+stoch_test <- function(Vstoch_sim_out) {
+    n <- nrow(Vstoch_sim_out)
+    c(sqrt(sum((Vstoch_sim_out[,"Vp1"] - Vstoch_sim_out[,"V1"])^2) / n),
+      sqrt(sum((Vstoch_sim_out[,"Vp2"] - Vstoch_sim_out[,"V2"])^2) / n))
+}
+
+
+```
+
+```{r stoch-forms-sims-fig-caption}
+ss_fig1_cap <- "
+Representative simulations for the change in
+(A) axis space,
+(B) angle from origin, and
+(C) distance from origin
+through time.
+This is for high and low levels of stochasticity (sub-panel columns) and 
+for lognormal and normal error distributions (rows).
+(A) Circles represent starting genotype locations,
+triangles are ending locations,
+the gray arc is the neutrally stable ring, and 
+the dotted line is the 1-to-1 line.
+(All panels) Black lines represent paths of genotype change, and 
+blue lines indicate paths of phenotype change.
+(B) The red line indicates the angle for the middle point on the ring.
+(C) The red line indicates the ideal radius (i.e., the one that maximizes 
+fitness).
+"
+```
+
+
+```{r stoch-forms-sims-fig, fig.width=6.5, fig.height=4, fig.cap=cc(ss_fig1_cap)}
+
+# stoch_test(Vstoch_sim(2, 0.29))
+# method 1 @ 0.2:  0.2438648 0.3382268
+# method 1 @ 0.1:  0.07617966 0.19386198
+
+
+sims1 <- crossing(.method = 1:2,
+                  .sigma_V = c(0.1, 0.2)) %>% 
+    pmap_dfr(function(.method, .sigma_V) {
+        .s <- case_when(.method == 1 ~ .sigma_V,
+                        .method == 2 & .sigma_V == 0.1 ~ 0.13,
+                        .method == 2 & .sigma_V == 0.2 ~ 0.29,
+                        TRUE ~ NA_real_)
+        stopifnot(!is.na(.s))
+        Vstoch_sim(.method, .s) %>% 
+            mutate(method = .method, sigma_V = .sigma_V)
+    }) %>%
+    mutate(method = factor(method, levels = 1:2, labels = c("'× lnorm'", "'+ norm'")),
+           sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
+                            labels = sprintf("%s ~ sigma[v]", c("low", "high"))))
+
+ss_sims_fig1a <- sims1 %>% 
+    ggplot(aes(V1, V2)) +
+    geom_path(aes(Vp1, Vp2), color = "dodgerblue", alpha = 0.5) +
+    geom_path() +
+    stable_points(0, return_geom = TRUE, color = "gray40") +
+    geom_point(data = sims1 %>% filter(time == 0),
+               shape = 19, size = 4, color = "firebrick") +
+    geom_point(data = sims1 %>% filter(time == max(time)),
+               shape = 17, size = 4, color = "firebrick") +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+    xlab("Axis 1") +
+    ylab("Axis 2") +
+    facet_grid(method ~ sigma_V, labeller = label_parsed) +
+    coord_equal(xlim = c(0,4), ylim = c(0,4)) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+ss_sims_fig1b <- sims1 %>% 
+    mutate(angle = atan(Vp1 / Vp2) * 180 / pi) %>%
+    ggplot(aes(time / 1000, angle)) +
+    geom_line(color = "dodgerblue", alpha = 0.5) +
+    geom_line(data = sims1 %>%
+                  mutate(angle = atan(V1 / V2) * 180 / pi),
+              color = "black") +
+    geom_hline(yintercept = 45, color = "firebrick") +
+    geom_hline(yintercept = 0, color = "gray70") +
+    facet_grid(method ~ sigma_V, labeller = label_parsed) +
+    ylab("Angle (º)") +
+    scale_x_continuous("Time (× 1000)", breaks = 0:2) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+ss_sims_fig1c <- sims1 %>% 
+    mutate(radius = sqrt(Vp1^2 + Vp2^2)) %>%
+    ggplot(aes(time / 1000, radius)) +
+    geom_line(color = "dodgerblue", alpha = 0.5) +
+    geom_line(data = sims1 %>%
+                  mutate(radius = sqrt(V1^2 + V2^2)),
+              color = "black") +
+    geom_hline(aes(yintercept = 2), color = "firebrick") +
+    facet_grid(method ~ sigma_V, labeller = label_parsed) +
+    ylab("Distance from origin") +
+    scale_x_continuous("Time (× 1000)", breaks = 0:2) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+
+ggarrange(ss_sims_fig1a + theme(strip.text.y = element_blank()), 
+          ss_sims_fig1b + theme(strip.text.y = element_blank()), 
+          ss_sims_fig1c, 
+          nrow = 1, labels = c("A", "B", "C"), 
+          label.args = list(gp = grid::gpar(fontface = "bold")))
+
+# sims1 %>% 
+#     filter(time > 100) %>% 
+#     group_by(method, sigma_V) %>% 
+#     summarize(radius = mean(sqrt(V1^2 + V2^2)))
+
+
+
+```
+
+
+
+## Stochasticity for one or another axis
+
+These are similar simulations to the previous section, except that I 
+kept $\sigma_V = 0.2$ and instead changed which axis I added stochasticity to.
+The main result here is that whichever axis had stochasticity, 
+the species evolved to have that axis be zero
+(Figure \@ref(fig:stoch-axes-sims-fig)).
+
+
+
+
+```{r stoch-axes-sims-fig-caption}
+ss_fig2_cap <- "
+Representative simulations for the change in
+(A) axis space,
+(B) angle from origin, and
+(C) distance from origin
+through time.
+This is for axis 1 or 2 having stochasticity (sub-panel columns) and 
+for lognormal and normal error distributions (rows).
+$\\sigma_V = 0.2$ for all panels.
+(A) Circles represent starting genotype locations,
+triangles are ending locations,
+the gray arc is the neutrally stable ring, and 
+the dotted line is the 1-to-1 line.
+(All panels) Black lines represent paths of genotype change, and 
+blue lines indicate paths of phenotype change.
+(B) The red line indicates the angle for the middle point on the ring.
+(C) The red line indicates the ideal radius (i.e., the one that maximizes 
+fitness).
+"
+```
+
+
+```{r stoch-axes-sims-fig, fig.width=6.5, fig.height=4.5, fig.cap=cc(ss_fig2_cap)}
+
+
+sims2 <- crossing(.method = 1:2,
+                  .sigma_V = 0.2,
+                  .stoch = list(c(TRUE, FALSE), c(FALSE, TRUE)),
+                  .start = c("over", "under")) %>% 
+    pmap_dfr(function(.method, .sigma_V, .stoch, .start) {
+        .s <- case_when(.method == 1 ~ .sigma_V,
+                        .method == 2 & .sigma_V == 0.1 ~ 0.13,
+                        .method == 2 & .sigma_V == 0.2 ~ 0.29,
+                        TRUE ~ NA_real_)
+        stopifnot(!is.na(.s))
+        Vstoch_sim(.method, .s, .stoch, .start = .start) %>% 
+            mutate(method = .method, stoch = which(.stoch), start = .start)
+    }) %>%
+    mutate(method = factor(method, levels = 1:2, labels = c("× lnorm", "+ norm")),
+           stoch = factor(stoch, levels = 1:2,
+                            labels = sprintf("stoch. in\naxis %i", 1:2)),
+           start = factor(start, levels = c("over", "under")))
+
+
+..start <- "over"
+
+ss_sims_fig2a <- sims2 %>%
+    filter(start == ..start) %>% 
+    ggplot(aes(V1, V2)) +
+    geom_path(aes(Vp1, Vp2), color = "dodgerblue", alpha = 0.5) +
+    geom_path() +
+    stable_points(0, return_geom = TRUE, color = "gray40") +
+    geom_point(data = sims2 %>% filter(time == 0, start == ..start),
+               shape = 19, size = 4, color = "firebrick") +
+    geom_point(data = sims2 %>% filter(time == max(time), start == ..start),
+               shape = 17, size = 4, color = "firebrick") +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+    xlab("Axis 1") +
+    ylab("Axis 2") +
+    facet_grid(method ~ stoch) +
+    coord_equal(xlim = c(0,4), ylim = c(0,4)) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+ss_sims_fig2b <- sims2 %>%
+    filter(start == ..start) %>% 
+    mutate(angle = atan(Vp1 / Vp2) * 180 / pi) %>%
+    ggplot(aes(time / 1000, angle)) +
+    geom_line(color = "dodgerblue", alpha = 0.5) +
+    geom_line(data = sims2 %>%
+                  filter(start == ..start) %>% 
+                  mutate(angle = atan(V1 / V2) * 180 / pi),
+              color = "black") +
+    geom_hline(yintercept = 45, color = "firebrick") +
+    geom_hline(yintercept = 0, color = "gray70") +
+    facet_grid(method ~ stoch) +
+    ylab("Angle (º)") +
+    scale_x_continuous("Time (× 1000)", breaks = 0:2) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+ss_sims_fig2c <- sims2 %>%
+    filter(start == ..start) %>% 
+    mutate(radius = sqrt(Vp1^2 + Vp2^2)) %>%
+    ggplot(aes(time / 1000, radius)) +
+    geom_line(color = "dodgerblue", alpha = 0.5) +
+    geom_line(data = sims2 %>%
+              filter(start == ..start) %>% 
+              mutate(radius = sqrt(V1^2 + V2^2)),
+              color = "black") +
+    geom_hline(aes(yintercept = 2), color = "firebrick") +
+    facet_grid(method ~ stoch) +
+    ylab("Distance from origin") +
+    scale_x_continuous("Time (× 1000)", breaks = 0:2) +
+    theme(strip.text.y = element_text(angle = 0))
+
+
+
+ggarrange(ss_sims_fig2a + theme(strip.text.y = element_blank()), 
+          ss_sims_fig2b + theme(strip.text.y = element_blank()), 
+          ss_sims_fig2c, 
+          nrow = 1, labels = c("A", "B", "C"), 
+          label.args = list(gp = grid::gpar(fontface = "bold")))
+
+
+```
