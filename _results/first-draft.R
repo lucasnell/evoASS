@@ -1,74 +1,74 @@
-
-
-qg <- quant_gen(q = 2, eta = 0.6, d = 0,
-                n_reps = 1, n = 1,
-                V0 = cbind(c(0, 2)),
-                sigma_V0 = 0,
-                spp_gap_t = 0L,
-                final_t = 200e3L,
-                save_every = 0,
-                add_var = rep(0.1, 1))
-
-qg$nv %>%
-    mutate(trait = paste0("V", trait)) %>%
-    spread(trait, geno) %>%
-    # .[["N"]]
-    identity()
-
-
-max(eigen(jacobians(qg)[[1]])$values)
-
-
-# .C <- diag(2)
-# .C[lower.tri(.C)] <- .C[upper.tri(.C)] <- 0.6
 #
 #
-max(eigen(sauron:::dVi_dVi_cpp(0, rbind(1.030776, 1.030776),
-                           2.679327,
-                           .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-                           0.05))$values)
-
-deltaV <- sauron:::sel_str_cpp(V = rbind(0, 2), N = 10.91963, f = formals(quant_gen)$f,
-                     a0 = formals(quant_gen)$a0,
-                     C = .C, r0 = formals(quant_gen)$r0, D = diag(2) * 0) %*%
-    matrix(0.05)
-
-V <- rbind(0, 2)
-newV <- as.numeric(V + deltaV)
-heaviside <- function(x) ifelse(x > 0, 1, 0)
-
-jac <- sauron:::dVi_dVi_cpp(0, V,
-                            10.9196300066,
-                            .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-                            0.05)
-
-max(eigen(diag(heaviside(newV)) %*% jac)$values)
-
-
-sauron:::F_t_cpp(rbind(0, 2),
-                 10.9196300066,
-                 formals(quant_gen)$f,
-                 formals(quant_gen)$a0,
-                 .C,
-                 formals(quant_gen)$r0,
-                 diag(2) * 0)
-
-max(eigen(sauron:::dVi_dVi_cpp(0, rbind(0, 2),
-                               10.9196300066,
-                               .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-                               0.05))$values)
-
-
-
-
-
-
-
-
-# %>%
-#     ggplot(aes(V1, V2, color = spp)) +
-#     geom_path() +
-#     coord_equal(ylim = c(0, 2.5), xlim = c(0, 2.5))
+# qg <- quant_gen(q = 2, eta = 0.6, d = 0,
+#                 n_reps = 1, n = 1,
+#                 V0 = cbind(c(0, 2)),
+#                 sigma_V0 = 0,
+#                 spp_gap_t = 0L,
+#                 final_t = 200e3L,
+#                 save_every = 0,
+#                 add_var = rep(0.1, 1))
+#
+# qg$nv %>%
+#     mutate(trait = paste0("V", trait)) %>%
+#     spread(trait, geno) %>%
+#     # .[["N"]]
+#     identity()
+#
+#
+# max(eigen(jacobians(qg)[[1]])$values)
+#
+#
+# # .C <- diag(2)
+# # .C[lower.tri(.C)] <- .C[upper.tri(.C)] <- 0.6
+# #
+# #
+# max(eigen(sauron:::dVi_dVi_cpp(0, rbind(1.030776, 1.030776),
+#                            2.679327,
+#                            .C, formals(quant_gen)$f, formals(quant_gen)$a0,
+#                            0.05))$values)
+#
+# deltaV <- sauron:::sel_str_cpp(V = rbind(0, 2), N = 10.91963, f = formals(quant_gen)$f,
+#                      a0 = formals(quant_gen)$a0,
+#                      C = .C, r0 = formals(quant_gen)$r0, D = diag(2) * 0) %*%
+#     matrix(0.05)
+#
+# V <- rbind(0, 2)
+# newV <- as.numeric(V + deltaV)
+# heaviside <- function(x) ifelse(x > 0, 1, 0)
+#
+# jac <- sauron:::dVi_dVi_cpp(0, V,
+#                             10.9196300066,
+#                             .C, formals(quant_gen)$f, formals(quant_gen)$a0,
+#                             0.05)
+#
+# max(eigen(diag(heaviside(newV)) %*% jac)$values)
+#
+#
+# sauron:::F_t_cpp(rbind(0, 2),
+#                  10.9196300066,
+#                  formals(quant_gen)$f,
+#                  formals(quant_gen)$a0,
+#                  .C,
+#                  formals(quant_gen)$r0,
+#                  diag(2) * 0)
+#
+# max(eigen(sauron:::dVi_dVi_cpp(0, rbind(0, 2),
+#                                10.9196300066,
+#                                .C, formals(quant_gen)$f, formals(quant_gen)$a0,
+#                                0.05))$values)
+#
+#
+#
+#
+#
+#
+#
+#
+# # %>%
+# #     ggplot(aes(V1, V2, color = spp)) +
+# #     geom_path() +
+# #     coord_equal(ylim = c(0, 2.5), xlim = c(0, 2.5))
 
 
 # load packages
@@ -1782,31 +1782,22 @@ dir_df %>%
 
 # set.seed(043506945)
 maxt <- 2e4
-.sigma_V <- 0.4
-.method <- 3 # 1 = * lnorm, 2 = + norm, 3 = * norm, 4 = * lnorm w/ mean = 0.1
-# What happens when the one of the axes phenotype is always == genotype?
-.V1_stoch <- TRUE
-.V2_stoch <- TRUE
+.V_sigmas <- c(0.1, 0.2)
 
 V_test <- matrix(0, maxt+1, 4)
 V_test[1,1:2] <- c(0.4, sqrt(4-0.4^2))
 # V_test[1,1:2] <- c(sqrt(4-0.4^2), 0.4)
 
-V_test[1,3:4] <- case_when(.method == 1 ~ V_test[1,1:2] *
-                               rlnorm(2, - .sigma_V^2 / 2, .sigma_V),
-                           .method == 2 ~ map_dbl(V_test[1,1:2],
-                                                  ~ trnorm(1, .x, sqrt(exp(
-                                                      .sigma_V^2) - 1))),
-                           .method == 3 ~ V_test[1,1:2] * trnorm(2, 1, .sigma_V),
-                           .method == 4 ~ V_test[1,1:2] *
-                               rlnorm(2, log(0.99) - .sigma_V^2 / 2, .sigma_V))
-if (!.V1_stoch) V_test[1,3] <- V_test[1,1]
-if (!.V2_stoch) V_test[1,4] <- V_test[1,2]
+for (k in 1:2) {
+    if (.V_sigmas[k] > 0) {
+        V_test[1,k+2] <- V_test[1,k] * rlnorm(1, - .V_sigmas[k]^2 / 2,
+                                              .V_sigmas[k])
+    } else V_test[1,k+2] <- V_test[1,k]
+}
+
 
 for (t in 1:maxt) {
 
-    # ss <- ss_t(cbind(V, V_test[t,3:4]),
-               # N,
     deltaV <- 0.05 * ss_t(cbind(V_test[t,3:4]),
                           pop_sizes(1, 0, c(-0.1, 0.1)),
                           formals(quant_gen)$f,
@@ -1814,30 +1805,15 @@ for (t in 1:maxt) {
                           C,
                           formals(quant_gen)$r0,
                           D)
-    # deltaV <- 0.05 *
-    #     rbind(with(formals(quant_gen), 2 * { a0 * pop_sizes(1, 0, c(-0.1, 0.1)) *
-    #             exp(- V_test[t,3]^2 - V_test[t,4]^2) * V_test[t,3] -
-    #             f * (V_test[t,3] + C[1,2] * V_test[t,4]) }),
-    #           with(formals(quant_gen), 2 * { a0 * pop_sizes(1, 0, c(-0.1, 0.1)) *
-    #                   exp(- V_test[t,4]^2 - V_test[t,3]^2) * V_test[t,4] -
-    #                   f * (V_test[t,4] + C[2,1] * V_test[t,3]) }))
-
 
     V_test[t+1,1:2] <- pmax(0, V_test[t,1:2] + deltaV[,ncol(deltaV)])
-    V_test[t+1,3:4] <- case_when(.method == 1 ~ V_test[t+1,1:2] *
-                                   rlnorm(2, - .sigma_V^2 / 2, .sigma_V),
-                               .method == 2 ~ map_dbl(V_test[t+1,1:2],
-                                                       ~ trnorm(1, .x, sqrt(exp(
-                                                           .sigma_V^2) - 1))),
-                               .method == 3 ~ V_test[t+1,1:2] *
-                                   trnorm(2, 1, .sigma_V),
-                               .method == 4 ~ V_test[1,1:2] *
-                                   rlnorm(2, log(0.99) - .sigma_V^2 / 2,
-                                          .sigma_V),
-                               TRUE ~ NA_real_)
 
-    if (!.V1_stoch) V_test[t+1,3] <- V_test[t+1,1]
-    if (!.V2_stoch) V_test[t+1,4] <- V_test[t+1,2]
+    for (k in 1:2) {
+        if (.V_sigmas[k] > 0) {
+            V_test[t+1,k+2] <- V_test[t+1,k] * rlnorm(1, - .V_sigmas[k]^2 / 2,
+                                                      .V_sigmas[k])
+        } else V_test[t+1,k+2] <- V_test[t+1,k]
+    }
 
 }
 
