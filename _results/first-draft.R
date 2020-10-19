@@ -71,6 +71,8 @@
 # #     coord_equal(ylim = c(0, 2.5), xlim = c(0, 2.5))
 
 
+# start ----
+
 # load packages
 suppressPackageStartupMessages({
     library(sauron)
@@ -101,7 +103,7 @@ cc <- function(.x) {
 # whether to re-do simulations (use rds files otherwise)
 .REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- FALSE
+.RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
 .N_THREADS <- 3
 
@@ -309,8 +311,8 @@ outcomes_q2_p <- eta_sim_df %>%
     ggplot(aes(V1, V2)) +
     geom_point(shape = 21, color = "dodgerblue", fill = "dodgerblue",
                alpha = 0.5, size = 3) +
-    scale_x_continuous("Trait 1", breaks = 0:2) +
-    scale_y_continuous("Trait 2", breaks = 0:2) +
+    scale_x_continuous("Axis 1", breaks = 0:2) +
+    scale_y_continuous("Axis 2", breaks = 0:2) +
     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
     facet_wrap(~ eta1, nrow = 1) +
     theme(strip.text = element_text(size = 10),
@@ -504,7 +506,7 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1, .sigma_V = 0, .sigma_N = 0) {
     if (.lab == "restricted" && .eta < 0) {
         stop(paste("\n'restricted' with sub-additivity is not programmed bc",
                    "there's only one stable trait state.",
-                   "Thus, there is no way to restrict starting traits to",
+                   "Thus, there is no way to restrict starting axes to",
                    "be outside of that state's basin of attraction."))
     }
 
@@ -718,8 +720,8 @@ cond_coexist_sc_p_fun <- function(.d1) {
         scale_size_continuous(range = c(0.1, 1)) +
         facet_grid(~ trait_space) +
         coord_equal(xlim = c(-0.1, 3.15), ylim = c(-0.1, 3.15)) +
-        ylab("Trait 2") +
-        xlab("Trait 1") +
+        ylab("Axis 2") +
+        xlab("Axis 1") +
         theme(plot.margin = margin(0,0,0,b=6),
               plot.title = element_text(hjust = 0.5,
                                         margin = margin(0,0,0,b=6)))
@@ -839,7 +841,7 @@ cc_V_p_list <- map(c("non-conflicting", "conflicting"),
         scale_color_brewer(palette = "Dark2", guide = FALSE) +
         scale_shape_manual(values = c(5,1,2), guide = FALSE) +
         scale_size_continuous(range = c(0.4, 2), guide = FALSE) +
-        scale_y_continuous("Trait value", limits = c(-0.2, NA)) +
+        scale_y_continuous("Axis value", limits = c(-0.2, NA)) +
         scale_x_continuous("Time (× 1,000)",
                            limits = c(0, 7.2)) +
         theme(plot.margin = margin(0,0,0,t=10),
@@ -858,15 +860,15 @@ names(cc_V_p_list) <- c("non-conflicting", "conflicting")
 
 cond_coexist_ps <- map(c("non-conflicting", "conflicting"),
                        ~ plot_grid(cond_coexist_sc_ps[[.x]] +
-                                       xlab(sprintf("Trait 1\n(%s)", .x)) +
-                                       ylab("(non-conflicting)\nTrait 2") +
+                                       xlab(sprintf("Axis 1\n(%s)", .x)) +
+                                       ylab("(non-conflicting)\nAxis 2") +
                                        ggtitle(paste("Starting conditions and",
                                                      "trajectories")) +
                                        theme(plot.margin = margin(0,0,0,r=12)),
                                    cc_N_p_list[[.x]] +
                                        ggtitle("Abundance time series"),
                                    cc_V_p_list[[.x]] +
-                                       ggtitle("Trait time series"),
+                                       ggtitle("Axis time series"),
                                    align = "v", axis = "l",
                                    ncol = 1, rel_heights = c(3, 2, 4),
                                    labels = LETTERS[1:3],
@@ -1053,8 +1055,8 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
     facet_wrap(~ rep, nrow = 3) +
     coord_equal(xlim = c(0, 3.11), ylim = c(0, 3.11)) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    ylab("(non-conflicting)\nTrait 2") +
-    xlab("Trait 1\n(conflicting)")
+    ylab("(non-conflicting)\nAxis 2") +
+    xlab("Axis 1\n(conflicting)")
 
 
 
@@ -1113,8 +1115,8 @@ hm_df %>%
     geom_raster(aes(fill = fit)) +
     geom_contour(aes(z = fit)) +
     scale_fill_viridis_c() +
-    scale_x_continuous("Trait 1\n(conflicting)", breaks = c(0, 2, 4)) +
-    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    scale_x_continuous("Axis 1\n(conflicting)", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
     coord_equal() +
     NULL
 
@@ -1536,8 +1538,8 @@ inv_sims_one_p_fun <- function(.eta,
     }
     p +
         facet_grid(as.formula(sprintf("d1 ~ %s", .sigma)), label = label_parsed) +
-        scale_x_continuous("Trait 1\n(varying)", breaks = c(0, 2, 4)) +
-        scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+        scale_x_continuous("Axis 1\n(varying)", breaks = c(0, 2, 4)) +
+        scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
         scale_shape_manual(values = .shapes, guide = FALSE) +
         coord_equal() +
         theme(strip.text = element_text(size = 8),
@@ -1595,12 +1597,12 @@ inv_sims_p_fun <- function(..par,
 
 
 
-    plot_grid(plot_grid(textGrob("Trait 2 (non-conflicting)", rot = 90, x = 2),
+    plot_grid(plot_grid(textGrob("Axis 2 (non-conflicting)", rot = 90, x = 2),
                         plot_grid(plotlist = plots, ncol = 1,
                                   align = "vh", axis = "tblr"),
                         legend,
                         rel_widths = c(0.03, 1, 0.25), nrow = 1),
-              textGrob("Trait 1 (varying)", hjust = 0.9, vjust = 0),
+              textGrob("Axis 1 (varying)", hjust = 0.9, vjust = 0),
               ncol = 1, rel_heights = c(1, 0.07))
 
 }
@@ -1646,12 +1648,12 @@ inv_sims_super2_p_fun <- function(..par,
         theme(strip.text.x = element_blank(),
               plot.margin = margin(0,0,0,t=12))
 
-    plot_grid(plot_grid(textGrob("Trait 2 (non-conflicting)", rot = 90, x = 1),
+    plot_grid(plot_grid(textGrob("Axis 2 (non-conflicting)", rot = 90, x = 1),
                         plot_grid(plotlist = plots, ncol = 1,
                                   align = "vh", axis = "tblr"),
                         legend,
                         rel_widths = c(0.07, 1, 0.25), nrow = 1),
-              textGrob("Trait 1 (varying)", hjust = 0.9, vjust = 0),
+              textGrob("Axis 1 (varying)", hjust = 0.9, vjust = 0),
               ncol = 1, rel_heights = c(1, 0.07))
 }
 
@@ -1774,8 +1776,8 @@ dir_df %>%
     geom_segment(aes(xend = V1 + 0.15 * V1_delta, yend = V2 + 0.15 * V2_delta),
                  arrow = arrow(length = unit(0.05, "inches"))) +
     scale_fill_viridis_c() +
-    scale_x_continuous("Trait 1\n(conflicting)", breaks = c(0, 2, 4)) +
-    scale_y_continuous("(non-conflicting)\nTrait 2", breaks = c(0, 2, 4)) +
+    scale_x_continuous("Axis 1\n(conflicting)", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
     coord_equal() +
     NULL
 
@@ -1931,7 +1933,7 @@ stopifnot(is.numeric(.eta_sign) && length(.eta_sign) == 1 &&
 if (.lab == "restricted" && .eta < 0) {
     stop(paste("\n'restricted' with sub-additivity is not programmed bc",
                "there's only one stable trait state.",
-               "Thus, there is no way to restrict starting traits to",
+               "Thus, there is no way to restrict starting axes to",
                "be outside of that state's basin of attraction."))
 }
 
@@ -2015,8 +2017,8 @@ nv %>%
     facet_wrap(~ rep, nrow = 3) +
     coord_equal(xlim = c(0, 3.11), ylim = c(0, 3.11)) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    ylab("(non-conflicting)\nTrait 2") +
-    xlab("Trait 1\n(conflicting)")
+    ylab("(non-conflicting)\nAxis 2") +
+    xlab("Axis 1\n(conflicting)")
 
 nv %>%
     mutate(id = interaction(spp, rep)) %>%
