@@ -1243,7 +1243,7 @@ if (.RESAVE_PLOTS) {
 # =============================================================================*
 # =============================================================================*
 
-# Figs 5,S4,S5 Stoch. - heatmaps ----
+# Figs 5,S4 Stoch. - heatmaps ----
 
 # =============================================================================*
 # =============================================================================*
@@ -1253,225 +1253,132 @@ if (.RESAVE_PLOTS) {
 #' the invading (`inv`) and the resident (`res`) species surviving?
 #'
 
-# giant_inv_sims <- map_dfr(0:20,
-#                           function(i) {
-#                               fn <- rds(paste0("giant_inv_sims/giant_inv",
-#                                                "_sims_outcomes_", i))
-#                               readRDS(fn)
-#                           })
-#
-# giant_inv_sims_s2 <- map_dfr(0:13,
-#                           function(i) {
-#                               fn <- rds(paste0("giant_inv_sims_super2/",
-#                                                "giant_inv_sims_super2_",
-#                                                "outcomes_", i))
-#                               readRDS(fn)
-#                           })
-#
-# giant_inv_sims_mid <- map_dfr(0:6,
-#                           function(i) {
-#                               fn <- rds(paste0("giant_inv_sims_add-mid/",
-#                                                "giant_inv_sims_add-mid_",
-#                                                "outcomes_", i))
-#                               readRDS(fn)
-#                           })
+determ_inv_sims <- map_dfr(0:20,
+                           function(i) {
+                               fn <- rds(paste0("giant_inv_sims/giant_inv",
+                                                "_sims_outcomes_", i))
+                               readRDS(fn) %>%
+                                   filter(sigma_V == 0, sigma_N == 0,
+                                          eta != 0) %>%
+                                   select(-sigma_V, -sigma_N)
+                           }) %>%
+    bind_rows(map_dfr(0:6,
+                      function(i) {
+                          fn <- rds(paste0("giant_inv_sims_add-mid/",
+                                           "giant_inv_sims_add-mid_",
+                                           "outcomes_", i))
+                          readRDS(fn) %>%
+                              filter(sigma_V == 0, sigma_N == 0) %>%
+                              select(-sigma_V, -sigma_N)
+                      })) %>%
+    mutate(d1 = factor(d1, levels = sort(unique(d1)),
+                       labels = sprintf("d[1] == %.4f", sort(unique(d1)))),
+           eta = factor(eta, levels = c(-0.6, 0, 0.6),
+                        labels = paste0(c("sub-", "", "super-"),
+                                        "additive"))) %>%
+    select(-total)
 
-giant_inv_sims <- map_dfr(0:20,
+get_determ <- function(.par, .V1, .V2, .eta, .d1) {
+    filter(determ_inv_sims, V1 == .V1[1], V2 == .V2[1],
+           eta == .eta[1], d1 == .d1[1])[[.par]]
+}
+
+stoch_inv_sims <- map_dfr(0:20,
                           function(i) {
                               fn <- rds(paste0("giant_inv_sims/giant_inv",
                                                "_sims_outcomes_", i))
-                              readRDS(fn)
-                          })
-
-giant_inv_sims_s2 <- map_dfr(0:13,
-                          function(i) {
-                              fn <- rds(paste0("giant_inv_sims_super2/",
-                                               "giant_inv_sims_super2_",
-                                               "outcomes_", i))
-                              readRDS(fn)
-                          })
-
-giant_inv_sims_mid <- map_dfr(0:6,
-                          function(i) {
-                              fn <- rds(paste0("giant_inv_sims_add-mid/",
-                                               "giant_inv_sims_add-mid_",
-                                               "outcomes_", i))
-                              readRDS(fn)
-                          })
-
-
-
-
-
-
-#'
-#' These were the parameter values simulated (441 total combinations):
-#'
-#' ```
-#' crossing(.eta = -1:1 * 0.6,
-#'          .d1 = c(-0.1, -0.05, 0),
-#'          .sigma_V = seq(0, 0.3, 0.05),
-#'          .sigma_N = seq(0, 0.3, 0.05))
-#' ```
-
-
-
-giant_inv_p_vars <- function(.x) {
-    .x <- .x %>%
-        mutate(d1 = factor(d1, levels = sort(unique(d1)),
-                           labels = sprintf("d[1] == %.4f", sort(unique(d1)))))
-    if ("sigma_V" %in% colnames(.x)) {
-        .x <- .x %>%
-            mutate(sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
-                                    labels = sprintf("sigma[V] == %.4f",
-                                                     sort(unique(sigma_V)))))
-    }
-    if ("sigma_N" %in% colnames(.x)) {
-        .x <- .x %>%
-            mutate(sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
-                                    labels = sprintf("sigma[N] == %.4f",
-                                                     sort(unique(sigma_N)))))
-    }
-    return(.x)
-}
-
-# Prep for making data for outline
-outline_data_fun <- function(.x) {
-    # Takes care of situations where a point is both top and bottom:
-    if (any(.x$top & .x$bottom)) {
-        .x <- bind_rows(.x %>%
-                            mutate(bottom = ifelse(top & bottom, FALSE, bottom)),
-                        .x %>%
-                            filter(top & bottom) %>%
-                            mutate(top = FALSE)) %>%
-            arrange(eta, d1, blw_diag, V1, top, bottom)
-    }
-    z <- .x %>%
-        mutate(V2 = ifelse(top, V2 + 0.1, V2 - 0.1))
-    z <- bind_rows(z %>%
-                        mutate(V1 = V1 - 0.1),
-                    z %>%
-                        mutate(V1 = V1 + 0.1 - 1e-9)) %>%
-        mutate(pos = ifelse(top, "top", "bottom") %>%
-                   factor(levels = c("bottom", "top"))) %>%
-        select(-top, -bottom) %>%
-        arrange(eta, d1, blw_diag, pos, V1)
-
-    z[z$pos == "top",] <- z[rev(which(z$pos == "top")),]
-
-    # To complete the polygon
-    z <- bind_rows(z,
-                   z %>% filter(pos == "bottom", V1 == min(V1)) %>%
-                       mutate(pos = tail(z$pos, 1)))
-
-    return(z)
-}
+                              readRDS(fn) %>%
+                                  filter((sigma_V == 0.1 & sigma_N == 0) |
+                                             (sigma_V == 0 & sigma_N == 0.1)) %>%
+                                  filter(eta != 0)
+                          }) %>%
+    bind_rows(map_dfr(0:6,
+                      function(i) {
+                          fn <- rds(paste0("giant_inv_sims_add-mid/",
+                                           "giant_inv_sims_add-mid_",
+                                           "outcomes_", i))
+                          readRDS(fn) %>%
+                              filter((sigma_V == 0.1 & sigma_N == 0) |
+                                         (sigma_V == 0 & sigma_N == 0.1))
+                      })) %>%
+    mutate(d1 = factor(d1, levels = sort(unique(d1)),
+                       labels = sprintf("d[1] == %.4f", sort(unique(d1)))),
+           sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
+                            labels = sprintf("sigma[V] == %.4f",
+                                             sort(unique(sigma_V)))),
+           sigma_N = factor(sigma_N, levels = sort(unique(sigma_N)),
+                            labels = sprintf("sigma[N] == %.4f",
+                                             sort(unique(sigma_N)))),
+           eta = factor(eta, levels = c(-0.6, 0, 0.6),
+                            labels = paste0(c("sub-", "", "super-"),
+                                            "additive"))) %>%
+    mutate(across(coexist:extinct, ~ .x / total)) %>%
+    select(-total) %>%
+    group_by(V1, V2, eta, d1) %>%
+    mutate(coexist_diff = coexist - get_determ("coexist", V1, V2, eta, d1),
+           replace_diff = replace - get_determ("replace", V1, V2, eta, d1),
+           reject_diff = reject - get_determ("reject", V1, V2, eta, d1),
+           extinct_diff = extinct - get_determ("extinct", V1, V2, eta, d1)) %>%
+    ungroup()
 
 
 
 
 
-inv_sims_one_p_fun <- function(.eta,
-                               .super2 = FALSE,
-                               .mid = FALSE,
-                               .par = "coexist",
-                               fill_scale = NULL,
-                               which_sigma = "V") {
 
-    # .par = "coexist"; .eta = 0; .super2 = FALSE; .mid = TRUE;
-    # fill_scale = NULL; which_sigma = "V"
-    # rm(.par, .eta, .super2, fill_scale, which_sigma)
+inv_sims_one_p_fun <- function(.par = "coexist",
+                               .which_sigma = "V",
+                               .fill_low = "#ca0020",
+                               .fill_high = "#0571b0",
+                               .fill_limits = c(-1, 1)) {
+
+    # .par = "coexist"; .which_sigma = "V"
+    # .fill_low = "#ca0020"; .fill_high = "#0571b0"; .fill_limits = c(-1, 1)
+    # rm(.par, .which_sigma, .fill_low, .fill_high, .fill_limits)
 
     .par <- match.arg(.par, c("coexist", "replace", "reject", "extinct"))
 
-    which_sigma <- match.arg(which_sigma, c("V", "N"))
+    .which_sigma <- match.arg(.which_sigma, c("V", "N"))
 
-    stopifnot(!(.super2 && .mid))
+    fill_scale <- scale_fill_gradient2(bquote("Effect of" ~
+                                                  sigma[.(.which_sigma)]),
+                                       low = .fill_low,
+                                       mid = "white",
+                                       high = .fill_high,
+                                       midpoint = 0,
+                                       limits = .fill_limits)
 
-    if (.super2) {
-        .heatmap_df <- giant_inv_sims_s2
-        .shapes <- c(17, 16)
-    } else if (.mid) {
-        .heatmap_df <- giant_inv_sims_mid
-        .shapes <- c(16, 17)
-    } else {
-        .heatmap_df <- giant_inv_sims
-        .shapes <- c(16, 17)
+    make_eta_fct <- function(..x) {
+        factor(..x, levels = c(-0.6, 0, 0.6),
+               labels = paste0(c("sub-", "", "super-"),
+                               "additive"))
     }
-    .heatmap_df <- .heatmap_df %>%
-        filter(eta == .eta)
-    if (nrow(.heatmap_df) == 0) stop("\nUn-simulated eta--.super2/.mid combo")
+    midi <- ceiling(formals(stable_points)[["line_n"]] / 2)
 
-    # if (.par == "extinction") {
-    #     .outline_df <- tibble()
-    # } else {
-    #     .outline_df <- .heatmap_df %>%
-    #         filter(sigma_V == 0, sigma_N == 0, !!as.name(.par) > 0)
-    #     if (nrow(.outline_df) > 0) {
-    #         .outline_df <- .outline_df %>%
-    #             select(V1, V2, eta, d1) %>%
-    #             mutate(blw_diag = V1 > V2,
-    #                    blw_diag = ifelse(eta <= 0 | .par == "reject",
-    #                                      TRUE, blw_diag)) %>%
-    #             group_by(eta, d1, blw_diag, V1) %>%
-    #             mutate(top = V2 == max(V2), bottom = V2 == min(V2)) %>%
-    #             filter(top | bottom) %>%
-    #             ungroup() %>%
-    #             select(eta, d1, blw_diag, V1, V2, top, bottom) %>%
-    #             arrange(eta, d1, blw_diag, V1, top, bottom) %>%
-    #             split(interaction(.$eta, .$d1, .$blw_diag, drop = TRUE)) %>%
-    #             map_dfr(outline_data_fun) %>%
-    #             mutate(id = paste(eta, d1, blw_diag, sep = "__") %>% factor()) %>%
-    #             select(eta, d1, blw_diag, pos, id, everything())
-    #     }
-    # }
+    .sigma <- sprintf("sigma_%s", .which_sigma)
 
-    .sigma <- sprintf("sigma_%s", which_sigma)
-    .other_sigma <- sprintf("sigma_%s", switch(which_sigma, V = "N", N = "V"))
-
-
-    dd <- .heatmap_df %>%
-        filter(!!as.name(.other_sigma) == 0.0) %>%
-        mutate(across(all_of(.par), ~ .x / total)) %>%
-        group_by(d1, V1, V2) %>%
-        mutate(across(all_of(.par), ~ .x - .x[sigma_V == 0 & sigma_N == 0])) %>%
-        ungroup() %>%
-        # filter(!!as.name(.sigma) %in% c(0.05, 0.1, 0.2)) %>%
-        filter(!!as.name(.sigma) == 0.1) %>%
-        giant_inv_p_vars()
-
-    p <- dd %>%
+    # p <-
+    stoch_inv_sims %>%
+        filter(!!as.name(.sigma) == sprintf("sigma[%s] == %.4f",
+                                            .which_sigma, 0.1)) %>%
         ggplot(aes(V1, V2)) +
-        geom_raster(aes_string(fill = .par)) +
-        geom_tile(data = .heatmap_df %>%
-                      filter(sigma_V == 0, sigma_N == 0, !!as.name(.par) > 0) %>%
-                      giant_inv_p_vars(),
-                  fill = NA, color = "black", size = 0.1)
-    # if (nrow(.outline_df) > 0) {
-    #     p <- p +
-    #     geom_path(data = .outline_df %>%
-    #                   giant_inv_p_vars(),
-    #               aes(group = id), color = "black", size = 0.3)
-    # }
-    if (.eta != 0) {
-        p <- p +
-            geom_point(data = stable_points(.eta), aes(shape = factor(V1)),
-                       size = 2, color = "black")
-    } else {
-        i <- case_when(.super2 ~ formals(stable_points)[["line_n"]],
-                       .mid ~ ceiling(formals(stable_points)[["line_n"]] / 2),
-                       TRUE ~ 1)
-        p <- p +
-            stable_points(.eta, return_geom = TRUE, color = "gray50", size = 1) +
-            geom_point(data = stable_points(.eta)[i,], shape = 16,
-                       size = 2, color = "black")
-    }
-
-    p +
-        facet_grid(d1 ~ ., label = label_parsed) +
+        geom_raster(aes_string(fill = paste0(.par, "_diff"))) +
+        geom_tile(data = determ_inv_sims %>% filter(!!as.name(.par) > 0),
+                  fill = NA, color = "black", size = 0.1) +
+        facet_grid(d1 ~ eta, label = label_parsed) +
+        geom_point(data = map_dfr(c(-0.6, 0.6), ~ stable_points(.x) %>%
+                                      mutate(eta = make_eta_fct(.x))),
+                   aes(shape = factor(V1)),
+                   size = 2, color = "black") +
+        geom_path(data = stable_points(0) %>%
+                      mutate(eta = make_eta_fct(0)),
+                  color = "gray50", size = 1) +
+        geom_point(data = tibble(V1 = sqrt(2), V2 = sqrt(2),
+                                 eta = make_eta_fct(0)),
+                   shape = 16, size = 2, color = "black") +
         scale_x_continuous("Axis 1\n(varying)", breaks = c(0, 2, 4)) +
         scale_y_continuous("(ameliorative)\nAxis 2", breaks = c(0, 2, 4)) +
-        scale_shape_manual(values = .shapes, guide = FALSE) +
+        scale_shape_manual(values = c(16, 17, 16), guide = FALSE) +
         coord_equal() +
         NULL +
         theme(strip.text = element_text(size = 8),
@@ -1490,166 +1397,33 @@ inv_sims_one_p_fun <- function(.eta,
 
 
 
-
-inv_sims_p_fun <- function(..par,
-                           .fill_low = inferno(6)[3],
-                           .fill_high = inferno(6)[5],
-                           .fill_limits = c(-1, 1),
-                           .which_sigma = "V") {
-
-    # ..par = "coexist"; .fill_low = inferno(6)[3];
-    # .fill_high = inferno(6)[5]; .fill_limits = c(-1, 1); .which_sigma = "V"
-
-    .which_sigma <- match.arg(.which_sigma, c("V", "N"))
-
-    .fill_scale <- scale_fill_gradient2(bquote("Effect of" ~ sigma[.(.which_sigma)]),
-                                        low = .fill_low,
-                                        mid = "white",
-                                        high = .fill_high,
-                                        midpoint = 0,
-                                        limits = .fill_limits)
-
-    ..par <- match.arg(..par, c("coexist", "replace", "reject", "extinct"))
-
-    plots <- map(-1:1 * etas[[2]],
-                  ~ inv_sims_one_p_fun(.eta = .x,
-                                       .par = ..par,
-                                       fill_scale = .fill_scale,
-                                       which_sigma = .which_sigma) +
-                      theme(axis.title = element_blank()))
-    names(plots) <- c("sub", "add", "super")
-
-    legend <- get_legend(plots[[1]])
-
-    plots <- map(plots, ~ .x + theme(legend.position = "none"))
-    plots[[1]] <- plots[[1]] +
-        ggtitle("sub-additive")
-    plots[[2]] <- plots[[2]] +
-        ggtitle("additive") +
-        theme(strip.text.x = element_blank())
-    plots[[3]] <- plots[[3]] +
-        ggtitle("super-additive") +
-        theme(strip.text.x = element_blank())
-
-
-
-    plot_grid(plot_grid(textGrob("Axis 2 (ameliorative)", rot = 90, x = 2),
-                        plot_grid(plotlist = plots, ncol = 1,
-                                  align = "vh", axis = "tblr"),
-                        legend,
-                        rel_widths = c(0.03, 1, 0.25), nrow = 1),
-              textGrob("Axis 1 (varying)", hjust = 0.9, vjust = 0),
-              ncol = 1, rel_heights = c(1, 0.07))
-
-}
-
-
-
-# Same thing but for "super 2" sims
-inv_sims_super2_p_fun <- function(..par,
-                                  .fill_low = inferno(6)[3],
-                                  .fill_high = inferno(6)[5],
-                                  .fill_limits = c(-1, 1),
-                                  .which_sigma = "V") {
-
-    .which_sigma <- match.arg(.which_sigma, c("V", "N"))
-
-    # .fill_scale <- scale_fill_gradient2(expression("Effect of" ~ sigma[V]),
-    .fill_scale <- scale_fill_gradient2(bquote("Effect of" ~ sigma[.(.which_sigma)]),
-                                        low = .fill_low,
-                                        mid = "white",
-                                        high = .fill_high,
-                                        midpoint = 0,
-                                        limits = .fill_limits)
-
-    ..par <- match.arg(..par, c("coexist", "replace", "reject", "extinct"))
-
-    plots <- map(0:1 * etas[[2]],
-                  ~ inv_sims_one_p_fun(.eta = .x,
-                                       .super2 = TRUE,
-                                       .par = ..par,
-                                       fill_scale = .fill_scale,
-                                       which_sigma = .which_sigma) +
-                      theme(axis.title = element_blank()))
-    names(plots) <- c("add", "super")
-
-    legend <- get_legend(plots[[1]])
-
-    plots <- map(plots, ~ .x + theme(legend.position = "none"))
-    plots[[1]] <- plots[[1]] +
-        ggtitle("sub-additive") +
-        theme(plot.margin = margin(0,0,0,b=12))
-    plots[[2]] <- plots[[2]] +
-        ggtitle("additive") +
-        theme(strip.text.x = element_blank(),
-              plot.margin = margin(0,0,0,t=12))
-
-    plot_grid(plot_grid(textGrob("Axis 2 (ameliorative)", rot = 90, x = 1),
-                        plot_grid(plotlist = plots, ncol = 1,
-                                  align = "vh", axis = "tblr"),
-                        legend,
-                        rel_widths = c(0.07, 1, 0.25), nrow = 1),
-              textGrob("Axis 1 (varying)", hjust = 0.9, vjust = 0),
-              ncol = 1, rel_heights = c(1, 0.07))
-}
-
-
-
 inv_sims_ps <- list()
-inv_sims_ps[["coexist"]] <- inv_sims_p_fun("coexist")
-inv_sims_ps[["replace"]] <- inv_sims_p_fun("replace",
-                                           .fill_low = viridis(6)[3],
-                                           .fill_high = viridis(6)[5])
-inv_sims_ps[["extinct"]] <- inv_sims_p_fun("extinct",
-                                           .fill_low = "red",
-                                           .fill_high = "gray60",
-                                           .fill_limits = c(0, 0.15))
+inv_sims_ps[["coexist"]] <- inv_sims_one_p_fun("coexist")
+inv_sims_ps[["replace"]] <- inv_sims_one_p_fun("replace",
+                                               .fill_low = "#e66101",
+                                               .fill_high = "#5e3c99")
+inv_sims_ps[["extinct"]] <- inv_sims_one_p_fun("extinct",
+                                               .fill_low = "#d01c8b",
+                                               .fill_high = "#4dac26",
+                                               .fill_limits = NULL)
 
 # inv_sims_ps[["coexist"]]
 # inv_sims_ps[["replace"]]
-# inv_sims_ps[["extinct"]]
+# inv_sims_ps[["extinct"]]  # <-- super boring
 
+# Also boring:
+# inv_sims_one_p_fun("coexist", .which_sigma = "N")
 
-giant_inv_sims %>%
-    filter(sigma_V == 0.0) %>%
-    mutate(across(all_of("coexist"), ~ .x / total)) %>%
-    group_by(eta, d1, V1, V2) %>%
-    mutate(across(all_of("coexist"), ~ .x - .x[sigma_V == 0 & sigma_N == 0])) %>%
-    ungroup() %>%
-    filter(sigma_N %in% c(0.05, 0.1, 0.2)) %>%
-    group_by(eta, d1, sigma_N) %>%
-    summarize(max = max(coexist),
-              min = min(coexist)) %>%
-    ungroup() %>%
-    arrange(max) %>%
-    print(n = 100)
 
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(inv_sims_ps[["coexist"]], 5, 9, .name = "5-inv_sims_hm_coexist")
-    save_plot(inv_sims_ps[["replace"]], 5, 9, .name = "S4-inv_sims_hm_replace")
-    save_plot(inv_sims_ps[["extinct"]], 5, 9, .name = "S5-inv_sims_hm_extinct")
+    save_plot(inv_sims_ps[["coexist"]], 5, 4.5, .name = "5-inv_sims_hm_coexist")
+    save_plot(inv_sims_ps[["replace"]], 5, 4.5, .name = "S4-inv_sims_hm_replace")
 }
 
 
 
-
-
-inv_sims_super2_ps <- list()
-inv_sims_super2_ps[["coexist"]] <- inv_sims_super2_p_fun("coexist")
-inv_sims_super2_ps[["replace"]] <- inv_sims_super2_p_fun("replace",
-                                                         .fill_low = viridis(6)[3],
-                                                         .fill_high = viridis(6)[5])
-inv_sims_super2_ps[["extinct"]] <- inv_sims_super2_p_fun("extinct",
-                                                         .fill_low = "red",
-                                                         .fill_high = "gray60",
-                                                         .fill_limits = c(0, 0.15))
-
-
-# inv_sims_super2_ps[["coexist"]]
-# inv_sims_super2_ps[["replace"]]
-# inv_sims_super2_ps[["extinct"]]
 
 
 
