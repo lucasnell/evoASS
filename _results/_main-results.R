@@ -199,7 +199,7 @@ etas[[2]] <- 0.6
 # =============================================================================*
 # =============================================================================*
 
-# 1. 2-trait outcomes ----
+# Fig 2. 2-trait outcomes ----
 
 # =============================================================================*
 # =============================================================================*
@@ -292,7 +292,7 @@ eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 
 
 #'
-#' Based on eigenvalues (see `first-draft__stability.R`)...
+#' Based on eigenvalues (see `_main-results__stability.R`)...
 #'   * When the tradeoff is additive, the state is neutrally stable
 #'   * Everything else is stable
 #'
@@ -306,11 +306,13 @@ outcomes_q2_p <- eta_sim_df %>%
                          labels = c("sub-additive", "additive",
                                     "super-additive"))) %>%
     group_by(eta1) %>%
-    filter(unq_spp_filter(V1, V2, .prec = 0.05)) %>%
+    filter(unq_spp_filter(V1, V2, .prec = 0.1)) %>%
     ungroup() %>%
     ggplot(aes(V1, V2)) +
+    geom_path(data = stable_points(0) %>% mutate(eta1 = factor("additive")),
+              linetype = 1, color = "gray40") +
     geom_point(shape = 21, color = "dodgerblue", fill = "dodgerblue",
-               alpha = 0.5, size = 3) +
+               alpha = 0.75, size = 3) +
     scale_x_continuous("Axis 1", breaks = 0:2) +
     scale_y_continuous("Axis 2", breaks = 0:2) +
     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
@@ -321,7 +323,7 @@ outcomes_q2_p <- eta_sim_df %>%
 
 
 
-if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "1-")
+if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 
 
 
@@ -330,7 +332,7 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "1-")
 # =============================================================================*
 # =============================================================================*
 
-# 2. Coexistence ----
+# Fig 3. Coexistence ----
 
 # =============================================================================*
 # =============================================================================*
@@ -384,7 +386,7 @@ coexist_spp_p1 <- coexist_spp_df %>%
 
 
 #'
-#' Code in `first-draft__stability.R` shows that...
+#' Code in `_main-results__stability.R` shows that...
 #' * Most are stable, except for the neutrally stable equilibria when
 #'   d = 0.
 #' * Some reps had complex eigenvalues, none with complex
@@ -459,7 +461,7 @@ coexist_spp_p <- plot_grid(coexist_spp_p1,
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(coexist_spp_p, 6, 6, .prefix = "2-")
+    save_plot(coexist_spp_p, 6, 6, .prefix = "3-")
 }
 
 
@@ -476,7 +478,7 @@ if (.RESAVE_PLOTS) {
 # =============================================================================*
 # =============================================================================*
 
-# 3-4,S1-S2 Conditional coexistence ----
+# Figs 4,S1-S2 Conditional coexistence ----
 
 # =============================================================================*
 # =============================================================================*
@@ -639,7 +641,7 @@ cond_coexist_df_prep <- function(.dd) {
                                        "super-additive")),
                d1 = factor(d1, levels = c(-0.1, 0.1),
                            labels = c("conflicting",
-                                      "non-conflicting"))) %>%
+                                      "ameliorative"))) %>%
         # `trait_space` is a combination of starting trait values and eta:
         mutate(trait_space =
                    case_when(V0 == "unrestricted" & eta == "sub-additive" ~
@@ -727,42 +729,36 @@ cond_coexist_sc_p_fun <- function(.d1) {
                                         margin = margin(0,0,0,b=6)))
 }
 
-cond_coexist_sc_ps <- map(c("non-conflicting", "conflicting"),
-                          cond_coexist_sc_p_fun)
-names(cond_coexist_sc_ps) <- c("non-conflicting", "conflicting")
+cond_coexist_sc_p <- cond_coexist_sc_p_fun("conflicting")
 
 
 
 # Time series of abundances
-cc_N_p_list <- map(c("non-conflicting", "conflicting"),
-                   ~ cond_coexist_df %>%
-                       filter(d1 == .x) %>%
-                       filter(time < 7e3) %>%
-                       ggplot(aes(time / 1000L, N, color = spp)) +
-                       geom_line() +
-                       geom_point(data = cond_coexist_df %>%
-                                      filter(d1 == .x) %>%
-                                      group_by(trait_space, spp) %>%
-                                      filter(time == max(time)) %>%
-                                      ungroup() %>%
-                                      filter(time < max(time)),
-                                  shape = 4, size = 1.5) +
-                       facet_wrap(~ trait_space, nrow = 1) +
-                       scale_color_brewer(palette = "Dark2",
-                                          guide = FALSE) +
-                       scale_y_continuous("Abundance", trans = "log",
-                                          breaks = 10^(c(-3, 0, 3)),
-                                          labels = parse(
-                                              text = sprintf("10^{%i}",
-                                                             c(-3, 0, 3)))) +
-                       xlab("Time (× 1,000)") +
-                       theme(plot.margin = margin(0,r=12,t=10,b=10),
-                             axis.title.x = element_blank(),
-                             plot.title = element_text(hjust = 0.5,
-                                                       margin = margin(0,0,0,b=6)))
-)
-
-names(cc_N_p_list) <- c("non-conflicting", "conflicting")
+cc_N_p <- cond_coexist_df %>%
+    filter(d1 == "conflicting") %>%
+    filter(time < 7e3) %>%
+    ggplot(aes(time / 1000L, N, color = spp)) +
+    geom_line() +
+    geom_point(data = cond_coexist_df %>%
+                   filter(d1 == "conflicting") %>%
+                   group_by(trait_space, spp) %>%
+                   filter(time == max(time)) %>%
+                   ungroup() %>%
+                   filter(time < max(time)),
+               shape = 4, size = 1.5) +
+    facet_wrap(~ trait_space, nrow = 1) +
+    scale_color_brewer(palette = "Dark2",
+                       guide = FALSE) +
+    scale_y_continuous("Abundance", trans = "log",
+                       breaks = 10^(c(-3, 0, 3)),
+                       labels = parse(
+                           text = sprintf("10^{%i}",
+                                          c(-3, 0, 3)))) +
+    xlab("Time (× 1,000)") +
+    theme(plot.margin = margin(0,r=12,t=10,b=10),
+          axis.title.x = element_blank(),
+          plot.title = element_text(hjust = 0.5,
+                                    margin = margin(0,0,0,b=6)))
 
 
 
@@ -808,48 +804,44 @@ dist_from_equil <- function(V1, V2, eta) {
 
 
 
-cc_V_p_list <- map(c("non-conflicting", "conflicting"),
-    ~ cond_coexist_df %>%
-        filter(d1 == .x) %>%
-        filter(time < 7e3) %>%
-        split(.$eta) %>%
-        map_dfr(function(.dd) {
-            mutate(.dd, dist = dist_from_equil(V1, V2, eta))
-        }) %>%
-        mutate(dist = ifelse(eta == "additive", dist, mean(dist))) %>%
-        gather(trait, value, V1:V2) %>%
-        mutate(trait = gsub("^V", "trait ", trait)) %>%
-        ggplot(aes(time / 1000L, value)) +
-        geom_hline(yintercept = 0, size = 0.5,
-                   linetype = 1, color = "gray70") +
-        geom_vline(xintercept = 0, size = 0.5,
-                   linetype = 1, color = "gray70") +
-        geom_point(data = stable_state_df,
-                   aes(shape = shp), size = 3) +
-        geom_line(aes(color = spp, size = dist)) +
-        geom_line(aes(color = spp)) +
-        geom_point(data = cond_coexist_df %>%
-                       filter(d1 == .x) %>%
-                       gather(trait, value, V1:V2) %>%
-                       mutate(trait = gsub("^V", "trait ", trait)) %>%
-                       group_by(trait_space, spp) %>%
-                       filter(time == max(time)) %>%
-                       ungroup() %>%
-                       filter(time < max(time)),
-                   aes(color = spp), shape = 4, size = 1.5) +
-        facet_grid(trait ~ trait_space) +
-        scale_color_brewer(palette = "Dark2", guide = FALSE) +
-        scale_shape_manual(values = c(5,1,2), guide = FALSE) +
-        scale_size_continuous(range = c(0.4, 2), guide = FALSE) +
-        scale_y_continuous("Axis value", limits = c(-0.2, NA)) +
-        scale_x_continuous("Time (× 1,000)",
-                           limits = c(0, 7.2)) +
-        theme(plot.margin = margin(0,0,0,t=10),
-              plot.title = element_text(hjust = 0.5,
-                                        margin = margin(0,0,0,b=6)))
-)
-
-names(cc_V_p_list) <- c("non-conflicting", "conflicting")
+cc_V_p <- cond_coexist_df %>%
+    filter(d1 == "conflicting") %>%
+    filter(time < 7e3) %>%
+    split(.$eta) %>%
+    map_dfr(function(.dd) {
+        mutate(.dd, dist = dist_from_equil(V1, V2, eta))
+    }) %>%
+    mutate(dist = ifelse(eta == "additive", dist, mean(dist))) %>%
+    gather(trait, value, V1:V2) %>%
+    mutate(trait = gsub("^V", "trait ", trait)) %>%
+    ggplot(aes(time / 1000L, value)) +
+    geom_hline(yintercept = 0, size = 0.5,
+               linetype = 1, color = "gray70") +
+    geom_vline(xintercept = 0, size = 0.5,
+               linetype = 1, color = "gray70") +
+    geom_point(data = stable_state_df,
+               aes(shape = shp), size = 3) +
+    geom_line(aes(color = spp, size = dist)) +
+    geom_line(aes(color = spp)) +
+    geom_point(data = cond_coexist_df %>%
+                   filter(d1 == "conflicting") %>%
+                   gather(trait, value, V1:V2) %>%
+                   mutate(trait = gsub("^V", "trait ", trait)) %>%
+                   group_by(trait_space, spp) %>%
+                   filter(time == max(time)) %>%
+                   ungroup() %>%
+                   filter(time < max(time)),
+               aes(color = spp), shape = 4, size = 1.5) +
+    facet_grid(trait ~ trait_space) +
+    scale_color_brewer(palette = "Dark2", guide = FALSE) +
+    scale_shape_manual(values = c(5,1,2), guide = FALSE) +
+    scale_size_continuous(range = c(0.4, 2), guide = FALSE) +
+    scale_y_continuous("Axis value", limits = c(-0.2, NA)) +
+    scale_x_continuous("Time (× 1,000)",
+                       limits = c(0, 7.2)) +
+    theme(plot.margin = margin(0,0,0,t=10),
+          plot.title = element_text(hjust = 0.5,
+                                    margin = margin(0,0,0,b=6)))
 
 
 
@@ -858,33 +850,25 @@ names(cc_V_p_list) <- c("non-conflicting", "conflicting")
 
 
 
-cond_coexist_ps <- map(c("non-conflicting", "conflicting"),
-                       ~ plot_grid(cond_coexist_sc_ps[[.x]] +
-                                       xlab(sprintf("Axis 1\n(%s)", .x)) +
-                                       ylab("(non-conflicting)\nAxis 2") +
-                                       ggtitle(paste("Starting conditions and",
-                                                     "trajectories")) +
-                                       theme(plot.margin = margin(0,0,0,r=12)),
-                                   cc_N_p_list[[.x]] +
-                                       ggtitle("Abundance time series"),
-                                   cc_V_p_list[[.x]] +
-                                       ggtitle("Axis time series"),
-                                   align = "v", axis = "l",
-                                   ncol = 1, rel_heights = c(3, 2, 4),
-                                   labels = LETTERS[1:3],
-                                   label_fontface = "plain", label_x = 0.06))
-names(cond_coexist_ps) <- c("non-conflicting", "conflicting")
+cond_coexist_p <- plot_grid(cond_coexist_sc_p +
+                                xlab(sprintf("Axis 1\n(%s)", "conflicting")) +
+                                ylab("(ameliorative)\nAxis 2") +
+                                ggtitle(paste("Starting conditions and",
+                                              "trajectories")) +
+                                theme(plot.margin = margin(0,0,0,r=12)),
+                            cc_N_p +
+                                ggtitle("Abundance time series"),
+                            cc_V_p +
+                                ggtitle("Axis time series"),
+                            align = "v", axis = "l",
+                            ncol = 1, rel_heights = c(3, 2, 4),
+                            labels = LETTERS[1:3],
+                            label_fontface = "plain", label_x = 0.06)
 
-
-# cond_coexist_ps[["non-conflicting"]]
-# cond_coexist_ps[["conflicting"]]
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(cond_coexist_ps[["non-conflicting"]], 6, 7,
-              .name = "S1-cond_coexist_non-conflicting")
-    save_plot(cond_coexist_ps[["conflicting"]], 6, 7,
-              .name = "3-cond_coexist_conflicting")
+    save_plot(cond_coexist_p, 6, 7, .name = "4-cond_coexist")
 }
 
 
@@ -892,7 +876,7 @@ if (.RESAVE_PLOTS) {
 
 #'
 #' They're all stable except for sub-additive and conflicting trait 1,
-#' which is neutrally stable (see `first-draft__stability.R`).
+#' which is neutrally stable (see `_main-results__stability.R`).
 #'
 
 
@@ -901,9 +885,11 @@ if (.RESAVE_PLOTS) {
 # ... with stoch. ----
 
 
-cc_N_stoch_plot_fun <- function(.d1, .V_stoch, .ts = FALSE) {
+cc_N_stoch_plot_fun <- function(.V_stoch, .ts = FALSE) {
 
-    # .d1 = "conflicting"; .V_stoch = TRUE; .ts = FALSE
+    .d1 = "conflicting"
+
+    # .V_stoch = TRUE; .ts = FALSE
     # rm(.d1, .V_stoch, .ts, .dd, .dd2)
 
     stopifnot(is.logical(.V_stoch) && length(.V_stoch) == 1)
@@ -1003,8 +989,7 @@ cc_N_stoch_plot_fun <- function(.d1, .V_stoch, .ts = FALSE) {
 }
 
 
-cond_coexist_stoch_ps <- map(c(TRUE, FALSE), cc_N_stoch_plot_fun,
-                             .d1 = "conflicting")
+cond_coexist_stoch_ps <- map(c(TRUE, FALSE), cc_N_stoch_plot_fun)
 names(cond_coexist_stoch_ps) <- c("V_stoch", "N_stoch")
 
 cond_coexist_stoch_p <- ggarrange(cond_coexist_stoch_ps[["N_stoch"]] +
@@ -1055,113 +1040,19 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
     facet_wrap(~ rep, nrow = 3) +
     coord_equal(xlim = c(0, 3.11), ylim = c(0, 3.11)) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    ylab("(non-conflicting)\nAxis 2") +
+    ylab("(ameliorative)\nAxis 2") +
     xlab("Axis 1\n(conflicting)")
 
 
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(cond_coexist_stoch_p, 6, 4, .prefix = "4-")
+    save_plot(cond_coexist_stoch_p, 6, 4, .prefix = "S1-")
     save_plot(cc_sigmaV_sit_v_p, 6, 5, .prefix = "S2-")
 }
 
 
 
-F_t <- sauron:::F_it_cpp
-
-D <- matrix(0, 2, 2)
-diag(D) <- c(-0.1, 0.1)
-C <- diag(2)
-
-V <- cond_coexist_df %>%
-    filter(d1 == "conflicting", eta == "additive") %>%
-    filter(trait_space == "v") %>%
-    filter(time == 1031) %>%
-    select(V1, V2) %>%
-    t() %>%
-    .[,-3]
-
-
-N <- cond_coexist_df %>%
-    filter(d1 == "conflicting", eta == "additive") %>%
-    filter(trait_space == "v") %>%
-    filter(time == 1031) %>%
-    .[["N"]]
-
-
-hm_df <- crossing(.v1 = seq(0, 4, 0.1),
-                  .v2 = seq(0, 4, 0.1)) %>%
-    mutate(across(.fns = round, digits = 3)) %>%
-    pmap_dfr(function(.v1, .v2) {
-        # V[1,1] <- V[1,1] + 0.5
-        # V[1,2] <- V[1,2] + 0.5
-        # N[3] <- 0
-        .F <- F_t(2,
-                  cbind(V, c(.v1, .v2)),
-                  N,
-                  formals(quant_gen)$f,
-                  formals(quant_gen)$a0,
-                  C,
-                  formals(quant_gen)$r0,
-                  D)
-        tibble(V1 = .v1, V2 = .v2, fit = .F)
-    })
-
-
-
-hm_df %>%
-    ggplot(aes(V1, V2)) +
-    geom_raster(aes(fill = fit)) +
-    geom_contour(aes(z = fit)) +
-    scale_fill_viridis_c() +
-    scale_x_continuous("Axis 1\n(conflicting)", breaks = c(0, 2, 4)) +
-    scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
-    coord_equal() +
-    NULL
-
-
-
-
-cond_coexist_stoch_df %>%
-    filter(d1 == "conflicting") %>%
-    filter(sigma_N == 0,
-           sigma_V == 0.1) %>%
-    filter(trait_space == "v") %>%
-    mutate(z1 = Vp1 - V1,
-           z2 = Vp2 - V2) %>%
-    select(z1, z2) %>%
-    sapply(mean)
-
-
-
-cond_coexist_stoch_df %>%
-    filter(d1 == "conflicting") %>%
-    filter(sigma_N == 0,
-           sigma_V == 0.1) %>%
-    filter(trait_space == "v") %>%
-    filter(rep == 1) %>%
-    select(rep, time, spp, N, V1, V2) %>%
-    gather("trait", "value", V1:V2) %>%
-    # ggplot(aes(time, log(N), color = spp)) +
-    ggplot(aes(time, value, color = spp)) +
-    geom_line() +
-    scale_color_brewer(palette = "Dark2") +
-    # facet_wrap(~ rep, nrow = 4) +
-    facet_grid(~ trait) +
-    NULL
-
-cond_coexist_df %>%
-    filter(d1 == "conflicting") %>%
-    filter(trait_space == "v") %>%
-    select(time, spp, N, V1, V2) %>%
-    gather("trait", "value", V1:V2) %>%
-    # ggplot(aes(time, log(N), color = spp)) +
-    ggplot(aes(time, value, color = spp)) +
-    geom_line() +
-    scale_color_brewer(palette = "Dark2") +
-    facet_grid(~ trait) +
-    NULL
 
 
 
@@ -1170,7 +1061,7 @@ cond_coexist_df %>%
 # =============================================================================*
 # =============================================================================*
 
-# S3 Stoch. - # species ----
+# Fig S3 Stoch. - # species ----
 
 # =============================================================================*
 # =============================================================================*
@@ -1352,7 +1243,7 @@ if (.RESAVE_PLOTS) {
 # =============================================================================*
 # =============================================================================*
 
-# 5,S4,S5 Stoch. - heatmaps ----
+# Figs 5,S4,S5 Stoch. - heatmaps ----
 
 # =============================================================================*
 # =============================================================================*
@@ -1361,6 +1252,29 @@ if (.RESAVE_PLOTS) {
 #' For each set of parameter values, how many (out of 96 total) resulted in
 #' the invading (`inv`) and the resident (`res`) species surviving?
 #'
+
+# giant_inv_sims <- map_dfr(0:20,
+#                           function(i) {
+#                               fn <- rds(paste0("giant_inv_sims/giant_inv",
+#                                                "_sims_outcomes_", i))
+#                               readRDS(fn)
+#                           })
+#
+# giant_inv_sims_s2 <- map_dfr(0:13,
+#                           function(i) {
+#                               fn <- rds(paste0("giant_inv_sims_super2/",
+#                                                "giant_inv_sims_super2_",
+#                                                "outcomes_", i))
+#                               readRDS(fn)
+#                           })
+#
+# giant_inv_sims_mid <- map_dfr(0:6,
+#                           function(i) {
+#                               fn <- rds(paste0("giant_inv_sims_add-mid/",
+#                                                "giant_inv_sims_add-mid_",
+#                                                "outcomes_", i))
+#                               readRDS(fn)
+#                           })
 
 giant_inv_sims <- map_dfr(0:20,
                           function(i) {
@@ -1373,6 +1287,14 @@ giant_inv_sims_s2 <- map_dfr(0:13,
                           function(i) {
                               fn <- rds(paste0("giant_inv_sims_super2/",
                                                "giant_inv_sims_super2_",
+                                               "outcomes_", i))
+                              readRDS(fn)
+                          })
+
+giant_inv_sims_mid <- map_dfr(0:6,
+                          function(i) {
+                              fn <- rds(paste0("giant_inv_sims_add-mid/",
+                                               "giant_inv_sims_add-mid_",
                                                "outcomes_", i))
                               readRDS(fn)
                           })
@@ -1451,97 +1373,107 @@ outline_data_fun <- function(.x) {
 
 inv_sims_one_p_fun <- function(.eta,
                                .super2 = FALSE,
+                               .mid = FALSE,
                                .par = "coexist",
                                fill_scale = NULL,
                                which_sigma = "V") {
 
-    # .par = "replace"; .eta = 0.6; .super2 = TRUE; fill_scale = NULL; which_sigma = "V"
+    # .par = "coexist"; .eta = 0; .super2 = FALSE; .mid = TRUE;
+    # fill_scale = NULL; which_sigma = "V"
     # rm(.par, .eta, .super2, fill_scale, which_sigma)
 
     .par <- match.arg(.par, c("coexist", "replace", "reject", "extinct"))
 
     which_sigma <- match.arg(which_sigma, c("V", "N"))
 
-    if (.par == "reject") {
-        stop(paste("\nThis function doesn't work for the `reject` outcome,",
-                   "and it doesn't add anything that the other outcomes don't",
-                   "already add anyway."))
-    }
+    stopifnot(!(.super2 && .mid))
 
     if (.super2) {
         .heatmap_df <- giant_inv_sims_s2
         .shapes <- c(17, 16)
+    } else if (.mid) {
+        .heatmap_df <- giant_inv_sims_mid
+        .shapes <- c(16, 17)
     } else {
         .heatmap_df <- giant_inv_sims
         .shapes <- c(16, 17)
     }
     .heatmap_df <- .heatmap_df %>%
         filter(eta == .eta)
+    if (nrow(.heatmap_df) == 0) stop("\nUn-simulated eta--.super2/.mid combo")
 
-    if (.par == "extinction") {
-        .outline_df <- tibble()
-    } else {
-        .outline_df <- .heatmap_df %>%
-            filter(sigma_V == 0, sigma_N == 0, !!as.name(.par) > 0)
-        if (nrow(.outline_df) > 0) {
-            .outline_df <- .outline_df %>%
-                select(V1, V2, eta, d1) %>%
-                mutate(blw_diag = V1 > V2,
-                       blw_diag = ifelse(eta <= 0 | .par == "reject",
-                                         TRUE, blw_diag)) %>%
-                group_by(eta, d1, blw_diag, V1) %>%
-                mutate(top = V2 == max(V2), bottom = V2 == min(V2)) %>%
-                filter(top | bottom) %>%
-                ungroup() %>%
-                select(eta, d1, blw_diag, V1, V2, top, bottom) %>%
-                arrange(eta, d1, blw_diag, V1, top, bottom) %>%
-                split(interaction(.$eta, .$d1, .$blw_diag, drop = TRUE)) %>%
-                map_dfr(outline_data_fun) %>%
-                mutate(id = paste(eta, d1, blw_diag, sep = "__") %>% factor()) %>%
-                select(eta, d1, blw_diag, pos, id, everything())
-        }
-    }
+    # if (.par == "extinction") {
+    #     .outline_df <- tibble()
+    # } else {
+    #     .outline_df <- .heatmap_df %>%
+    #         filter(sigma_V == 0, sigma_N == 0, !!as.name(.par) > 0)
+    #     if (nrow(.outline_df) > 0) {
+    #         .outline_df <- .outline_df %>%
+    #             select(V1, V2, eta, d1) %>%
+    #             mutate(blw_diag = V1 > V2,
+    #                    blw_diag = ifelse(eta <= 0 | .par == "reject",
+    #                                      TRUE, blw_diag)) %>%
+    #             group_by(eta, d1, blw_diag, V1) %>%
+    #             mutate(top = V2 == max(V2), bottom = V2 == min(V2)) %>%
+    #             filter(top | bottom) %>%
+    #             ungroup() %>%
+    #             select(eta, d1, blw_diag, V1, V2, top, bottom) %>%
+    #             arrange(eta, d1, blw_diag, V1, top, bottom) %>%
+    #             split(interaction(.$eta, .$d1, .$blw_diag, drop = TRUE)) %>%
+    #             map_dfr(outline_data_fun) %>%
+    #             mutate(id = paste(eta, d1, blw_diag, sep = "__") %>% factor()) %>%
+    #             select(eta, d1, blw_diag, pos, id, everything())
+    #     }
+    # }
 
     .sigma <- sprintf("sigma_%s", which_sigma)
     .other_sigma <- sprintf("sigma_%s", switch(which_sigma, V = "N", N = "V"))
 
 
-    p <- .heatmap_df %>%
+    dd <- .heatmap_df %>%
         filter(!!as.name(.other_sigma) == 0.0) %>%
         mutate(across(all_of(.par), ~ .x / total)) %>%
         group_by(d1, V1, V2) %>%
         mutate(across(all_of(.par), ~ .x - .x[sigma_V == 0 & sigma_N == 0])) %>%
         ungroup() %>%
-        filter(!!as.name(.sigma) %in% c(0.05, 0.1, 0.2)) %>%
-        giant_inv_p_vars() %>%
+        # filter(!!as.name(.sigma) %in% c(0.05, 0.1, 0.2)) %>%
+        filter(!!as.name(.sigma) == 0.1) %>%
+        giant_inv_p_vars()
+
+    p <- dd %>%
         ggplot(aes(V1, V2)) +
-        geom_raster(aes_string(fill = .par))
-    if (nrow(.outline_df) > 0) {
-        p <- p +
-        geom_path(data = .outline_df %>%
+        geom_raster(aes_string(fill = .par)) +
+        geom_tile(data = .heatmap_df %>%
+                      filter(sigma_V == 0, sigma_N == 0, !!as.name(.par) > 0) %>%
                       giant_inv_p_vars(),
-                  aes(group = id), color = "black", size = 0.3)
-    }
+                  fill = NA, color = "black", size = 0.1)
+    # if (nrow(.outline_df) > 0) {
+    #     p <- p +
+    #     geom_path(data = .outline_df %>%
+    #                   giant_inv_p_vars(),
+    #               aes(group = id), color = "black", size = 0.3)
+    # }
     if (.eta != 0) {
         p <- p +
             geom_point(data = stable_points(.eta), aes(shape = factor(V1)),
                        size = 2, color = "black")
     } else {
-        i <- ifelse(!.super2, 1, formals(stable_points)[["line_n"]])
+        i <- case_when(.super2 ~ formals(stable_points)[["line_n"]],
+                       .mid ~ ceiling(formals(stable_points)[["line_n"]] / 2),
+                       TRUE ~ 1)
         p <- p +
             stable_points(.eta, return_geom = TRUE, color = "gray50", size = 1) +
             geom_point(data = stable_points(.eta)[i,], shape = 16,
                        size = 2, color = "black")
     }
-    if (!is.null(fill_scale)) {
-        p <- p + fill_scale
-    }
+
     p +
-        facet_grid(as.formula(sprintf("d1 ~ %s", .sigma)), label = label_parsed) +
+        facet_grid(d1 ~ ., label = label_parsed) +
         scale_x_continuous("Axis 1\n(varying)", breaks = c(0, 2, 4)) +
-        scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
+        scale_y_continuous("(ameliorative)\nAxis 2", breaks = c(0, 2, 4)) +
         scale_shape_manual(values = .shapes, guide = FALSE) +
         coord_equal() +
+        NULL +
         theme(strip.text = element_text(size = 8),
               strip.text.y = element_text(angle = 0, hjust = 0,
                                           margin = margin(0,0,0,l=3)),
@@ -1550,9 +1482,13 @@ inv_sims_one_p_fun <- function(.eta,
               plot.title = element_text(size = 12, hjust = 0.5,
                                         margin = margin(0,0,0,b=6)),
               legend.title = element_text(size = 10),
-              plot.margin = margin(0,0,0,0))
+              plot.margin = margin(0,0,0,0)) +
+        fill_scale
 
 }
+
+
+
 
 
 inv_sims_p_fun <- function(..par,
@@ -1597,7 +1533,7 @@ inv_sims_p_fun <- function(..par,
 
 
 
-    plot_grid(plot_grid(textGrob("Axis 2 (non-conflicting)", rot = 90, x = 2),
+    plot_grid(plot_grid(textGrob("Axis 2 (ameliorative)", rot = 90, x = 2),
                         plot_grid(plotlist = plots, ncol = 1,
                                   align = "vh", axis = "tblr"),
                         legend,
@@ -1614,7 +1550,7 @@ inv_sims_super2_p_fun <- function(..par,
                                   .fill_low = inferno(6)[3],
                                   .fill_high = inferno(6)[5],
                                   .fill_limits = c(-1, 1),
-                                  which_sigma = "V") {
+                                  .which_sigma = "V") {
 
     .which_sigma <- match.arg(.which_sigma, c("V", "N"))
 
@@ -1633,7 +1569,7 @@ inv_sims_super2_p_fun <- function(..par,
                                        .super2 = TRUE,
                                        .par = ..par,
                                        fill_scale = .fill_scale,
-                                       .which_sigma = .which_sigma) +
+                                       which_sigma = .which_sigma) +
                       theme(axis.title = element_blank()))
     names(plots) <- c("add", "super")
 
@@ -1648,7 +1584,7 @@ inv_sims_super2_p_fun <- function(..par,
         theme(strip.text.x = element_blank(),
               plot.margin = margin(0,0,0,t=12))
 
-    plot_grid(plot_grid(textGrob("Axis 2 (non-conflicting)", rot = 90, x = 1),
+    plot_grid(plot_grid(textGrob("Axis 2 (ameliorative)", rot = 90, x = 1),
                         plot_grid(plotlist = plots, ncol = 1,
                                   align = "vh", axis = "tblr"),
                         legend,
@@ -1673,14 +1609,6 @@ inv_sims_ps[["extinct"]] <- inv_sims_p_fun("extinct",
 # inv_sims_ps[["replace"]]
 # inv_sims_ps[["extinct"]]
 
-z <- inv_sims_p_fun("coexist", .which_sigma = "N",
-                    .fill_limits = c(-1, 0.4),
-                    .fill_high = inferno(6)[2],
-                    .fill_low = inferno(6)[6])
-# z
-cairo_pdf("~/Desktop/Rplot.pdf", width = 5, height = 9)
-plot(z)
-dev.off()
 
 giant_inv_sims %>%
     filter(sigma_V == 0.0) %>%
@@ -1777,7 +1705,7 @@ dir_df %>%
                  arrow = arrow(length = unit(0.05, "inches"))) +
     scale_fill_viridis_c() +
     scale_x_continuous("Axis 1\n(conflicting)", breaks = c(0, 2, 4)) +
-    scale_y_continuous("(non-conflicting)\nAxis 2", breaks = c(0, 2, 4)) +
+    scale_y_continuous("(ameliorative)\nAxis 2", breaks = c(0, 2, 4)) +
     coord_equal() +
     NULL
 
@@ -1884,7 +1812,6 @@ V_test %>%
           panel.spacing = unit(2, "lines"))
 
 
-# LEFT OFF ----
 #'
 #' The simulations above show that when stochasticity for evolution is
 #' a normal distribution instead of lognormal, it doesn't inextricably move
@@ -2017,7 +1944,7 @@ nv %>%
     facet_wrap(~ rep, nrow = 3) +
     coord_equal(xlim = c(0, 3.11), ylim = c(0, 3.11)) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-    ylab("(non-conflicting)\nAxis 2") +
+    ylab("(ameliorative)\nAxis 2") +
     xlab("Axis 1\n(conflicting)")
 
 nv %>%
