@@ -119,7 +119,12 @@ eta_sim_eigs <- map_dfr(1:length(eta_sims),
                             eigs <- map_dbl(eta_sims[[i]][["jacs"]],
                                             function(.x){
                                                 if (any(is.na(.x))) return(NA)
-                                                max(eigen(.x)$values)
+                                                z <- eigen(.x,
+                                                           only.values = TRUE)
+                                                z <- z$values
+                                                maxIm <- max(abs(Im(z)))
+                                                if (maxIm > 1e-2) return(NA_real_)
+                                                max(Re(z))
                                             })
                             eta_sims[[i]]$ts %>%
                                 distinct(eta1) %>%
