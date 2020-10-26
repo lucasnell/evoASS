@@ -10,8 +10,8 @@
 #                 add_var = rep(0.1, 1))
 #
 # qg$nv %>%
-#     mutate(trait = paste0("V", trait)) %>%
-#     spread(trait, geno) %>%
+#     mutate(axis = paste0("V", axis)) %>%
+#     spread(axis, geno) %>%
 #     # .[["N"]]
 #     identity()
 #
@@ -245,13 +245,13 @@ one_eta_combo <- function(signs, .d = 1, ...) {
         for (n in names(other_args)) args[[n]] <- other_args[[n]]
     }
 
-    trait_to <- do.call(quant_gen, args)
+    axis_to <- do.call(quant_gen, args)
 
 
-    NV <- trait_to$nv %>%
-        mutate(trait = paste0("V", trait)) %>%
-        select(rep, spp, trait, geno) %>%
-        spread(trait, geno)
+    NV <- axis_to$nv %>%
+        mutate(axis = paste0("V", axis)) %>%
+        select(rep, spp, axis, geno) %>%
+        spread(axis, geno)
     cn <- colnames(NV)[grepl("^V", colnames(NV))]
 
     NV <- NV %>%
@@ -264,7 +264,7 @@ one_eta_combo <- function(signs, .d = 1, ...) {
         NV[,paste0("eta",i)] <- abs(.etas[i]) * signs[i]
     }
 
-    output <- list(jacs = jacobians(trait_to),
+    output <- list(jacs = jacobians(axis_to),
                    ts = NV)
 
 
@@ -507,7 +507,7 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1, .sigma_V = 0, .sigma_N = 0) {
 
     if (.lab == "restricted" && .eta < 0) {
         stop(paste("\n'restricted' with sub-additivity is not programmed bc",
-                   "there's only one stable trait state.",
+                   "there's only one stable axis state.",
                    "Thus, there is no way to restrict starting axes to",
                    "be outside of that state's basin of attraction."))
     }
@@ -557,8 +557,8 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1, .sigma_V = 0, .sigma_N = 0) {
 
         out <- list(nv = qg %>%
                         .[["nv"]] %>%
-                        mutate(trait = paste0("V", trait)) %>%
-                        spread(trait, geno))
+                        mutate(axis = paste0("V", axis)) %>%
+                        spread(axis, geno))
         if (.sigma_N == 0) {
             out$nv <- select(out$nv, -rep)
 
@@ -575,9 +575,9 @@ cond_coexist_test <- function(.V0, .eta_sign, .d1, .sigma_V = 0, .sigma_N = 0) {
 
         out <- list(nv = qg %>%
                         .[["nv"]] %>%
-                        mutate(trait = paste0("V", trait)) %>%
+                        mutate(axis = paste0("V", axis)) %>%
                         nest(value = c(geno, pheno)) %>%
-                        spread(trait, value) %>%
+                        spread(axis, value) %>%
                         unnest(c(V1, V2), names_sep = "_") %>%
                         rename(V1 = V1_geno,
                                V2 = V2_geno,
@@ -642,8 +642,8 @@ cond_coexist_df_prep <- function(.dd) {
                d1 = factor(d1, levels = c(-0.1, 0.1),
                            labels = c("conflicting",
                                       "ameliorative"))) %>%
-        # `trait_space` is a combination of starting trait values and eta:
-        mutate(trait_space =
+        # `axis_space` is a combination of starting axis values and eta:
+        mutate(axis_space =
                    case_when(V0 == "unrestricted" & eta == "sub-additive" ~
                                  "i",
                              V0 == "restricted" & eta == "super-additive" ~
@@ -670,10 +670,10 @@ cond_coexist_stoch_df <- map_dfr(list(cond_coexist_sV,
                                   cond_coexist_df_prep)
 
 
-if (any(is.na(cond_coexist_df$trait_space))) {
+if (any(is.na(cond_coexist_df$axis_space))) {
     stop("\nERROR: unknown combination of V0 and eta in `cond_coexist_df`")
 }
-if (any(is.na(cond_coexist_stoch_df$trait_space))) {
+if (any(is.na(cond_coexist_stoch_df$axis_space))) {
     stop("\nERROR: unknown combination of V0 and eta in `cond_coexist_stoch_df`")
 }
 
@@ -685,19 +685,19 @@ if (any(is.na(cond_coexist_stoch_df$trait_space))) {
 cond_coexist_sc_p_fun <- function(.d1) {
     .dd <- cond_coexist_df %>%
         filter(d1 == .d1) %>%
-        split(interaction(.$trait_space, .$spp, drop = TRUE)) %>%
+        split(interaction(.$axis_space, .$spp, drop = TRUE)) %>%
         map_dfr(~ mutate(.x,
                          first = time == min(time),
                          last = time == max(time))) %>%
-        select(trait_space, time, spp, V1, V2, first, last) %>%
-        arrange(trait_space, time)
+        select(axis_space, time, spp, V1, V2, first, last) %>%
+        arrange(axis_space, time)
     .dd %>%
         ggplot(aes(V1, V2)) +
-        geom_abline(data = tibble(trait_space = factor(c("ii", "iv")),
+        geom_abline(data = tibble(axis_space = factor(c("ii", "iv")),
                                   slp = 1, int = 0),
                     aes(slope = slp, intercept = int), linetype = 3, color = "gray70") +
         geom_line(data = bind_rows(stable_points(0), stable_points(0)) %>%
-                      mutate(trait_space = factor(rep(c("iii", "v"),
+                      mutate(axis_space = factor(rep(c("iii", "v"),
                                                       each = stable_points %>%
                                                           formals() %>%
                                                           .[["line_n"]]))),
@@ -705,7 +705,7 @@ cond_coexist_sc_p_fun <- function(.d1) {
         geom_point(data = .dd %>% filter(first),
                    aes(color = spp), size = 1.5, na.rm = TRUE) +
         geom_point(data = map_dfr(etas[[2]] * c(-1, 1, 1), ~ stable_points(.x)) %>%
-                       mutate(trait_space = map2(c("i", "ii", "iv"), c(1,2,2), rep) %>%
+                       mutate(axis_space = map2(c("i", "ii", "iv"), c(1,2,2), rep) %>%
                                   do.call(what = c) %>%
                                   factor(),
                               shp = case_when(V1 > 0 & V2 > 0 ~ 3L,
@@ -720,7 +720,7 @@ cond_coexist_sc_p_fun <- function(.d1) {
         scale_color_brewer(palette = "Dark2", guide = FALSE) +
         scale_shape_manual(values = c(5,1,2), guide = FALSE) +
         scale_size_continuous(range = c(0.1, 1)) +
-        facet_grid(~ trait_space) +
+        facet_grid(~ axis_space) +
         coord_equal(xlim = c(-0.1, 3.15), ylim = c(-0.1, 3.15)) +
         ylab("Axis 2") +
         xlab("Axis 1") +
@@ -741,12 +741,12 @@ cc_N_p <- cond_coexist_df %>%
     geom_line() +
     geom_point(data = cond_coexist_df %>%
                    filter(d1 == "conflicting") %>%
-                   group_by(trait_space, spp) %>%
+                   group_by(axis_space, spp) %>%
                    filter(time == max(time)) %>%
                    ungroup() %>%
                    filter(time < max(time)),
                shape = 4, size = 1.5) +
-    facet_wrap(~ trait_space, nrow = 1) +
+    facet_wrap(~ axis_space, nrow = 1) +
     scale_color_brewer(palette = "Dark2",
                        guide = FALSE) +
     scale_y_continuous("Abundance", trans = "log",
@@ -766,20 +766,20 @@ cc_N_p <- cond_coexist_df %>%
 
 stable_state_df <- map_dfr(c(1:2, 4),
                            function(i) {
-                               ts <- cond_coexist_df$trait_space %>%
+                               ts <- cond_coexist_df$axis_space %>%
                                    unique() %>%
                                    sort() %>%
                                    .[i]
                                stable_points((etas[[2]] * c(-1,1,0,1,0))[i]) %>%
-                                   mutate(trait_space = ts)
+                                   mutate(axis_space = ts)
                            }) %>%
     mutate(time = max(cond_coexist_df$time[cond_coexist_df$time < 7e3]),
            shp = case_when(V1 > 0 & V2 > 0 ~ 3L,
                            V1 == 0 ~ 2L,
                            TRUE ~ 1L) %>%
                factor(levels = 1:3)) %>%
-    gather(trait, value, V1:V2) %>%
-    mutate(trait = gsub("^V", "trait ", trait))
+    gather(axis, value, V1:V2) %>%
+    mutate(axis = gsub("^V", "axis ", axis))
 
 
 
@@ -812,8 +812,8 @@ cc_V_p <- cond_coexist_df %>%
         mutate(.dd, dist = dist_from_equil(V1, V2, eta))
     }) %>%
     mutate(dist = ifelse(eta == "additive", dist, mean(dist))) %>%
-    gather(trait, value, V1:V2) %>%
-    mutate(trait = gsub("^V", "trait ", trait)) %>%
+    gather(axis, value, V1:V2) %>%
+    mutate(axis = gsub("^V", "axis ", axis)) %>%
     ggplot(aes(time / 1000L, value)) +
     geom_hline(yintercept = 0, size = 0.5,
                linetype = 1, color = "gray70") +
@@ -825,14 +825,14 @@ cc_V_p <- cond_coexist_df %>%
     geom_line(aes(color = spp)) +
     geom_point(data = cond_coexist_df %>%
                    filter(d1 == "conflicting") %>%
-                   gather(trait, value, V1:V2) %>%
-                   mutate(trait = gsub("^V", "trait ", trait)) %>%
-                   group_by(trait_space, spp) %>%
+                   gather(axis, value, V1:V2) %>%
+                   mutate(axis = gsub("^V", "axis ", axis)) %>%
+                   group_by(axis_space, spp) %>%
                    filter(time == max(time)) %>%
                    ungroup() %>%
                    filter(time < max(time)),
                aes(color = spp), shape = 4, size = 1.5) +
-    facet_grid(trait ~ trait_space) +
+    facet_grid(axis ~ axis_space) +
     scale_color_brewer(palette = "Dark2", guide = FALSE) +
     scale_shape_manual(values = c(5,1,2), guide = FALSE) +
     scale_size_continuous(range = c(0.4, 2), guide = FALSE) +
@@ -875,7 +875,7 @@ if (.RESAVE_PLOTS) {
 
 
 #'
-#' They're all stable except for sub-additive and conflicting trait 1,
+#' They're all stable except for sub-additive and conflicting axis 1,
 #' which is neutrally stable (see `_main-results__stability.R`).
 #'
 
@@ -913,7 +913,7 @@ cc_N_stoch_plot_fun <- function(.V_stoch, .ts = FALSE) {
         .dd2 <- cond_coexist_df %>%
             filter(d1 == .d1) %>%
             mutate(rep = 0L) %>%
-            select(trait_space, rep, time, spp, N)
+            select(axis_space, rep, time, spp, N)
         .dd %>%
             mutate(rep = rep %>% paste() %>% as.integer()) %>%
             bind_rows(.dd2) %>%
@@ -922,12 +922,12 @@ cc_N_stoch_plot_fun <- function(.V_stoch, .ts = FALSE) {
             ggplot(aes(time / 1000L, N, color = spp)) +
             geom_line(aes(group = id)) +
             geom_point(data = .dd %>%
-                           group_by(trait_space, rep, spp) %>%
+                           group_by(axis_space, rep, spp) %>%
                            filter(time == max(time)) %>%
                            ungroup() %>%
                            filter(time < max(time)),
                        shape = 4, size = 1.5) +
-            facet_grid(rep ~ trait_space) +
+            facet_grid(rep ~ axis_space) +
             scale_color_brewer(palette = "Dark2",
                                guide = FALSE) +
             scale_y_continuous("Abundance", trans = "log",
@@ -945,26 +945,26 @@ cc_N_stoch_plot_fun <- function(.V_stoch, .ts = FALSE) {
 
         .dd2 <- cond_coexist_df %>%
             filter(d1 == .d1, time == max(time)) %>%
-            group_by(trait_space) %>%
+            group_by(axis_space) %>%
             mutate(tN = sqrt(N) / sum(sqrt(N))) %>%
             ungroup() %>%
             mutate(rep = 0L) %>%
-            select(trait_space, rep, spp, N, tN)
+            select(axis_space, rep, spp, N, tN)
 
         .dd3 <- map_dfr(list(.dd, .dd2),
                         ~ .x %>%
-                            group_by(trait_space, rep) %>%
+                            group_by(axis_space, rep) %>%
                             summarize(n_spp = sum(N > 0)) %>%
                             ungroup() %>%
                             mutate(rep = factor(rep %>% paste() %>% as.integer(),
                                                 levels = 0:12)))
 
         .dd %>%
-            group_by(trait_space, rep) %>%
+            group_by(axis_space, rep) %>%
             mutate(tN = sqrt(N) / sum(sqrt(N))) %>%
             # mutate(tN = N / sum(N)) %>%
             ungroup() %>%
-            select(trait_space, rep, spp, N, tN) %>%
+            select(axis_space, rep, spp, N, tN) %>%
             mutate(rep = rep %>% paste() %>% as.integer()) %>%
             bind_rows(.dd2) %>%
             mutate(rep = factor(rep, levels = 0:12)) %>%
@@ -974,7 +974,7 @@ cc_N_stoch_plot_fun <- function(.V_stoch, .ts = FALSE) {
                       aes(label = n_spp, y = 1.05),
                       size = 8 / 2.83465) +
             geom_vline(xintercept = 1.5, size = 0.5) +
-            facet_grid( ~ trait_space) +
+            facet_grid( ~ axis_space) +
             scale_fill_brewer(palette = "Dark2", guide = FALSE) +
             scale_y_continuous("Scaled relative abundance",
                                breaks = c(0, 0.5, 1)) +
@@ -997,7 +997,7 @@ cond_coexist_stoch_p <- ggarrange(cond_coexist_stoch_ps[["N_stoch"]] +
                                       theme(plot.margin = margin(0,0,0,b=12),
                                             axis.title.y = element_blank()),
                                   cond_coexist_stoch_ps[["V_stoch"]] +
-                                      ggtitle("With trait stochasticity") +
+                                      ggtitle("With axis stochasticity") +
                                       theme(plot.margin = margin(0,0,0,0),
                                             axis.title.y = element_blank()),
                                   ncol = 1,
@@ -1024,7 +1024,7 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
     filter(d1 == "conflicting",
            sigma_N == 0,
            sigma_V == 0.1) %>%
-    filter(trait_space == "v") %>%
+    filter(axis_space == "v") %>%
     mutate(id = interaction(spp, rep)) %>%
     arrange(time) %>%
     ggplot(aes(V1, V2, color = spp)) +
@@ -1033,7 +1033,7 @@ cc_sigmaV_sit_v_p <- cond_coexist_stoch_df %>%
                    filter(d1 == "conflicting",
                           sigma_N == 0,
                           sigma_V == 0.1) %>%
-                   filter(trait_space == "v") %>%
+                   filter(axis_space == "v") %>%
                    group_by(spp) %>%
                    summarize(V1 = V1[time == min(time)][1],
                              V2 = V2[time == min(time)][1])) +
@@ -1633,7 +1633,7 @@ stopifnot(is.numeric(.eta_sign) && length(.eta_sign) == 1 &&
 
 if (.lab == "restricted" && .eta < 0) {
     stop(paste("\n'restricted' with sub-additivity is not programmed bc",
-               "there's only one stable trait state.",
+               "there's only one stable axis state.",
                "Thus, there is no way to restrict starting axes to",
                "be outside of that state's basin of attraction."))
 }
@@ -1696,9 +1696,9 @@ qg0 <- quant_gen(q = .q, eta = .eta, d = .ds,
 
 nv <- qg %>%
     .[["nv"]] %>%
-    mutate(trait = paste0("V", trait)) %>%
+    mutate(axis = paste0("V", axis)) %>%
     nest(value = c(geno, pheno)) %>%
-    spread(trait, value) %>%
+    spread(axis, value) %>%
     unnest(c(V1, V2), names_sep = "_") %>%
     rename(V1 = V1_geno,
            V2 = V2_geno,

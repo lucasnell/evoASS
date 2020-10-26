@@ -22,9 +22,11 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
     stopifnot(length(sigma_V) %in% c(1, q))
     stopifnot(inherits(adjust_mu_V, "logical"))
     stopifnot(inherits(lnorm_V, "logical"))
-    stopifnot(inherits(V0, "matrix") && is.numeric(V0))
-    stopifnot(all(V0 >= 0))
-    stopifnot(nrow(V0) == q && ncol(V0) == n)
+    if (!is.null(V0)) {
+        stopifnot(inherits(V0, "matrix") && is.numeric(V0))
+        stopifnot(all(V0 >= 0))
+        stopifnot(nrow(V0) == q && ncol(V0) == n)
+    }
 
     stopifnot(n >= 1 && q >= 1)
     stopifnot(N0 >= 0)
@@ -72,14 +74,14 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
         qg <- qg %>%
             as_tibble() %>%
             gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
-            extract(key, c("type", "trait"), type_fmt) %>%
+            extract(key, c("type", "axis"), type_fmt) %>%
             spread(type, value) %>%
-            mutate(across(c(rep, time, spp, trait), as.integer)) %>%
+            mutate(across(c(rep, time, spp, axis), as.integer)) %>%
             mutate(rep = factor(rep, levels = 1:max(rep)),
                    spp = factor(spp, levels = 1:n),
-                   trait = factor(trait, levels = 1:q)) %>%
-            select(rep, time, spp, trait, everything()) %>%
-            arrange(rep, time, spp, trait) %>%
+                   axis = factor(axis, levels = 1:q)) %>%
+            select(rep, time, spp, axis, everything()) %>%
+            arrange(rep, time, spp, axis) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
     } else {
         colnames(qg) <- c("rep", "spp", "N", paste0("geno_", 1:q),
@@ -87,17 +89,17 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
         qg <- qg %>%
             as_tibble() %>%
             gather(key, value, starts_with("geno_"), starts_with("pheno_")) %>%
-            extract(key, c("type", "trait"), type_fmt) %>%
+            extract(key, c("type", "axis"), type_fmt) %>%
             spread(type, value) %>%
-            mutate(across(c(rep, spp, trait), as.integer)) %>%
+            mutate(across(c(rep, spp, axis), as.integer)) %>%
             mutate(rep = factor(rep, levels = 1:max(rep)),
                    spp = factor(spp, levels = 1:n),
-                   trait = factor(trait, levels = 1:q)) %>%
-            select(rep, spp, trait, everything()) %>%
-            arrange(rep, spp, trait) %>%
+                   axis = factor(axis, levels = 1:q)) %>%
+            select(rep, spp, axis, everything()) %>%
+            arrange(rep, spp, axis) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
     }
-    if (sigma_V <= 0) {
+    if (all(sigma_V <= 0)) {
         qg <- select(qg, -pheno)
     }
 
@@ -115,15 +117,15 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
 #' @param n_reps Number of reps to perform.
 #' @param final_t Length of final time period where all species are together.
 #' @param sigma_V0 Standard deviation for normal distribution from which
-#'     starting trait values can be derived.
-#'     Set to 0 for species to start with the exact values of traits
+#'     starting axis values can be derived.
+#'     Set to 0 for species to start with the exact values of axes
 #'     specified in `V0`.
 #' @param sigma_N Standard deviation for stochasticity in population dynamics.
-#' @param sigma_V Standard deviation for stochasticity in trait evolution.
+#' @param sigma_V Standard deviation for stochasticity in axis evolution.
 #' @param add_var Vector of additive genetic variances for all starting species.
 #' @param spp_gap_t Time period between each species introduction.
 #' @param adjust_mu_V Logical for whether to adjust the mean of the lognormal
-#'     distribution that creates stochasticity in trait values so that
+#'     distribution that creates stochasticity in axis values so that
 #'     the mean of the transformed distribution (i.e.,
 #'     `exp(~ N(mu, sigma_V))`) is 1.
 #' @param lnorm_V Logical for whether the distribution for stochasticity in
@@ -195,7 +197,7 @@ quant_gen <- function(eta, d, q,
         ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
           ncol(eta) == 2) ||
          (inherits(eta, "numeric") && length(eta) == 1))) {
-        # For 2-trait case and proper inputs, we choose starting points
+        # For 2-axis case and proper inputs, we choose starting points
         # based on known stable points, return warning if sigma_V0 and sigma_V
         # are both 0
         if (sigma_V0 == 0 && all(sigma_V) == 0) {
@@ -213,7 +215,7 @@ quant_gen <- function(eta, d, q,
     } else if (is.null(V0)) {
         # Otherwise start at zero:
         if (sigma_V0 == 0 && all(sigma_V) == 0) {
-            warning(paste("\nSimulations start with species having all traits",
+            warning(paste("\nSimulations start with species having all axes",
                           "at zero, and you aren't providing stochasticity in",
                           "either the starting values or via phenotypes.",
                           "Because this is often an unstable equilibrium,",
@@ -277,7 +279,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     cat(crayon::inverse$bold(" -- Output from quant_gen -- \n"))
     if (is.null(x$call$save_every) || x$call$save_every > 0) {
         unq_nspp <- x$nv %>%
-            filter(time == max(time), trait == levels(trait)[1]) %>%
+            filter(time == max(time), axis == levels(axis)[1]) %>%
             group_by(rep) %>%
             summarize(n_ = dplyr::n()) %>%
             ungroup() %>%
@@ -285,7 +287,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
             unique()
     } else {
         unq_nspp <- x$nv %>%
-            filter(trait == levels(trait)[1]) %>%
+            filter(axis == levels(axis)[1]) %>%
             group_by(rep) %>%
             summarize(n_ = dplyr::n()) %>%
             ungroup() %>%
@@ -314,7 +316,7 @@ print.quant_gen <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 
 #' Stable points from quantitative genetics simulations and analytical solutions.
 #'
-#' *Note:* Only works for 2 traits for now.
+#' *Note:* Only works for 2 axes for now.
 #'
 #' @inheritParams adapt_dyn
 #' @param return_geom Logical for whether to return a `ggplot2` `geom_*` object for
@@ -338,11 +340,11 @@ stable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5,
     if (inherits(eta, "matrix")) {
         if (nrow(eta) != 2 || ncol(eta) != 2 || eta[2,1] != eta[1,2]) {
             stop(paste("\n`eta` must be numeric or a symmetric 2x2 matrix",
-                       "bc `stable_points` is only programmed for 2-trait case."))
+                       "bc `stable_points` is only programmed for 2-axis case."))
         }
         eta <- eta[1,2]
     } else if (length(eta) != 1) {
-        stop("\n`stable_points` is only programmed for 2-trait case.")
+        stop("\n`stable_points` is only programmed for 2-axis case.")
     }
     if (eta < 0) {
         xy <- sqrt(0.5 * ((r0 / (f * (1 + eta))) - 1))
@@ -397,7 +399,7 @@ unstable_points <- function(eta, f = 0.1, a0 = 0.5, r0 = 0.5, return_geom = FALS
 
 #' Population abundances from quantitative genetics analytical solutions.
 #'
-#' *Note:* Only works for 2 traits for now.
+#' *Note:* Only works for 2 axes for now.
 #'
 #' @inheritParams adapt_dyn
 #'
@@ -412,7 +414,7 @@ pop_sizes <- function(n, eta, d, ...) {
     stopifnot(is.numeric(d))
 
     if (length(d) > 2 || length(eta) > 1) {
-        stop("`pop_sizes` is only programmed for 2 traits")
+        stop("`pop_sizes` is only programmed for 2 axes")
     }
     if (eta > 0 && length(d) > 1) {
         stop(paste("`pop_sizes not programmed for differing d values",
@@ -470,11 +472,11 @@ one_jacobian <- function(one_rep, qg_obj, evo_only) {
         one_rep <- dplyr::filter(one_rep, time == max(time))
     }
 
-    N <- dplyr::filter(one_rep, trait == 1)[["N"]]
-    spp <- as.integer(paste(dplyr::filter(one_rep, trait == 1)[["spp"]]))
+    N <- dplyr::filter(one_rep, axis == 1)[["N"]]
+    spp <- as.integer(paste(dplyr::filter(one_rep, axis == 1)[["spp"]]))
     V <- one_rep %>%
-        dplyr::mutate(trait = paste0("V", trait)) %>%
-        tidyr::spread(trait, geno) %>%
+        dplyr::mutate(axis = paste0("V", axis)) %>%
+        tidyr::spread(axis, geno) %>%
         dplyr::select(starts_with("V", ignore.case = FALSE)) %>%
         as.matrix() %>%
         t()
@@ -529,8 +531,8 @@ one_jacobian <- function(one_rep, qg_obj, evo_only) {
 
     jac <- jacobian_cpp(V, N, f, a0, r0, D, C, add_var, evo_only)
 
-    # Now dealing with the step function that keeps traits >= 0
-    # The ramp function is how we made traits >= 0, and the
+    # Now dealing with the step function that keeps axes >= 0
+    # The ramp function is how we made axes >= 0, and the
     # Heaviside step function is the derivative of the ramp function
     heaviside <- function(x) ifelse(x > 0, 1, 0)
     if (length(add_var) == 1) {
@@ -589,7 +591,7 @@ jacobians <- function(qg_obj, evo_only = FALSE) {
 #'
 #' @param obj A `quant_gen` object.
 #' @inheritParams quant_gen
-#' @param new_V List of trait values for the new species being added.
+#' @param new_V List of axis values for the new species being added.
 #'     Defaults to `NULL`, which causes no new species to be add.
 #' @param new_N Numeric vector of new species to add. Defaults to `NULL`, which
 #'     causes no new species to be add.
@@ -631,7 +633,7 @@ perturb.quant_gen <- function(obj,
         stop("if providing new_Vp, you must also provide new_V")
     }
     if (!is.null(new_Vp) && !("pheno" %in% colnames(obj$nv))) {
-        stop(paste("you can't provide new_Vp if no trait stochasticity",
+        stop(paste("you can't provide new_Vp if no axis stochasticity",
                    "in original call"))
     }
 
@@ -719,13 +721,13 @@ perturb.quant_gen <- function(obj,
         NV <- filter(NV, time == max(time)) %>% select(-time)
     }
 
-    N0 <- filter(NV, trait == 1)[["N"]]
+    N0 <- filter(NV, axis == 1)[["N"]]
     N0 <- c(N0, N)
 
     V0 <- NV %>%
-        select(spp, trait, geno) %>%
-        mutate(trait = paste0("V", trait)) %>%
-        spread(trait, geno) %>%
+        select(spp, axis, geno) %>%
+        mutate(axis = paste0("V", axis)) %>%
+        spread(axis, geno) %>%
         select(starts_with("V", ignore.case = TRUE)) %>%
         as.matrix() %>%
         split(1:nrow(.)) %>%
@@ -735,9 +737,9 @@ perturb.quant_gen <- function(obj,
 
     if ("pheno" %in% colnames(NV)) {
         Vp0 <- NV %>%
-            select(spp, trait, pheno) %>%
-            mutate(trait = paste0("V", trait)) %>%
-            spread(trait, pheno) %>%
+            select(spp, axis, pheno) %>%
+            mutate(axis = paste0("V", axis)) %>%
+            spread(axis, pheno) %>%
             select(starts_with("V", ignore.case = TRUE)) %>%
             as.matrix() %>%
             split(1:nrow(.)) %>%
