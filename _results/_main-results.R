@@ -105,7 +105,7 @@ cc <- function(.x) {
 # whether to re-save plots
 .RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
-.N_THREADS <- 3
+.N_THREADS <- 6
 
 
 
