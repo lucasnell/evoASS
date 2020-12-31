@@ -199,8 +199,7 @@ etas[[2]] <- 0.6
 # =============================================================================*
 # =============================================================================*
 
-# Fig 2
-# Two-axis outcomes ----
+# Fig 2: Two-axis outcomes ----
 
 # =============================================================================*
 # =============================================================================*
@@ -307,10 +306,6 @@ eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 #'
 
 
-# --------------*
-# __2 ----
-# --------------*
-
 outcomes_q2_p <- eta_sim_df %>%
     mutate(eta1 = factor(eta1, levels = sort(unique(eta1)),
                          labels = c("sub-additive", "additive",
@@ -342,8 +337,7 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 # =============================================================================*
 # =============================================================================*
 
-# Figs 3,S1-S3:
-# "Global" coexistence ----
+# Fig 3: "Global" coexistence ----
 
 # =============================================================================*
 # =============================================================================*
@@ -375,7 +369,10 @@ coexist_d_spp_p <- coexist_d_spp_df %>%
     facet_wrap(~ eta, ncol = 1) +
     scale_y_continuous("Proportion of species that coexist",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    scale_x_continuous(expression("Magnitude of conflicting axis" ~ (d[1])))
+    scale_x_continuous("Strength of\nconflicting axis") +
+    theme(axis.title = element_text(size = 10),
+          axis.text = element_text(size = 9),
+          plot.margin = margin(0,l=8,r=8,t=8))
 
 
 
@@ -387,35 +384,55 @@ coexist_d_spp_p <- coexist_d_spp_df %>%
 coexist_stoch_spp_df <- grab_sims(.d = 0,
                                   .eta = -1:1 * etas[[2]],
                                   .add_var = 0.05,
-                                  .sigma_N = c(0, 0.05, 0.1, 0.2, 0.3),
-                                  .sigma_V = c(0, 0.05, 0.1, 0.2, 0.3),
+                                  .sigma_N = c(0, 0.05),
+                                  .sigma_V = c(0, 0.05, 0.1),
                                   .vary_d2 = FALSE) %>%
     group_by(eta, sigma_N, sigma_V, rep) %>%
     summarize(n_spp = spp[N > 0] %>% unique() %>% length()) %>%
     ungroup() %>%
     mutate(eta = factor(eta, levels = -1:1 * etas[[2]],
-                        labels = c("sub-additive", "additive", "super-additive")))
+                        labels = c("sub-additive", "additive",
+                                   "super-additive"))) %>%
+    mutate(p_spp = n_spp / 100,
+           sigma_N = factor(sigma_N, levels = sort(unique(sigma_N))))
 
 
 coexist_stoch_spp_p <- coexist_stoch_spp_df %>%
-    filter(across(starts_with("sigma_"), ~ .x < 0.2)) %>%
-    mutate(n_spp = n_spp / 100,
-           sigma_N = factor(sigma_N)) %>%
-    ungroup() %>%
-    ggplot(aes(sigma_V, n_spp)) +
+    ggplot(aes(sigma_V, p_spp)) +
     geom_vline(xintercept = 0, color = "gray80", linetype = 1) +
     geom_hline(yintercept = 0, color = "gray80", linetype = 1) +
-    geom_jitter(aes(color = sigma_N), width = 0.002, height = 0,
+    geom_jitter(aes(color = sigma_N),
+                width = 0.002, height = 0,
                 size = 1, shape = 1) +
+    # geom_text(data = coexist_stoch_spp_df %>%
+    #               filter(eta == "additive", sigma_V %in% c(0, 0.05)) %>%
+    #               group_by(eta, sigma_N) %>%
+    #               summarize(sigma_V = mean(sigma_V),
+    #                         p_spp = mean(p_spp) +
+    #                             ifelse(sigma_N[1] == 0, -0.05, 0.05),
+    #                         .groups = "drop") %>%
+    #               mutate(lab = paste("sigma[N] ==", sigma_N)),
+    #           aes(color = sigma_N, label = lab),
+    #           size = 8 / 2.83465, parse = TRUE, hjust = 0.5) +
+    geom_text(data = coexist_stoch_spp_df %>%
+                  distinct(eta, sigma_N) %>%
+                  filter(eta == "additive") %>%
+                  mutate(sigma_V = c(0.025, 0.035), p_spp = c(0.638, 0.1)) %>%
+                  mutate(lab = paste("sigma[N] ==", sigma_N)),
+              aes(color = sigma_N, label = lab),
+              size = 8 / 2.83465, parse = TRUE, hjust = 0.5) +
     facet_wrap(~ eta, ncol = 1) +
-    scale_y_continuous("Proportion of species that coexist") +
-    scale_x_continuous(expression("Axis evolution SD" ~ (sigma[V])),
+    scale_y_continuous("Proportion of species that coexist",
+                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+    scale_x_continuous("Axis evolution SD",
                        breaks = c(0, 0.05, 0.1)) +
-    scale_color_viridis_d(expression("Population SD" ~ (sigma[N]) * ":"),
-                          option = "A", end = 0.8) +
-    theme(legend.title = element_text(size = 10), legend.position = "top") +
-    guides(color = guide_legend(label.position = "bottom", label.vjust = 4))
-
+    scale_color_viridis_d("Population SD",
+                          option = "A", end = 0.7) +
+    theme(legend.position = "none",
+          axis.title = element_text(size = 10),
+          axis.text = element_text(size = 9),
+          plot.margin = margin(0,l=8,r=8,t=8)) +
+    NULL
 
 
 
@@ -513,18 +530,33 @@ inv_sims_one_p_fun <- function(.par = "coexist",
     # .par = "coexist"; .which_sigma = "V"
     # .fill_low = "#ca0020"; .fill_high = "#0571b0"; .fill_limits = c(-1, 1)
     # rm(.par, .which_sigma, .fill_low, .fill_high, .fill_limits)
+    # rm(fill_scale, make_eta_fct, midi, .sigma, ss_df)
 
     .par <- match.arg(.par, c("coexist", "replace", "reject", "extinct"))
 
     .which_sigma <- match.arg(.which_sigma, c("V", "N"))
 
-    fill_scale <- scale_fill_gradient2(bquote("Effect of" ~
-                                                  sigma[.(.which_sigma)]),
+
+    .fill_lab <- case_when(grepl("st$", .par) ~ paste0(.par, "ence"),
+                           grepl("ct$", .par) ~ paste0(.par, "ion"),
+                           grepl("ce$", .par) ~ paste0(.par, "ment"),
+                           TRUE ~ "")
+    .fill_lab <- bquote("Effect of" ~ sigma[.(.which_sigma)] ~
+                            .(paste0("on ", .fill_lab, ":")))
+
+    fill_scale <- scale_fill_gradient2(.fill_lab,
                                        low = .fill_low,
                                        mid = "white",
                                        high = .fill_high,
                                        midpoint = 0,
-                                       limits = .fill_limits)
+                                       limits = .fill_limits,
+                                       labels = function(x) {
+                                           z <- case_when(
+                                               x > 0 ~ sprintf("{}+%.1f",x),
+                                               x == 0 ~ "{}~0.0",
+                                               TRUE ~ sprintf("%.1f",x))
+                                           parse(text = z)
+                                       })
 
     make_eta_fct <- function(..x) {
         factor(..x, levels = c(-0.6, 0, 0.6),
@@ -535,6 +567,9 @@ inv_sims_one_p_fun <- function(.par = "coexist",
 
     .sigma <- sprintf("sigma_%s", .which_sigma)
 
+    ss_df <- map_dfr(c(-0.6, 0, 0.6), ~ mutate(stable_points(.x),
+                                               eta = make_eta_fct(.x)))
+
     # p <-
     stoch_inv_sims %>%
         filter(!!as.name(.sigma) == sprintf("sigma[%s] == %.4f",
@@ -544,19 +579,23 @@ inv_sims_one_p_fun <- function(.par = "coexist",
         geom_tile(data = determ_inv_sims %>% filter(!!as.name(.par) > 0),
                   fill = NA, color = "black", size = 0.1) +
         facet_grid(d1 ~ eta, label = label_parsed) +
-        geom_point(data = map_dfr(c(-0.6, 0.6), ~ stable_points(.x) %>%
-                                      mutate(eta = make_eta_fct(.x))),
-                   aes(shape = factor(V1)),
-                   size = 2, color = "black") +
-        geom_path(data = stable_points(0) %>%
-                      mutate(eta = make_eta_fct(0)),
+        geom_point(data = ss_df %>%
+                       filter(eta == "'super-additive'", V1 == 0),
+                   size = 2, shape = 16, color = "black") +
+        geom_point(data = ss_df %>%
+                       filter(eta == "'super-additive'", V2 == 0),
+                   size = 2, shape = 21, color = "black", fill = "white") +
+        geom_point(data = ss_df %>%
+                       filter(eta == "'sub-additive'"),
+                   size = 2, shape = 16, color = "black") +
+        geom_path(data = ss_df %>%
+                      filter(eta == "'additive'"),
                   color = "gray50", size = 1) +
         geom_point(data = tibble(V1 = sqrt(2), V2 = sqrt(2),
                                  eta = make_eta_fct(0)),
                    shape = 16, size = 2, color = "black") +
         scale_x_continuous("Conflicting axis", breaks = c(0, 2, 4)) +
         scale_y_continuous("Ameliorative axis", breaks = c(0, 2, 4)) +
-        scale_shape_manual(values = c(16, 17, 16), guide = FALSE) +
         coord_equal() +
         NULL +
         theme(strip.text = element_text(size = 8),
@@ -567,42 +606,56 @@ inv_sims_one_p_fun <- function(.par = "coexist",
               plot.title = element_text(size = 12, hjust = 0.5,
                                         margin = margin(0,0,0,b=6)),
               legend.title = element_text(size = 10),
-              plot.margin = margin(0,0,0,0)) +
+              legend.text.align = 0.5,
+              plot.margin = margin(0,0,0,0),
+              legend.position = "bottom") +
+        guides(fill = guide_colorbar(title.position = "top")) +
         fill_scale
 
 }
 
+inv_sims_V_coexist_p <- inv_sims_one_p_fun("coexist")
 
 
-# ¡¡¡  LEFT OFF HERE ----
-# >>>>>>>>>>
-# >>>>>>>>>>  Make axis 1 always conflicting, call it conflicting axis
-# >>>>>>>>>>  Change symbol for super-additive state where resident isn't
-# >>>>>>>>>>  Preprend legend labels with "+"
-# >>>>>>>>>>
+
+coexist_spp_p <- plot_grid(ggarrange(coexist_d_spp_p,
+                                     coexist_stoch_spp_p +
+                                         theme(axis.title.y = element_blank(),
+                                               axis.text.y = element_blank()),
+                                     nrow = 1, draw = FALSE,
+                                     labels = c("a", "b"),
+                                     label.args = list(gp = grid::gpar(font = 1,
+                                                                       fontsize = 16),
+                                                       x = unit(0, "npc"),
+                                                       y = unit(1, "npc"),
+                                                       hjust = 0, vjust = 1)),
+                           inv_sims_V_coexist_p +
+                               theme(plot.margin = margin(0,0,t=8,l=8)),
+                           nrow = 1, labels = c("", "c"),
+                           label_size = 16, label_fontface = "plain",
+                           label_x = 0, label_y = 1.02)
 
 
-inv_sims_ps <- list()
-inv_sims_ps[["coexist"]] <- inv_sims_one_p_fun("coexist")
-inv_sims_ps[["replace"]] <- inv_sims_one_p_fun("replace",
-                                               .fill_low = "#e66101",
-                                               .fill_high = "#5e3c99")
-inv_sims_ps[["extinct"]] <- inv_sims_one_p_fun("extinct",
-                                               .fill_low = "#d01c8b",
-                                               .fill_high = "#4dac26",
-                                               .fill_limits = NULL)
+# coexist_spp_p
 
-# inv_sims_ps[["coexist"]]
-# inv_sims_ps[["replace"]]
-# inv_sims_ps[["extinct"]]  # <-- super boring
 
-# Also boring:
-# inv_sims_one_p_fun("coexist", .which_sigma = "N")
+
+if (.RESAVE_PLOTS) {
+    save_plot(coexist_spp_p, 6, 4, .prefix = "3-")
+}
+
+
+# # (No effect at all, so no point in creating this.)
+# inv_sims_one_p_fun("extinct",
+#                    .fill_low = "#d01c8b",
+#                    .fill_high = "#4dac26",
+#                    .fill_limits = NULL)
+
 
 
 
 # --------------*
-# __S1 - sigma_i --> # spp ----
+# Fig S1 : sigma_i --> # spp ----
 # --------------*
 
 add_var_effect_df <- grab_sims(.d = 0,
@@ -627,33 +680,34 @@ add_var_effect_p <- add_var_effect_df %>%
                           begin = 0.1, end = 0.85, guide = FALSE) +
     scale_y_continuous("Proportion of species that coexist",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    scale_x_continuous(expression("Additive genetic variance" ~ (sigma[i]^2)))
-
-
-
-# --------------*
-# __S2 - sigma_V - invader replace ----
-# --------------*
-
-
-# --------------*
-# __S3 - sigma_N - invader coexist ----
-# --------------*
-
-
-
+    scale_x_continuous("Additive genetic variance")
 
 
 if (.RESAVE_PLOTS) {
-    save_plot(coexist_spp_p, 4, 4, .prefix = "3-")
-    save_plot(add_var_effect_p, 4, 4, .prefix = "S1-")
+    save_plot(add_var_effect_p, 2.5, 4, .prefix = "S1-")
 }
 
 
+# --------------*
+# Fig S2 - sigma_V - invader replace ----
+# --------------*
 
 if (.RESAVE_PLOTS) {
-    save_plot(inv_sims_ps[["coexist"]], 5, 4.5, .name = "5-inv_sims_hm_coexist")
-    save_plot(inv_sims_ps[["replace"]], 5, 4.5, .name = "S4-inv_sims_hm_replace")
+    save_plot(inv_sims_one_p_fun("replace",
+                                 .fill_low = "#e66101",
+                                 .fill_high = "#5e3c99"),
+              4, 4, .name = "S2-sigmaV_replace")
+}
+
+
+# --------------*
+# Fig S3 - sigma_N - invader coexist ----
+# --------------*
+
+
+if (.RESAVE_PLOTS) {
+    save_plot(inv_sims_one_p_fun("coexist", .which_sigma = "N"),
+              4, 4, .name = "S3-sigmaN_coexist")
 }
 
 
