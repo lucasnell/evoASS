@@ -4,8 +4,8 @@ CXX_STD = CXX11
 
 # Using OpenMP
 # Uncomment below for macOS, comment for cluster:
-CPPFLAGS += -Xclang -fopenmp
-LDFLAGS += -lomp
+PKG_CPPFLAGS += -Xclang -fopenmp
+PKG_LIBS += -lomp
 
 # # Uncomment below for cluster, comment for macOS:
 # PKG_CXXFLAGS += $(SHLIB_OPENMP_CXXFLAGS)
@@ -14,4 +14,5 @@ LDFLAGS += -lomp
 
 # Access to pgc RNG header files
 PKG_CPPFLAGS += -I../inst/include/
+
 

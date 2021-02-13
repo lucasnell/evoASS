@@ -105,7 +105,7 @@ cc <- function(.x) {
 # whether to re-save plots
 .RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
-.N_THREADS <- 6
+.N_THREADS <- max(1, parallel::detectCores()-2)
 
 
 
@@ -158,7 +158,12 @@ group_spp <- function(..., .prec = 0.001) {
     return(sauron:::group_spp_cpp(V, precision = .prec))
 }
 
-
+# Arguments for `egg::ggarrange`
+label_args <- list(gp = grid::gpar(font = 1,
+                                   fontsize = 16),
+                   x = unit(0, "npc"),
+                   y = unit(1, "npc"),
+                   hjust = 0, vjust = 1)
 
 
 grab_sims <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
@@ -369,7 +374,8 @@ coexist_d_spp_p <- coexist_d_spp_df %>%
     facet_wrap(~ eta, ncol = 1) +
     scale_y_continuous("Proportion of species that coexist",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    scale_x_continuous("Strength of\nconflicting axis") +
+    scale_x_continuous("Strength of\nconflicting axis",
+                       breaks = c(-0.1, 0)) +
     theme(axis.title = element_text(size = 10),
           axis.text = element_text(size = 9),
           plot.margin = margin(0,l=8,r=8,t=8))
@@ -404,23 +410,17 @@ coexist_stoch_spp_p <- coexist_stoch_spp_df %>%
     geom_jitter(aes(color = sigma_N),
                 width = 0.002, height = 0,
                 size = 1, shape = 1) +
-    # geom_text(data = coexist_stoch_spp_df %>%
-    #               filter(eta == "additive", sigma_V %in% c(0, 0.05)) %>%
-    #               group_by(eta, sigma_N) %>%
-    #               summarize(sigma_V = mean(sigma_V),
-    #                         p_spp = mean(p_spp) +
-    #                             ifelse(sigma_N[1] == 0, -0.05, 0.05),
-    #                         .groups = "drop") %>%
-    #               mutate(lab = paste("sigma[N] ==", sigma_N)),
-    #           aes(color = sigma_N, label = lab),
-    #           size = 8 / 2.83465, parse = TRUE, hjust = 0.5) +
+    geom_line(data = coexist_stoch_spp_df %>%
+                  group_by(eta, sigma_N, sigma_V) %>%
+                  summarize(p_spp = mean(p_spp), .groups = "drop"),
+              aes(color = sigma_N)) +
     geom_text(data = coexist_stoch_spp_df %>%
                   distinct(eta, sigma_N) %>%
                   filter(eta == "additive") %>%
-                  mutate(sigma_V = c(0.025, 0.035), p_spp = c(0.638, 0.1)) %>%
+                  mutate(sigma_V = c(0.1, 0.1), p_spp = c(0.75, 0.01)) %>%
                   mutate(lab = paste("sigma[N] ==", sigma_N)),
               aes(color = sigma_N, label = lab),
-              size = 8 / 2.83465, parse = TRUE, hjust = 0.5) +
+              size = 8 / 2.83465, parse = TRUE, hjust = 1, vjust = 0) +
     facet_wrap(~ eta, ncol = 1) +
     scale_y_continuous("Proportion of species that coexist",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
@@ -439,10 +439,81 @@ coexist_stoch_spp_p <- coexist_stoch_spp_df %>%
 
 
 
+
+coexist_spp_p <- ggarrange(coexist_d_spp_p,
+                           coexist_stoch_spp_p +
+                               theme(axis.title.y = element_blank(),
+                                     axis.text.y = element_blank()),
+                           nrow = 1, draw = FALSE,
+                           labels = c("a", "b"),
+                           label.args = label_args)
+
+
+# coexist_spp_p
+
+
+
+
+
+
+
+if (.RESAVE_PLOTS) {
+    save_plot(coexist_spp_p, 3, 4, .prefix = "3-")
+}
+
+
+# # (No effect at all, so no point in creating this.)
+# inv_sims_one_p_fun("extinct",
+#                    .fill_low = "#d01c8b",
+#                    .fill_high = "#4dac26",
+#                    .fill_limits = NULL)
+
+
+
+
 # --------------*
-# __3C - sigma_V/N - invader coexist ----
+# Fig S1 : sigma_i --> # spp ----
 # --------------*
 
+add_var_effect_df <- grab_sims(.d = 0,
+                               .eta = -1:1 * etas[[2]],
+                               .add_var = c(0.01, 0.05, 0.1),
+                               .sigma_N = 0,
+                               .sigma_V = 0,
+                               .vary_d2 = FALSE) %>%
+    group_by(add_var, eta, rep) %>%
+    summarize(n_spp = spp[N > 0] %>% unique() %>% length()) %>%
+    ungroup() %>%
+    mutate(eta = factor(eta, levels = -1:1 * etas[[2]],
+                        labels = paste0(c("sub-", "", "super-"), "additive")))
+
+add_var_effect_p <- add_var_effect_df %>%
+    mutate(n_spp = n_spp / 100) %>%
+    ggplot(aes(add_var, n_spp)) +
+    geom_hline(yintercept = 0, color = "gray80", linetype = 1) +
+    geom_jitter(width = 0.002, height = 0, shape = 1, size = 1) +
+    facet_wrap(~ eta, ncol = 1) +
+    scale_color_viridis_d(expression(italic(sigma[i])^2),
+                          begin = 0.1, end = 0.85, guide = FALSE) +
+    scale_y_continuous("Proportion of species that coexist",
+                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
+    scale_x_continuous("Additive genetic variance")
+
+
+if (.RESAVE_PLOTS) {
+    save_plot(add_var_effect_p, 2.5, 4, .prefix = "S1-")
+}
+
+
+
+
+
+
+
+
+# --------------*
+# Fig S2 - sigma_V - invader coexist ----
+# --------------*
 
 
 determ_inv_sims <- map_dfr(0:20,
@@ -474,8 +545,6 @@ get_determ <- function(.par, .V1, .V2, .eta, .d1) {
     filter(determ_inv_sims, V1 == .V1[1], V2 == .V2[1],
            eta == .eta[1], d1 == .d1[1])[[.par]]
 }
-
-
 
 
 stoch_inv_sims <- map_dfr(0:20,
@@ -618,103 +687,157 @@ inv_sims_V_coexist_p <- inv_sims_one_p_fun("coexist")
 
 
 
-coexist_spp_p <- plot_grid(ggarrange(coexist_d_spp_p,
-                                     coexist_stoch_spp_p +
-                                         theme(axis.title.y = element_blank(),
-                                               axis.text.y = element_blank()),
-                                     nrow = 1, draw = FALSE,
-                                     labels = c("a", "b"),
-                                     label.args = list(gp = grid::gpar(font = 1,
-                                                                       fontsize = 16),
-                                                       x = unit(0, "npc"),
-                                                       y = unit(1, "npc"),
-                                                       hjust = 0, vjust = 1)),
-                           inv_sims_V_coexist_p +
-                               theme(plot.margin = margin(0,0,t=8,l=8)),
-                           nrow = 1, labels = c("", "c"),
-                           label_size = 16, label_fontface = "plain",
-                           label_x = 0, label_y = 1.02)
-
-
-# coexist_spp_p
-
-
 
 if (.RESAVE_PLOTS) {
-    save_plot(coexist_spp_p, 6, 4, .prefix = "3-")
-}
-
-
-# # (No effect at all, so no point in creating this.)
-# inv_sims_one_p_fun("extinct",
-#                    .fill_low = "#d01c8b",
-#                    .fill_high = "#4dac26",
-#                    .fill_limits = NULL)
-
-
-
-
-# --------------*
-# Fig S1 : sigma_i --> # spp ----
-# --------------*
-
-add_var_effect_df <- grab_sims(.d = 0,
-                               .eta = -1:1 * etas[[2]],
-                               .add_var = c(0.01, 0.05, 0.1),
-                               .sigma_N = 0,
-                               .sigma_V = 0,
-                               .vary_d2 = FALSE) %>%
-    group_by(add_var, eta, rep) %>%
-    summarize(n_spp = spp[N > 0] %>% unique() %>% length()) %>%
-    ungroup() %>%
-    mutate(eta = factor(eta, levels = -1:1 * etas[[2]],
-                        labels = paste0(c("sub-", "", "super-"), "additive")))
-
-add_var_effect_p <- add_var_effect_df %>%
-    mutate(n_spp = n_spp / 100) %>%
-    ggplot(aes(add_var, n_spp)) +
-    geom_hline(yintercept = 0, color = "gray80", linetype = 1) +
-    geom_jitter(width = 0.002, height = 0, shape = 1, size = 1) +
-    facet_wrap(~ eta, ncol = 1) +
-    scale_color_viridis_d(expression(italic(sigma[i])^2),
-                          begin = 0.1, end = 0.85, guide = FALSE) +
-    scale_y_continuous("Proportion of species that coexist",
-                       breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    scale_x_continuous("Additive genetic variance")
-
-
-if (.RESAVE_PLOTS) {
-    save_plot(add_var_effect_p, 2.5, 4, .prefix = "S1-")
+    save_plot(inv_sims_V_coexist_p,
+              4, 4, .name = "S2-sigmaV_coexist")
 }
 
 
 # --------------*
-# Fig S2 - sigma_V - invader replace ----
+# Fig S3 - sigma_V - invader replace ----
 # --------------*
 
 if (.RESAVE_PLOTS) {
     save_plot(inv_sims_one_p_fun("replace",
                                  .fill_low = "#e66101",
                                  .fill_high = "#5e3c99"),
-              4, 4, .name = "S2-sigmaV_replace")
+              4, 4, .name = "S3-sigmaV_replace")
 }
 
 
 # --------------*
-# Fig S3 - sigma_N - invader coexist ----
+# Fig S4 - sigma_N - invader coexist ----
 # --------------*
 
 
 if (.RESAVE_PLOTS) {
     save_plot(inv_sims_one_p_fun("coexist", .which_sigma = "N"),
-              4, 4, .name = "S3-sigmaN_coexist")
+              4, 4, .name = "S4-sigmaN_coexist")
 }
 
 
 
 
+# ***LEFT OFF*** ----
 
 
+
+# -------------------------~
+# -------------------------~
+x <- quant_gen(q = 2, eta = 0, n = 100,
+               d = c(0, 0.1), n_reps = 12,
+               spp_gap_t = 500L, final_t = 20e3L, save_every = 10L,
+               sigma_V0 = 1, n_threads = .N_THREADS,
+               add_var = rep(0.05, 100),
+               show_progress = TRUE)
+
+
+y <- quant_gen(q = 2, eta = 0, n = 100,
+               sigma_N = 0.05,
+               d = c(0, 0.1), n_reps = 12,
+               spp_gap_t = 500L, final_t = 20e3L, save_every = 10L,
+               sigma_V0 = 1, n_threads = .N_THREADS,
+               add_var = rep(0.05, 100),
+               show_progress = TRUE)
+
+z <- quant_gen(q = 2, eta = 0, n = 100,
+               sigma_N = 0.05,
+               sigma_V = 0.05,
+               d = c(0, 0.1), n_reps = 12,
+               spp_gap_t = 500L, final_t = 20e3L, save_every = 10L,
+               sigma_V0 = 1, n_threads = .N_THREADS,
+               add_var = rep(0.05, 100),
+               show_progress = TRUE)
+
+# How many spp survived per rep?
+x$nv %>%
+    filter(axis == 1) %>%
+    group_by(rep) %>%
+    filter(time == max(time)) %>%
+    summarize(N = length(unique(spp)))
+y$nv %>%
+    filter(axis == 1) %>%
+    group_by(rep) %>%
+    filter(time == max(time)) %>%
+    summarize(N = length(unique(spp)))
+
+# Plots of N through time:
+x$nv %>%
+    filter(axis == 1) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line(na.rm = TRUE) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(guide = FALSE)
+y$nv %>%
+    filter(axis == 1) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line(na.rm = TRUE) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(guide = FALSE)
+z$nv %>%
+    filter(axis == 1) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line(na.rm = TRUE) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(guide = FALSE)
+
+
+# Plot of angle vs abundance
+x$nv %>%
+    group_by(rep) %>%
+    filter(time == max(time)) %>%
+    ungroup() %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    mutate(angle = atan(V1 / V2) * 180 / pi) %>%
+    ggplot(aes(angle, log(N), color = rep)) +
+    geom_point() +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE)
+y$nv %>%
+    group_by(rep) %>%
+    filter(time == max(time)) %>%
+    ungroup() %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    mutate(angle = atan(V1 / V2) * 180 / pi) %>%
+    ggplot(aes(angle, log(N), color = rep)) +
+    geom_point() +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE)
+
+
+
+y$nv %>%
+    # filter((time - 1) %% 1000 == 0) %>%
+    filter(time == max(time)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    # geom_path() +
+    geom_point(size = 2) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    scale_x_continuous(breaks = 0:2) +
+    scale_y_continuous(breaks = 0:2) +
+    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5))
+
+z$nv %>%
+    # filter((time - 1) %% 1000 == 0) %>%
+    filter(time == max(time)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    select(-pheno) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    # geom_path() +
+    geom_point(size = 2) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    scale_x_continuous(breaks = 0:2) +
+    scale_y_continuous(breaks = 0:2) +
+    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+    NULL
 
 
 
