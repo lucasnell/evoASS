@@ -157,7 +157,7 @@ quant_gen <- function(eta, d, q,
                       V0 = NULL,
                       N0 = rep(1, n),
                       f = 0.1,
-                      a0 = 0.5,
+                      a0 = 1e-4,
                       r0 = 0.5,
                       add_var = rep(0.01, n),
                       sigma_V0 = 1,
@@ -192,27 +192,28 @@ quant_gen <- function(eta, d, q,
 
     if (length(sigma_V) == 1) sigma_V <- rep(sigma_V, q)
 
-    if (is.null(V0) &&
-        q == 2 &&
-        ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
-          ncol(eta) == 2) ||
-         (inherits(eta, "numeric") && length(eta) == 1))) {
-        # For 2-axis case and proper inputs, we choose starting points
-        # based on known stable points, return warning if sigma_V0 and sigma_V
-        # are both 0
-        if (sigma_V0 == 0 && all(sigma_V) == 0) {
-            warning(paste("\nSimulations start with species at stable",
-                          "points, and you aren't providing stochasticity in",
-                          "either the starting values or via phenotypes.",
-                          "Thus these simulations may be odd or boring.",
-                          "Continuing anyway..."))
-        }
-        pts <- stable_points(eta = eta, f = f, a0 = a0, r0 = r0) %>%
-            split(1:nrow(.)) %>%
-            lapply(unlist)
-        V0 <- sample(pts, n, replace = TRUE) %>%
-            do.call(what = cbind)
-    } else if (is.null(V0)) {
+    # if (is.null(V0) &&
+    #     q == 2 &&
+    #     ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
+    #       ncol(eta) == 2) ||
+    #      (inherits(eta, "numeric") && length(eta) == 1))) {
+    #     # For 2-axis case and proper inputs, we choose starting points
+    #     # based on known stable points, return warning if sigma_V0 and sigma_V
+    #     # are both 0
+    #     if (sigma_V0 == 0 && all(sigma_V) == 0) {
+    #         warning(paste("\nSimulations start with species at stable",
+    #                       "points, and you aren't providing stochasticity in",
+    #                       "either the starting values or via phenotypes.",
+    #                       "Thus these simulations may be odd or boring.",
+    #                       "Continuing anyway..."))
+    #     }
+    #     pts <- stable_points(eta = eta, f = f, a0 = a0, r0 = r0) %>%
+    #         split(1:nrow(.)) %>%
+    #         lapply(unlist)
+    #     V0 <- sample(pts, n, replace = TRUE) %>%
+    #         do.call(what = cbind)
+    # } else
+    if (is.null(V0)) {
         # Otherwise start at zero:
         if (sigma_V0 == 0 && all(sigma_V) == 0) {
             warning(paste("\nSimulations start with species having all axes",

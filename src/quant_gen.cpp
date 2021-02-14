@@ -56,7 +56,6 @@ inline void sel_str__(arma::mat& ss_mat,
     /*
      For all `i`, calculate `sum(N_j * exp(- transpose(V_j) * D * V_j))`,
      for all `j != i`.
-     From the equation parameters, `Omega_i = N_i + W_i`
      */
     arma::vec W(n, arma::fill::zeros);
     for (uint32_t j = 0; j < n; j++) {
@@ -73,9 +72,8 @@ inline void sel_str__(arma::mat& ss_mat,
     arma::rowvec Vtmp(q);
     for (uint32_t i = 0; i < n; i++) {
         const arma::vec& Vi(V[i]);
-        double Omega_i = N[i] + W[i];
         Vtmp = 2 * (-f * Vi.t() * C +
-            a0 * Omega_i * std::exp(arma::as_scalar(-Vi.t() * Vi)) * Vi.t());
+            a0 * W[i] * std::exp(arma::as_scalar(-Vi.t() * Vi)) * Vi.t());
         ss_mat.col(i) = Vtmp.t();
     }
 
