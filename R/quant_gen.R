@@ -23,9 +23,10 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
     stopifnot(inherits(adjust_mu_V, "logical"))
     stopifnot(inherits(lnorm_V, "logical"))
     if (!is.null(V0)) {
-        stopifnot(inherits(V0, "matrix") && is.numeric(V0))
+        stopifnot(is.numeric(V0))
+        stopifnot(inherits(V0, "matrix") || length(V0) %in% c(1, q))
         stopifnot(all(V0 >= 0))
-        stopifnot(nrow(V0) == q && ncol(V0) == n)
+        if (inherits(V0, "matrix")) stopifnot(nrow(V0) == q && ncol(V0) == n)
     }
 
     stopifnot(n >= 1 && q >= 1)
@@ -192,27 +193,7 @@ quant_gen <- function(eta, d, q,
 
     if (length(sigma_V) == 1) sigma_V <- rep(sigma_V, q)
 
-    # if (is.null(V0) &&
-    #     q == 2 &&
-    #     ((inherits(eta, "matrix") && is.numeric(eta) && nrow(eta) == 2 &&
-    #       ncol(eta) == 2) ||
-    #      (inherits(eta, "numeric") && length(eta) == 1))) {
-    #     # For 2-axis case and proper inputs, we choose starting points
-    #     # based on known stable points, return warning if sigma_V0 and sigma_V
-    #     # are both 0
-    #     if (sigma_V0 == 0 && all(sigma_V) == 0) {
-    #         warning(paste("\nSimulations start with species at stable",
-    #                       "points, and you aren't providing stochasticity in",
-    #                       "either the starting values or via phenotypes.",
-    #                       "Thus these simulations may be odd or boring.",
-    #                       "Continuing anyway..."))
-    #     }
-    #     pts <- stable_points(eta = eta, f = f, a0 = a0, r0 = r0) %>%
-    #         split(1:nrow(.)) %>%
-    #         lapply(unlist)
-    #     V0 <- sample(pts, n, replace = TRUE) %>%
-    #         do.call(what = cbind)
-    # } else
+
     if (is.null(V0)) {
         # Otherwise start at zero:
         if (sigma_V0 == 0 && all(sigma_V) == 0) {
@@ -224,6 +205,9 @@ quant_gen <- function(eta, d, q,
                           "Continuing anyway..."))
         }
         V0 <- matrix(0, q, n)
+    } else if (!inherits(V0, "matrix")) {
+        stopifnot(length(V0) == 1 || length(V0) == q)
+        V0 <- matrix(V0, q, n)
     }
 
     qg <- quant_gen_cpp(n_reps = n_reps,
