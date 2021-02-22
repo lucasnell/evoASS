@@ -236,9 +236,7 @@ inline void dVi_dNi_(arma::mat& dVhat,
     uint32_t row_end = row_start + Vi.n_elem - 1;
     const uint32_t& col_end(col_start);
 
-    arma::mat M = 2 * add_var * a0 * Vi * arma::exp(- Vi.t() * Vi);
-
-    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)).fill(0);
 
     return;
 }
@@ -342,7 +340,7 @@ inline void dNi_dVi_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    double Omega = N[i];
+    double Omega = 0;
     for (uint32_t j = 0; j < N.size(); j++) {
         if (j != i) {
             Omega += (N[j] *
@@ -415,7 +413,7 @@ inline void dNi_dVk_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    double Omega = N[i];
+    double Omega = 0;
     for (uint32_t j = 0; j < N.size(); j++) {
         if (j != i) {
             Omega += (N[j] *
@@ -491,10 +489,7 @@ inline void dNi_dNi_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    const arma::subview_col<double>& Vi(V.col(i));
-
-    double M = F * (1 - N[i] * a0 * std::exp(-1 *
-                    arma::as_scalar(Vi.t() * Vi)));
+    double M = F * (1 - N[i] * a0);
 
     dVhat(row_start, col_start) = M;
 
@@ -651,7 +646,7 @@ arma::mat jacobian_cpp(const arma::mat& V,
 
             if (k == i) {
 
-                double Omega = N[i];
+                double Omega = 0;
                 for (uint32_t j = 0; j < n; j++) {
                     if (j != i) Omega += Omega_vec[j];
                 }
