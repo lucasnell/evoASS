@@ -1,75 +1,3 @@
-#
-#
-# qg <- quant_gen(q = 2, eta = 0.6, d = 0,
-#                 n_reps = 1, n = 1,
-#                 V0 = cbind(c(0, 2)),
-#                 sigma_V0 = 0,
-#                 spp_gap_t = 0L,
-#                 final_t = 200e3L,
-#                 save_every = 0,
-#                 add_var = rep(0.1, 1))
-#
-# qg$nv %>%
-#     mutate(axis = paste0("V", axis)) %>%
-#     spread(axis, geno) %>%
-#     # .[["N"]]
-#     identity()
-#
-#
-# max(eigen(jacobians(qg)[[1]])$values)
-#
-#
-# # .C <- diag(2)
-# # .C[lower.tri(.C)] <- .C[upper.tri(.C)] <- 0.6
-# #
-# #
-# max(eigen(sauron:::dVi_dVi_cpp(0, rbind(1.030776, 1.030776),
-#                            2.679327,
-#                            .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-#                            0.05))$values)
-#
-# deltaV <- sauron:::sel_str_cpp(V = rbind(0, 2), N = 10.91963, f = formals(quant_gen)$f,
-#                      a0 = formals(quant_gen)$a0,
-#                      C = .C, r0 = formals(quant_gen)$r0, D = diag(2) * 0) %*%
-#     matrix(0.05)
-#
-# V <- rbind(0, 2)
-# newV <- as.numeric(V + deltaV)
-# heaviside <- function(x) ifelse(x > 0, 1, 0)
-#
-# jac <- sauron:::dVi_dVi_cpp(0, V,
-#                             10.9196300066,
-#                             .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-#                             0.05)
-#
-# max(eigen(diag(heaviside(newV)) %*% jac)$values)
-#
-#
-# sauron:::F_t_cpp(rbind(0, 2),
-#                  10.9196300066,
-#                  formals(quant_gen)$f,
-#                  formals(quant_gen)$a0,
-#                  .C,
-#                  formals(quant_gen)$r0,
-#                  diag(2) * 0)
-#
-# max(eigen(sauron:::dVi_dVi_cpp(0, rbind(0, 2),
-#                                10.9196300066,
-#                                .C, formals(quant_gen)$f, formals(quant_gen)$a0,
-#                                0.05))$values)
-#
-#
-#
-#
-#
-#
-#
-#
-# # %>%
-# #     ggplot(aes(V1, V2, color = spp)) +
-# #     geom_path() +
-# #     coord_equal(ylim = c(0, 2.5), xlim = c(0, 2.5))
-
 
 # start ----
 
@@ -90,7 +18,7 @@ suppressPackageStartupMessages({
 options(dplyr.summarise.inform = FALSE)
 
 # This sets plotting device on LAN computer:
-if (file.exists(".Rprofile")) source(".Rprofile")
+# if (file.exists(".Rprofile")) source(".Rprofile")
 
 
 # Clean captions
@@ -101,7 +29,7 @@ cc <- function(.x) {
 }
 
 # whether to re-do simulations (use rds files otherwise)
-.REDO_SIMS <- FALSE
+.REDO_SIMS <- TRUE
 # whether to re-save plots
 .RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
@@ -166,39 +94,17 @@ label_args <- list(gp = grid::gpar(font = 1,
                    hjust = 0, vjust = 1)
 
 
-grab_sims <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
-
-    .d <- round(.d, 3)
-    .eta <- round(.eta, 2)
-    .add_var <- round(.add_var, 2)
-    .sigma_N <- round(.sigma_N, 2)
-    .sigma_V <- round(.sigma_V, 2)
-
-    giant_sims <- mclapply(0:17,
-                           function(i) {
-                               fn <- rds(sprintf("giant_sims/giant_sims_%i", i))
-                               dd <- readRDS(fn)
-                               map_dfr(dd, function(Z) {
-                                   Z[["NV"]] %>%
-                                       filter(d %in% .d,
-                                              eta %in% .eta,
-                                              add_var %in% .add_var,
-                                              sigma_N %in% .sigma_N,
-                                              sigma_V %in% .sigma_V,
-                                              vary_d2 %in% .vary_d2)
-                               })
-                           },
-                           mc.cores = .N_THREADS)
-
-    giant_sims <- bind_rows(giant_sims)
-
-    return(giant_sims)
-}
 
 set.seed(1898348146)
 etas <- map(1:6, ~ with(list(.q = .x), runif(.q * ((.q - 1) / 2), 0.1, 0.4)))
 # With just one eta, it can be a simple number:
 etas[[2]] <- 0.6
+
+
+
+
+
+
 
 
 # =============================================================================*
@@ -215,17 +121,17 @@ etas[[2]] <- 0.6
 
 
 
-one_eta_combo <- function(signs, .d = c(-1e-4, 0.1), ...) {
+one_eta_combo <- function(signs, .d, .n, ...) {
 
 
-    # signs = -1; .d = 1
+    # signs = 0; .d = -1
     # rm(signs, .d)
 
+    stopifnot(is.numeric(.n) && .n > 0 && round(.n) == .n)
     stopifnot(is.numeric(signs))
     stopifnot(sum(is.na(signs)) == 0)
     stopifnot(all(signs %in% c(-1, 0, 1)))
 
-    .n <- 10
     .q <- 1/2 * (1 + sqrt(1 + 8 * length(signs)))
 
     stopifnot(.q %in% 1:length(etas))
@@ -243,11 +149,18 @@ one_eta_combo <- function(signs, .d = c(-1e-4, 0.1), ...) {
     C <- C + t(C)
     diag(C) <- 1
 
-    args <- list(q = .q, eta = C, V0 = matrix(0, .q, .n),
+    .V0_i <- 0.1 + 0.01 * (1:.q-1)
+
+    .V0 <- unname(cbind(.V0_i, rev(.V0_i))[, rep(1:2, ceiling(.n / 2))[1:.n] ])
+
+    args <- list(q = .q, eta = C, V0 = .V0,
                  n = .n,
-                 d = .d, n_reps = 99,
-                 spp_gap_t = 500L, final_t = 20e3L, save_every = 0L,
-                 sigma_V0 = 1, n_threads = .N_THREADS,
+                 d = .d, n_reps = 1,
+                 spp_gap_t = 0L,
+                 final_t = 50e3L,
+                 save_every = 0L,
+                 sigma_V0 = 0,
+                 n_threads = .N_THREADS,
                  show_progress = FALSE)
 
     other_args <- list(...)
@@ -263,18 +176,22 @@ one_eta_combo <- function(signs, .d = c(-1e-4, 0.1), ...) {
     NV <- axis_to$nv %>%
         mutate(axis = paste0("V", axis)) %>%
         select(rep, spp, axis, geno) %>%
-        spread(axis, geno)
-    cn <- colnames(NV)[grepl("^V", colnames(NV))]
+        pivot_wider(names_from = axis, values_from = geno) %>%
+        group_by(rep) %>%
+        mutate(n_spp = length(unique(spp))) %>%
+        ungroup()
 
-    NV <- NV %>%
-        mutate(unq = do.call(unq_spp_filter, !!rlang::syms(cn))) %>%
-        filter(unq) %>%
-        select(!!!cn) %>%
-        identity()
+    if (any(NV$n_spp != .n)) {
+        message(sprintf(paste("\nsigns = %s, .d = %s, .n = %s had at least",
+                              "one extinction"),
+                        paste(signs, collapse = ", "),
+                        paste(.d, collapse = ", "), .n))
+    }
 
     for (i in 1:length(.etas)) {
         NV[,paste0("eta",i)] <- abs(.etas[i]) * signs[i]
     }
+    NV[,"d"] <- .d
 
     output <- list(jacs = jacobians(axis_to),
                    ts = NV)
@@ -286,18 +203,36 @@ one_eta_combo <- function(signs, .d = c(-1e-4, 0.1), ...) {
 
 
 if (.REDO_SIMS) {
-    # Takes ~11.8 sec with q=2 and 3 threads
+    # Takes ~9 sec with q=2 and 6 threads
     set.seed(145746935)
-    eta_sims <- list(-1, 0, 1) %>%
-        map(one_eta_combo)
+    eta_sims <- crossing(signs = c(-1, 0, 1), .d = c(-1, 0, 1), .n = 1:10) %>%
+        pmap(one_eta_combo)
     saveRDS(eta_sims, rds("eta_sims"))
 } else {
     eta_sims <- readRDS(rds("eta_sims"))
 }
 
-eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
+eta_sim_df <- map_dfr(eta_sims, ~.x$ts) %>%
+    mutate(eta1 = factor(eta1, levels = sort(unique(eta1)),
+                         labels = c("sub-additive", "additive",
+                                    "super-additive")),
+           d = factor(d, levels = c(-1, 0, 1),
+                      labels = c("conflicting", "neutral", "ameliorative")),
+           n_spp = factor(n_spp, levels = 1:max(n_spp)))
 
-
+# eta_complex <- map(eta_sims, function(.z) {
+#     zz <- map(.z$jacs, ~ eigen(.x, only.values = TRUE)$values)
+#     zzz <- map_int(zz, function(.x) {
+#         if (any(which(Im(.x) != 0))) {max(which(Im(.x) != 0))} else NA
+#     })
+#     zzz[!is.na(zzz)]
+# })
+# eta_stability <- map_dfr(eta_sims, function(.z) {
+#     zz <- map(.z$jacs, ~ eigen(.x, only.values = TRUE)$values)
+#     zzz <- map_dbl(zz, function(.x) max(Re(.x)))
+#     distinct(.z$ts, eta1, d) %>%
+#         mutate(low = min(zzz), high = max(zzz))
+# })
 
 
 
@@ -311,24 +246,59 @@ eta_sim_df <- map_dfr(eta_sims, ~.x$ts)
 #'
 
 
+# # If you want to show the relationship between radius and # species
+# eta_sim_df %>%
+#     mutate(eta1 = factor(eta1, levels = sort(unique(eta1)),
+#                          labels = c("sub-additive", "additive",
+#                                     "super-additive")),
+#            d = factor(d, levels = c(-1, 0, 1),
+#                       labels = c("conflicting", "neutral", "ameliorative")),
+#            radius = sqrt(V1^2 + V2^2)) %>%
+#     group_by(eta1, d, n_spp) %>%
+#     filter(unq_spp_filter(V1, V2, .prec = 0.1)) %>%
+#     ungroup() %>%
+#     ggplot(aes(n_spp, radius)) +
+#     geom_vline(xintercept = 1, linetype = 1, color = "gray70") +
+#     geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
+#     geom_point() +
+#     facet_grid(eta1 ~ d)
+
 outcomes_q2_p <- eta_sim_df %>%
-    mutate(eta1 = factor(eta1, levels = sort(unique(eta1)),
-                         labels = c("sub-additive", "additive",
-                                    "super-additive"))) %>%
-    group_by(eta1) %>%
-    filter(unq_spp_filter(V1, V2, .prec = 0.1)) %>%
+    filter(!(eta1 == "additive" & n_spp != 1)) %>%
+    group_by(eta1, d) %>%
+    filter(unq_spp_filter(V1, V2, .prec = 0.001)) %>%
     ungroup() %>%
+    filter(n_spp %in% 1:5) %>%
+    filter(d == "neutral") %>%
     ggplot(aes(V1, V2)) +
-    geom_path(data = stable_points(0) %>% mutate(eta1 = factor("additive")),
-              linetype = 1, color = "gray40") +
-    geom_point(shape = 21, color = "dodgerblue", fill = "dodgerblue",
-               alpha = 0.75, size = 3) +
-    scale_x_continuous("Conflicting axis", breaks = 0:2) +
-    scale_y_continuous("Ameliorative axis", breaks = 0:2) +
-    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    facet_wrap(~ eta1, nrow = 1) +
-    theme(strip.text = element_text(size = 10),
-          panel.border = element_rect(size = 0.5, fill = NA)) +
+    geom_path(data = eta_sim_df %>%
+                  filter(eta1 == "additive" & n_spp != 1) %>%
+                  filter(n_spp %in% 1:5) %>%
+                  filter(d == "neutral") %>%
+                  group_by(eta1, d, n_spp) %>%
+                  summarize(radius = median(sqrt(V1^2 + V2^2)),
+                            .groups = "drop") %>%
+                  mutate(V1 = map(radius,
+                                  ~ .x * sin(seq(0, 0.5, length.out = 1001) * pi)),
+                         V2 = map(radius,
+                                  ~ .x * cos(seq(0, 0.5, length.out = 1001) * pi))) %>%
+                  unnest(cols = c(V1, V2)),
+              aes(color = n_spp), size = 0.75) +
+    geom_point(aes(color = n_spp),
+               alpha = 1, size = 2) +
+    scale_x_continuous("Neutral axis 1", breaks = 0:2) +
+    scale_y_continuous("Neutral axis 2", breaks = 0:2) +
+    coord_equal(xlim = c(0, 2), ylim = c(0, 2)) +
+    # facet_grid(d ~ eta1) +
+    facet_grid( ~ eta1) +
+    scale_color_viridis_d("Number of\nsurviving\nspecies", end = 0.8) +
+    theme(strip.text.x = element_text(size = 10, margin = margin(0,0,0,b=6)),
+          strip.text.y = element_text(size = 10, margin = margin(0,0,0,l=6)),
+          panel.border = element_rect(size = 0.5, fill = NA),
+          legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9, lineheight = 0.75),
+          legend.key.size = unit(3, "pt"),
+          legend.position = "right") +
     NULL
 
 
@@ -339,10 +309,579 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 
 
 
+
+
+#  LEFT OFF #1 ----
+
+pivot <- function(.x) {
+    if ("pheno" %in% colnames(.x)) .x <- select(.x, -pheno)
+    .z <- .x %>%
+        mutate(axis = paste0("V", axis) %>%
+                   factor(levels = paste0("V", sort(unique(axis))))) %>%
+        pivot_wider(names_from = axis, values_from = geno)
+    return(.z)
+}
+
+
+
+
+
+.V0 <- cbind(c(0.001, 1.2), c(1.2, 0.001))
+.ds <- c(-1, 0.5)
+z <- quant_gen(eta = 0.6,
+               q = nrow(.V0),
+               # q = 2,
+               V0 = .V0,
+               # N0 = c(4320, 1),
+               # V0 = 1,
+               sigma_V0 = 0,
+               # sigma_V0 = 1,
+               # sigma_N = 0.2,
+               # sigma_V = c(0.1, 0.05),
+               n = ncol(.V0),
+               # n = 10,
+               # d = 4,
+               d = .ds,
+               # n_reps = 96,
+               n_reps = 1,
+               spp_gap_t = 0L,
+               final_t = 50e3L, # 50e3L,
+               save_every = 100L,
+               n_threads = .N_THREADS,
+               show_progress = FALSE)
+# .ds <- eval(z$call$d); if (length(.ds) == 1) .ds <- rep(.ds, eval(z$call$n))
+
+jacobians(z) %>%
+    map_dbl(~ max(Re(eigen(.x[[1]], only.values = TRUE)[["values"]]))) %>%
+    range()
+
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = length(unique(spp))) %>%
+    ungroup() %>%
+    ggplot(aes(V1, V2)) +
+    # ggplot(aes(n_spp, V1)) +
+    geom_vline(xintercept = 0, color = "gray80") +
+    geom_hline(yintercept = 0, color = "gray80") +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    # geom_point() +
+    geom_path(aes(color = spp)) +
+    geom_point(data = z$nv %>%
+                   pivot() %>%
+                   group_by(rep, spp) %>%
+                   filter(time == min(time)) %>%
+                   ungroup(),
+               shape = 4, aes(color = spp)) +
+    geom_point(data = z$nv %>%
+                   filter(time == max(time)) %>%
+                   pivot(),
+               aes(color = spp)) +
+    # facet_wrap(~ rep, nrow = 3) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    # theme(strip.background = element_blank(), strip.text = element_blank()) +
+    coord_equal(xlim = c(0, 3.5), ylim = c(0, 3.5)) +
+    xlab("Conflicting axis") +
+    ylab("Ameliorative axis") +
+    NULL
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    pivot() %>%
+    mutate(radius = sqrt(V1^2 + V2^2)) %>%
+    mutate(radius = radius / max(radius) * max(N)) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line() +
+    geom_line(aes(y = radius), linetype = 2) +
+    # Shows extinctions as Xs:
+    geom_point(data = z$nv %>%
+                   filter(!is.na(spp)) %>%
+                   group_by(spp) %>%
+                   filter(time == max(time)) %>%
+                   ungroup() %>%
+                   filter(time < max(z$nv$time)),
+               shape = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    coord_cartesian(xlim = c(0, 1e3)) +
+    NULL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+f <- formals(quant_gen)[["f"]]
+a0 <- formals(quant_gen)[["a0"]]
+r0 <- formals(quant_gen)[["r0"]] * 0.5
+eta <- eval(z$call[["eta"]])
+dbar <- mean(.ds)
+# n <- 6
+
+
+trait <- function(v, N) (a0 * exp(-2 * v^2 * (1 + dbar)) * (n-1) * N - f * (1+eta))^2
+fit <- function(v, N) {
+    f <- r0 - 2 * f * v^2 * (1+eta) - a0 * N * {
+        1 + (n-1) * exp(-2 * v^2 * (1 + dbar))}
+    return(f^2)
+}
+foo <- function(x) {
+    v <- x[1]
+    N <- x[2]
+    if (any(x < 0)) return(1e9)
+    fit(v, N) + trait(v, N)
+}
+
+
+vii <- numeric(99)
+nii <- numeric(99)
+for (i in 2:100) {
+    n <- i
+    tmp <- optim(c(1, r0 / a0), foo, method = "Nelder-Mead",
+                 control = list(reltol = 1e-12))[["par"]]
+    vii[i-1] <- tmp[1]
+    nii[i-1] <- tmp[2]
+}
+plot(log(2:100 - 1), nii, type = "l")
+abline(reg = lm(nii ~ log(2:100 - 1)), col = "red", lty = 2)
+modn <- lm(nii ~ log(2:100 - 1))
+modn %>% summary()
+
+v1n1 <- vii^2 - (1 / (2 * (1 + dbar))) * log(2:100 - 1)
+plot(v1n1)
+
+
+plot(log(2:100 - 1), vii^2, type = "l")
+
+abline(reg = lm(I(vii^2) ~ log(2:100 - 1)), col = "red", lty = 2)
+modv <- lm(I(vii^2) ~ log(2:100 - 1))
+modv %>% summary()
+modv %>% resid()
+
+# plot((nii), vii^2, type = "l")
+# abline(reg = lm(I(vii^2) ~ (nii)), col = "red", lty = 2)
+
+
+v_b0 <- coef(modv)[["(Intercept)"]]
+v_b1 <- coef(modv)[["log(2:100 - 1)"]]
+v_b0; exp(v_b0); v_b1
+# [1] 0.7722721
+# [1] 2.164679
+# [1] 0.3080228
+
+{exp(v_b0)^(2 * (1 + dbar))} * (f * (1+eta)) / a0
+
+
+v_b0 * 2 * (1 + dbar)
+
+
+n_b0 <- coef(modn)[["(Intercept)"]]
+n_b1 <- coef(modn)[["log(2:100 - 1)"]]
+n_b0; n_b1
+# [1] 3982.179
+# [1] -246.4169
+n_b0 / a0; n_b1 * -a0
+
+
+
+
+
+
+(a0 / (f * (1 + eta)))^(1 / (2 * (1 + mean(.ds))))
+
+exp(b0) / (a0 / (f * (1 + eta)))
+b0 / (a0 / (f * (1 + eta)))
+
+
+
+
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    filter(time == max(time)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = n()) %>%
+    ungroup() %>%
+    filter(n_spp == 6)
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    filter(time == max(time)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = n(),
+           Omega = map_dbl(1:n(), ~ sum(N[-.x] * exp(-.ds[1] * V1[-.x]^2 -
+                                                         .ds[2] * V2[-.x]^2))),
+           Omega_pred = {(n() - 1) * N * (a0 / (f * (1+eta)))^(-dbar)}^(1 / (1 + dbar)),
+           N_pred = {f * (1 + eta) / (a0 * (n() - 1))} * exp(2 * V1^2 * (1 + mean(.ds)))) %>%
+    ungroup() %>%
+    # ggplot(aes(Omega, Omega_pred)) +
+    ggplot(aes(N, N_pred)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    geom_point()
+
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    filter(time == max(time)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = n()) %>%
+    ungroup() %>%
+    mutate(n_spp = factor(n_spp, levels = 1:max(n_spp))) %>%
+    # mutate(radius = sqrt(V1^2 + V2^2)) %>%
+    ggplot(aes(V1, V2)) +
+    geom_vline(xintercept = 0, color = "gray80") +
+    geom_hline(yintercept = 0, color = "gray80") +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    geom_point(aes(color = n_spp)) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    # theme(strip.background = element_blank(), strip.text = element_blank()) +
+    coord_equal(xlim = c(0, 2), ylim = c(0, 2)) +
+    xlab("Conflicting axis") +
+    ylab("Ameliorative axis") +
+    NULL
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    filter(time == max(time)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = n()) %>%
+    ungroup() %>%
+    mutate(n_spp = factor(n_spp, levels = 1:max(n_spp))) %>%
+    mutate(radius = sqrt(V1^2 + V2^2)) %>%
+    ggplot(aes(n_spp, radius)) +
+    geom_point() +
+    xlab("Number of species") +
+    ylab("Distance from origin") +
+    NULL
+
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    pivot() %>%
+    mutate(id = interaction(.$rep, .$spp)) %>%
+    ggplot(aes(V1, V2)) +
+    geom_vline(xintercept = 0, color = "gray80") +
+    geom_hline(yintercept = 0, color = "gray80") +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    geom_path(aes(color = spp, group = id)) +
+    geom_point(data = z$nv %>%
+                   pivot() %>%
+                   filter(time == 0),
+               shape = 4, aes(color = spp)) +
+    geom_point(data = z$nv %>%
+                   pivot() %>%
+                   filter(time == max(time)),
+               aes(color = spp)) +
+    # facet_wrap(~ rep, nrow = 3) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    # theme(strip.background = element_blank(), strip.text = element_blank()) +
+    coord_equal(xlim = c(0, 3.5), ylim = c(0, 3.5)) +
+    xlab("Conflicting axis") +
+    ylab("Ameliorative axis") +
+    NULL
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    pivot() %>%
+    filter(time < 1e3) %>%
+    mutate(radius = sqrt(V1^2 + V2^2)) %>%
+    mutate(radius = radius / max(radius) * max(N)) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line() +
+    geom_line(aes(y = radius), linetype = 2) +
+    # Shows extinctions as Xs:
+    geom_point(data = z$nv %>%
+                   filter(!is.na(spp)) %>%
+                   group_by(spp) %>%
+                   filter(time == max(time)) %>%
+                   ungroup() %>%
+                   filter(time < max(z$nv$time)),
+               shape = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    NULL
+
+
+
+
+
+z$nv %>%
+    filter(time == max(time)) %>%
+    pivot() %>%
+    group_by(rep) %>%
+    mutate(n_spp = sum(time == max(time))) %>%
+    ungroup() %>%
+    mutate(n_spp = factor(n_spp, levels = 1:max(n_spp))) %>%
+    ggplot(aes(V1, V2, color = n_spp)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    geom_point() +
+    scale_color_viridis_d(end = 0.8) +
+    # facet_wrap(~ rep, nrow = 3) +
+    # theme(strip.background = element_blank(), strip.text = element_blank()) +
+    coord_equal(xlim = c(0, 2), ylim = c(0, 2)) +
+    NULL
+
+# zz <- z$nv %>%
+#     pivot() %>%
+#     group_by(rep) %>%
+#     mutate(n_spp = sum(time == max(time))) %>%
+#     ungroup() %>%
+#     filter(n_spp > 1)
+
+
+
+
+
+
+
+
+
+
+z$nv %>%
+    filter(axis == 1, time == max(time))
+
+
+
+z$nv %>%
+    filter(axis == 1) %>%
+    mutate(geno = geno / 4 * max(N)) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line() +
+    geom_line(aes(y = geno), linetype = 2) +
+    geom_line(data = z$nv %>%
+                  filter(axis == 2) %>%
+                  mutate(geno = geno / 4 * max(N)),
+              aes(y = geno), linetype = 3) +
+    # geom_line(data = z$nv %>%
+    #               pivot() %>%
+    #               mutate(radius = sqrt(V1^2 + V2^2),
+    #                      radius = radius / 4 * max(N)),
+    #           aes(y = radius), linetype = 2) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    scale_y_continuous(sec.axis = sec_axis(~ . * 4 / max(z$nv$N), "V")) +
+    # coord_cartesian(xlim = c(0, 150)) +
+    NULL
+
+
+.reps <- z$nv %>%
+    pivot() %>%
+    group_by(rep) %>%
+    summarize(n_spp = sum(time == max(time)), .groups = "drop") %>%
+    filter(n_spp == 4) %>%
+    .[["rep"]] %>% .[1:min(24, length(.))]
+
+z$nv %>%
+    pivot() %>%
+    filter(rep %in% .reps) %>%
+    ggplot(aes(V1, V2)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray80") +
+    geom_path(aes(color = spp)) +
+    geom_point(data = z$nv %>%
+                   filter(time == 0) %>%
+                   filter(rep %in% .reps) %>%
+                   pivot(),
+               shape = 4, aes(color = spp)) +
+    geom_point(data = z$nv %>%
+                   filter(time == max(time)) %>%
+                   filter(rep %in% .reps) %>%
+                   pivot(),
+               aes(color = spp)) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    # scale_color_viridis_c(end = 0.8) +
+    facet_wrap(~ rep, nrow = 3) +
+    theme(strip.background = element_blank(), strip.text = element_blank()) +
+    coord_equal(xlim = c(0, 3.5), ylim = c(0, 3.5)) +
+    NULL
+
+
+
+
+# Filter out reps where no species survived:
+z$nv <- z$nv %>%
+    group_by(rep) %>%
+    mutate(mtime = max(time)) %>%
+    ungroup() %>%
+    filter(mtime == max(time)) %>%
+    select(-mtime)
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    # filter(axis == 2) %>%
+    # filter(time < 7000) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    geom_path() +
+    geom_point(data = z$nv %>%
+                   filter(!is.na(spp)) %>%
+                   group_by(rep, spp) %>%
+                   filter(time == min(time)) %>%
+                   ungroup() %>%
+                   mutate(axis = paste0("V", axis)) %>%
+                   pivot_wider(names_from = axis, values_from = geno),
+               size = 1, shape = 4) +
+    geom_point(data = z$nv %>%
+                   filter(!is.na(spp)) %>%
+                   mutate(axis = paste0("V", axis)) %>%
+                   pivot_wider(names_from = axis, values_from = geno) %>%
+                   group_by(rep) %>%
+                   filter(time == max(time)) %>%
+                   filter(unq_spp_filter(V1, V2)) %>%
+                   ungroup(),
+               size = 2, shape = 8, color = "black") +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.85, guide = FALSE) +
+    coord_equal()
+
+
+z$nv %>%
+    filter(!is.na(spp)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    filter(time == max(time)) %>%
+    group_by(rep) %>%
+    mutate(n_spp = n()) %>%
+    filter(unq_spp_filter(V1, V2)) %>%
+    ungroup() %>%
+    filter(n_spp > 1) %>%
+    ggplot(aes(n_spp, V1)) +
+    geom_point()
+
+
+
 # =============================================================================*
 # =============================================================================*
 
-# Fig 3: "Global" coexistence ----
+# Fig 3: History and axis strength ----
+
+# =============================================================================*
+# =============================================================================*
+
+fitness <- function(v_inv1, v_inv2, v_res, N_res, .eta, .d, .i = 0) {
+    # v_inv1 <- 5
+    # v_inv2 <- 5
+    # v_res <- matrix(c(1, 2), 2)
+    # N_res <- 100
+    # .eta <- -0.6; .d <- c(1, -1)
+
+    cc <- matrix(1, 2, 2)
+    cc[1,2] <- cc[2,1] <- .eta
+
+    dd <- matrix(0, 2, 2)
+    diag(dd) <- .d
+
+    f <- sauron:::F_it_cpp(i = .i,
+                           V = cbind(c(v_inv1, v_inv2), v_res),
+                           N = c(1, N_res),
+                           f = formals(quant_gen)[["f"]],
+                           a0 = formals(quant_gen)[["a0"]],
+                           C = cc,
+                           r0 = formals(quant_gen)[["r0"]],
+                           D = dd)
+
+    return(f)
+}
+
+
+trait_change <- function(v_inv1, v_inv2, v_res, N_res, .eta, .d, .i = 0) {
+    # v_inv1 <- 5
+    # v_inv2 <- 5
+    # v_res <- matrix(c(1, 2), 2)
+    # N_res <- 100
+    # .eta <- -0.6; .d <- c(1, -1)
+
+    cc <- matrix(1, 2, 2)
+    cc[1,2] <- cc[2,1] <- .eta
+
+    dd <- matrix(0, 2, 2)
+    diag(dd) <- .d
+
+    ss_mat <- sauron:::sel_str_cpp(V = cbind(c(v_inv1, v_inv2), v_res),
+                                   N = c(1, N_res),
+                                   f = formals(quant_gen)[["f"]],
+                                   a0 = formals(quant_gen)[["a0"]],
+                                   C = cc,
+                                   r0 = formals(quant_gen)[["r0"]],
+                                   D = dd)
+
+    return(tibble(dv1 = ss_mat[1,1], dv2 = ss_mat[2,1]))
+
+}
+
+.eta <- 0.6
+.d <- c(-1, 4)
+.opposite <- FALSE
+
+
+.V0 <- unname(cbind(0.1 + 0.01 * 0:1, 0.1 + 0.01 * 0:1))
+if (.opposite & .eta >= 0) .V0[,2] <- rev(.V0[,1])
+.V0 <- .V0[,rep(1:2, 1)]
+
+etad_sim <- quant_gen(q = 2, eta = .eta, V0 = .V0,
+                      n = ncol(.V0),
+                      d = .d,
+                      n_reps = 1,
+                      spp_gap_t = 0L,
+                      final_t = 50e3L,
+                      save_every = 0L,
+                      sigma_V0 = 0,
+                      show_progress = FALSE) %>%
+    .[["nv"]] %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno)
+
+v_res <- etad_sim %>%
+    select(V1, V2) %>%
+    as.matrix() %>%
+    t()
+N_res <- etad_sim %>%
+    .[["N"]]
+
+crossing(V1 = seq(0, 3.5, 0.1),
+         V2 = seq(0, 3.5, 0.1)) %>%
+    mutate(fit = map2_dbl(V1, V2, ~ fitness(.x, .y, v_res, N_res, .eta, .d))) %>%
+    ggplot(aes(V1, V2)) +
+    geom_raster(aes(fill = fit)) +
+    geom_segment(data = crossing(V1 = seq(0, 3.5, 0.5),
+                                 V2 = seq(0, 3.5, 0.5)) %>%
+                     filter(V1 != 0 | V2 != 0) %>%
+                     mutate(dt = map2(V1, V2,
+                                      ~ trait_change(.x, .y, v_res,
+                                                     N_res, .eta, .d))) %>%
+                     unnest(dt) %>%
+                     mutate(dv1 = V1 + dv1 / 4,
+                            dv2 = V2 + dv2 / 4) %>%
+                     mutate(across(all_of(c("dv1", "dv2")), ~ ifelse(.x < 0, 0, .x))),
+                 aes(xend = dv1, yend = dv2),
+                 arrow = arrow(length = unit(2, "pt"), type = "closed", angle = 30),
+                 size = 0.25) +
+    scale_fill_gradient2("fitness",
+                         low = "#ca0020",
+                         mid = "white",
+                         high = "#0571b0",
+                         midpoint = 1) +
+    coord_equal()
+
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# OBSOLETE Fig 3: "Global" coexistence ----
 
 # =============================================================================*
 # =============================================================================*
@@ -352,12 +891,74 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 # __3A - d --> # spp ----
 # --------------*
 
-coexist_d_spp_df <- grab_sims(.d = seq(-0.15, 0, 0.025),
+one_sim_combo <- function(.d, .eta, .add_var, .sigma_N, .sigma_V, .vary_d2) {
+
+    # .d = 0.5; .eta = 0.5; .add_var = 0.05; .sigma_N = 0.5; .sigma_V = 0; .vary_d2 = TRUE
+
+    .n <- 100
+
+    if (.vary_d2) {
+        .ds <- rep(.d, 2)
+    } else .ds <- c(.d, 0.1)
+
+    .seed <- sample.int(2^31 - 1, 1)
+    set.seed(.seed)
+
+    Z <- quant_gen(q = 2, eta = .eta, d = .ds, n = .n,
+                   add_var = rep(.add_var, .n),
+                   # spp_gap_t = 500L,
+                   spp_gap_t = 0L,
+                   final_t = 50e3L, n_reps = 12,
+                   sigma_N = .sigma_N, sigma_V = .sigma_V,
+                   save_every = 0L,
+                   n_threads = .N_THREADS, show_progress = FALSE)
+
+    if (.sigma_N == 0 && .sigma_V == 0) {
+        Z$call[["eta"]] <- eval(.eta)
+        Z$call[["d"]] <- eval(.ds)
+        Z$call[["n"]] <- eval(.n)
+        Z$call[["add_var"]] <- eval(rep(.add_var, .n))
+        jacs <- jacobians(Z)
+    } else jacs <- NULL
+
+
+    if ("pheno" %in% colnames(Z$nv)) {
+        .NV <- Z$nv %>%
+            mutate(axis = paste0("V", axis)) %>%
+            nest(value = c(geno, pheno)) %>%
+            spread(axis, value) %>%
+            unnest(c(V1, V2), names_sep = "_") %>%
+            rename(V1 = V1_geno,
+                   V2 = V2_geno,
+                   Vp1 = V1_pheno,
+                   Vp2 = V2_pheno)
+    } else {
+        .NV <- Z$nv %>%
+            mutate(axis = paste0("V", axis)) %>%
+            spread(axis, geno)
+        .NV$Vp1 <- NA_real_
+        .NV$Vp2 <- NA_real_
+    }
+
+    return(list(NV = .NV %>%
+                    mutate(d = .d, eta = .eta, add_var = .add_var,
+                           sigma_N = .sigma_N, sigma_V = .sigma_V,
+                           vary_d2 = .vary_d2),
+                J = jacs,
+                seed = .seed))
+}
+
+# Takes ~4 min w/ 6 threads and `.d` of length 7
+coexist_d_spp_sims <- crossing(.d = -5:0,#seq(-0.15, 0, 0.025),
                             .eta = -1:1 * etas[[2]],
                             .add_var = 0.05,
                             .sigma_N = 0,
                             .sigma_V = 0,
-                            .vary_d2 = FALSE) %>%
+                            .vary_d2 = TRUE) %>%
+    pmap(one_sim_combo)
+
+
+coexist_d_spp_df <- map_dfr(coexist_d_spp_sims, ~ .x[["NV"]]) %>%
     group_by(d, eta, rep) %>%
     summarize(n_spp = spp[N > 0] %>% unique() %>% length()) %>%
     ungroup() %>%
@@ -365,7 +966,8 @@ coexist_d_spp_df <- grab_sims(.d = seq(-0.15, 0, 0.025),
                         labels = paste0(c("sub-", "", "super-"), "additive")))
 
 
-coexist_d_spp_p <- coexist_d_spp_df %>%
+# coexist_d_spp_p <-
+coexist_d_spp_df %>%
     mutate(n_spp = n_spp / 100) %>%
     ggplot(aes(d, n_spp)) +
     geom_vline(xintercept = 0, color = "gray80", linetype = 1) +
@@ -374,11 +976,143 @@ coexist_d_spp_p <- coexist_d_spp_df %>%
     facet_wrap(~ eta, ncol = 1) +
     scale_y_continuous("Proportion of species that coexist",
                        breaks = c(0, 0.4, 0.8), limits = c(0, 1)) +
-    scale_x_continuous("Strength of\nconflicting axis",
-                       breaks = c(-0.1, 0)) +
+    # scale_x_continuous("Strength of\nconflicting axis",
+    #                    breaks = c(-0.1, 0)) +
     theme(axis.title = element_text(size = 10),
           axis.text = element_text(size = 9),
           plot.margin = margin(0,l=8,r=8,t=8))
+
+
+
+# LEFT OFF #2 ----
+
+# In below, I'm trying to see how we get coexistence when d1 = d2 < 0
+# Just realized that we can get coexistence when invader starts at N = 1
+# and when threshold for extinction is 1.
+
+
+
+.ds <- c(-1, 1)
+# set.seed(780866176)
+Z <- quant_gen(q = 2, eta = -0.6, d = .ds, n = 100,
+               add_var = rep(0.05, 100),
+               spp_gap_t = 100L, final_t = 500e3L, n_reps = 12,
+               sigma_N = 0, sigma_V = 0, min_N = 1,
+               save_every = 0L,
+               n_threads = .N_THREADS, show_progress = TRUE)
+
+r0 <- formals(quant_gen)[["r0"]]
+a0 <- formals(quant_gen)[["a0"]]
+f <- formals(quant_gen)[["f"]]
+eta <- -0.6
+
+
+
+Z$nv %>%
+    # filter(time == max(time)) %>%
+    # filter(!is.na(spp)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    group_by(rep) %>%
+    mutate(n_spp = length(unique(spp)),
+           Omega_obs = map_dbl(1:n(), ~ sum(N[-.x] * exp(-.ds[1] * V1[-.x]^2 -
+                                                             .ds[2] * V2[-.x]^2))),
+           V1_pred = sqrt(
+               1/2 * log(a0 * Omega_obs / (f * (1+eta)))
+           ))
+
+# V1_pred = sqrt(log((a0 * (n_spp - 1) * N) / (f * (1 + eta))) / (2 + sum(.ds)))
+
+
+    # mutate(n_spp = length(unique(spp))) %>%
+    # filter(unq_spp_filter(N, .prec = 1e-6)) %>%
+    # summarize(n_spp = n_spp[1], N = N[1], .groups = "drop") %>%
+    # lm(formula = N ~ n_spp)
+    # ggplot(aes(n_spp, N)) +
+    # geom_point() +
+    # stat_smooth(method = "lm", se = FALSE)
+
+
+
+#     %>%
+#     mutate(Omega_pred = ((f * (1 + eta)) / a0) *
+#                exp((r0 - a0 * N) / (f * (1+eta)) - 1)) %>%
+#     ggplot(aes(Omega_pred, Omega)) +
+#     geom_abline(slope = 1, linetype = 2, color = "gray80") +
+#     geom_point() +
+#     NULL
+
+
+
+
+Z$nv %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line(na.rm = TRUE) +
+    geom_point(data = Z$nv %>%
+                   group_by(rep, spp) %>%
+                   filter(time == min(time)) %>%
+                   ungroup(), na.rm = TRUE) +
+    facet_wrap(~ rep, nrow = 4) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE)
+
+
+Z$nv %>%
+    filter(!is.na(spp)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    mutate(id = interaction(rep, spp, drop = TRUE) %>% factor()) %>%
+    # arrange(rep, spp, time) %>%
+    ggplot(aes(V1, V2, color = spp)) +
+    geom_path(aes(group = id), alpha = 0.5) +
+    geom_point(data = Z$nv %>%
+                   filter(!is.na(spp)) %>%
+                   mutate(axis = paste0("V", axis)) %>%
+                   pivot_wider(names_from = axis, values_from = geno) %>%
+                   group_by(rep, spp) %>%
+                   filter(time == min(time)) %>%
+                   ungroup(), shape = 4, size = 1) +
+    geom_point(data = Z$nv %>%
+                   filter(!is.na(spp), time == max(time)) %>%
+                   mutate(axis = paste0("V", axis)) %>%
+                   pivot_wider(names_from = axis, values_from = geno) %>%
+                   group_by(rep) %>%
+                   filter(unq_spp_filter(V1, V2, .prec = 0.01)) %>%
+                   ungroup(),
+               shape = 16, size = 2, color = "black") +
+    # facet_wrap(~ rep, nrow = 3) +
+    coord_equal(xlim = c(0, NA), ylim = c(0, NA)) +
+    scale_color_viridis_d(end = 0.8, guide = FALSE)
+
+
+
+Z$nv %>%
+    filter(!is.na(spp), time == max(time)) %>%
+    mutate(axis = paste0("V", axis)) %>%
+    pivot_wider(names_from = axis, values_from = geno) %>%
+    # mutate(investment = ifelse(V1 == 0, "V2", "V1")) %>%
+    group_by(rep) %>%
+    # filter(unq_spp_filter(V1, V2, .prec = 0.01)) %>%
+    mutate(n_spp = length(unique(spp))) %>%
+    mutate(radius = sqrt(V1^2 + V2^2),
+           angle = atan(V2 / V1) * (180 / pi),
+           # pr_v1 = sum(investment == "V1"),
+           Omega = map_dbl(1:n(), ~ sum(N[-.x] * exp(-.ds[1] * V1[-.x]^2 -
+                                                         .ds[2] * V2[-.x]^2))),
+           radius_pred = sqrt(log(Omega * formals(quant_gen)[["a0"]] /
+                                      formals(quant_gen)[["f"]]))) %>%
+    # filter(unq_spp_filter(radius, .prec = 0.01)) %>%
+    ungroup() %>%
+    ggplot(aes(radius_pred, radius, color = rep)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+    geom_point() +
+    # geom_line() +
+    scale_color_viridis_d(end = 0.8, guide = FALSE) +
+    coord_equal() +
+    NULL
+
+
+
+
 
 
 
@@ -387,12 +1121,19 @@ coexist_d_spp_p <- coexist_d_spp_df %>%
 # __3B - sigma_V/N --> # spp ----
 # --------------*
 
-coexist_stoch_spp_df <- grab_sims(.d = 0,
+# Takes ~3.5 min w/ 6 threads
+coexist_stoch_spp_sims <- crossing(.d = 0,
                                   .eta = -1:1 * etas[[2]],
                                   .add_var = 0.05,
                                   .sigma_N = c(0, 0.05),
                                   .sigma_V = c(0, 0.05, 0.1),
                                   .vary_d2 = FALSE) %>%
+    pmap(one_sim_combo)
+
+
+
+coexist_stoch_spp_df <- coexist_stoch_spp_sims %>%
+    map_dfr(~ .x[["NV"]]) %>%
     group_by(eta, sigma_N, sigma_V, rep) %>%
     summarize(n_spp = spp[N > 0] %>% unique() %>% length()) %>%
     ungroup() %>%
@@ -403,7 +1144,8 @@ coexist_stoch_spp_df <- grab_sims(.d = 0,
            sigma_N = factor(sigma_N, levels = sort(unique(sigma_N))))
 
 
-coexist_stoch_spp_p <- coexist_stoch_spp_df %>%
+# coexist_stoch_spp_p <-
+coexist_stoch_spp_df %>%
     ggplot(aes(sigma_V, p_spp)) +
     geom_vline(xintercept = 0, color = "gray80", linetype = 1) +
     geom_hline(yintercept = 0, color = "gray80", linetype = 1) +
@@ -434,6 +1176,7 @@ coexist_stoch_spp_p <- coexist_stoch_spp_df %>%
           plot.margin = margin(0,l=8,r=8,t=8)) +
     NULL
 
+with(formals(quant_gen), r0 / a0)
 
 
 
