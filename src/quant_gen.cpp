@@ -56,7 +56,6 @@ inline void sel_str__(arma::mat& ss_mat,
     /*
      For all `i`, calculate `sum(N_j * exp(- transpose(V_j) * D * V_j))`,
      for all `j != i`.
-     From the equation parameters, `Omega_i = N_i + W_i`
      */
     arma::vec W(n, arma::fill::zeros);
     for (uint32_t j = 0; j < n; j++) {
@@ -73,9 +72,8 @@ inline void sel_str__(arma::mat& ss_mat,
     arma::rowvec Vtmp(q);
     for (uint32_t i = 0; i < n; i++) {
         const arma::vec& Vi(V[i]);
-        double Omega_i = N[i] + W[i];
         Vtmp = 2 * (-f * Vi.t() * C +
-            a0 * Omega_i * std::exp(arma::as_scalar(-Vi.t() * Vi)) * Vi.t());
+            a0 * W[i] * std::exp(arma::as_scalar(-Vi.t() * Vi)) * Vi.t());
         ss_mat.col(i) = Vtmp.t();
     }
 
@@ -238,9 +236,7 @@ inline void dVi_dNi_(arma::mat& dVhat,
     uint32_t row_end = row_start + Vi.n_elem - 1;
     const uint32_t& col_end(col_start);
 
-    arma::mat M = 2 * add_var * a0 * Vi * arma::exp(- Vi.t() * Vi);
-
-    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)) = M;
+    dVhat(arma::span(row_start, row_end), arma::span(col_start, col_end)).fill(0);
 
     return;
 }
@@ -344,7 +340,7 @@ inline void dNi_dVi_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    double Omega = N[i];
+    double Omega = 0;
     for (uint32_t j = 0; j < N.size(); j++) {
         if (j != i) {
             Omega += (N[j] *
@@ -417,7 +413,7 @@ inline void dNi_dVk_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    double Omega = N[i];
+    double Omega = 0;
     for (uint32_t j = 0; j < N.size(); j++) {
         if (j != i) {
             Omega += (N[j] *
@@ -493,10 +489,7 @@ inline void dNi_dNi_(arma::mat& dVhat,
 
     double F = F_it__(i, V, N, f, a0, C, r0, D);
 
-    const arma::subview_col<double>& Vi(V.col(i));
-
-    double M = F * (1 - N[i] * a0 * std::exp(-1 *
-                    arma::as_scalar(Vi.t() * Vi)));
+    double M = F * (1 - N[i] * a0);
 
     dVhat(row_start, col_start) = M;
 
@@ -653,7 +646,7 @@ arma::mat jacobian_cpp(const arma::mat& V,
 
             if (k == i) {
 
-                double Omega = N[i];
+                double Omega = 0;
                 for (uint32_t j = 0; j < n; j++) {
                     if (j != i) Omega += Omega_vec[j];
                 }

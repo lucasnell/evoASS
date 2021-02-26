@@ -101,24 +101,27 @@ inline void A_VN_(T& A,
                   const double& a0,
                   const arma::mat& D) {
 
-    // Values of sum of squared trait values for each clone
-    std::vector<double> W_intra; // `exp(- t(V) %*% V)` for intraspecific component
-    std::vector<double> W_inter; // `exp(- t(V) %*% D %*% V)` for interspecific component
-    W_intra.reserve(V.size());
-    W_inter.reserve(V.size());
-    for (uint32_t j = 0; j < V.size(); j++) {
-        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[j].t() * V[j])));
-        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[j].t() * D * V[j])));
+    uint32_t n_spp = V.size();
+
+    std::vector<double> W; // `- t(V) %*% D %*% V`
+    W.reserve(n_spp);
+    for (uint32_t j = 0; j < n_spp; j++) {
+        W.push_back(-1 * arma::as_scalar(V[j].t() * D * V[j]));
     }
 
-    for (uint32_t i = 0; i < V.size(); i++) {
+
+    for (uint32_t i = 0; i < n_spp; i++) {
         // Effects of intra- and inter-specific competition
-        double Omega = N[i];
-        for (uint32_t j = 0; j < V.size(); j++) {
+        double viTvi = -1 * arma::as_scalar(V[i].t() * V[i]);
+        double O = 0;
+        double tmp;
+        for (uint32_t j = 0; j < n_spp; j++) {
             if (j == i) continue;
-            Omega += N[j] * W_inter[j];
+            tmp = std::exp(viTvi + W[j]);
+            tmp *= N[j];
+            O += tmp;
         }
-        A[i] = a0 * W_intra[i] * Omega;
+        A[i] = a0 * (N[i] + O);
     }
 
     return;
@@ -142,24 +145,25 @@ inline void A_VNI__(T& A,
                     const double& a0,
                     const arma::mat& D) {
 
-    // Values of sum of squared trait values for each clone
-    std::vector<double> W_intra; // `exp(- t(V) %*% V)` for intraspecific component
-    std::vector<double> W_inter; // `exp(- t(V) %*% D %*% V)` for interspecific component
-    W_intra.reserve(I.size());
-    W_inter.reserve(I.size());
-    for (uint32_t j = 0; j < I.size(); j++) {
-        W_intra.push_back(std::exp(-1 * arma::as_scalar(V[I[j]].t() * V[I[j]])));
-        W_inter.push_back(std::exp(-1 * arma::as_scalar(V[I[j]].t() * D * V[I[j]])));
+    uint32_t n_spp = I.size();
+
+    std::vector<double> W; // `exp(- t(V) %*% D %*% V)` for interspecific component
+    W.reserve(n_spp);
+    for (uint32_t j = 0; j < n_spp; j++) {
+        W.push_back(-1 * arma::as_scalar(V[I[j]].t() * D * V[I[j]]));
     }
 
-    for (uint32_t i = 0; i < I.size(); i++) {
-        // Effects of intra- and inter-specific competition
-        double Omega = N[i];
-        for (uint32_t j = 0; j < V.size(); j++) {
+    for (uint32_t i = 0; i < n_spp; i++) {
+        double viTvi = -1 * arma::as_scalar(V[I[i]].t() * V[I[i]]);
+        double O = 0;
+        double tmp;
+        for (uint32_t j = 0; j < n_spp; j++) {
             if (j == i) continue;
-            Omega += N[j] * W_inter[j];
+            tmp = std::exp(viTvi + W[j]);
+            tmp *= N[j];
+            O += tmp;
         }
-        A[i] = a0 * W_intra[i] * Omega;
+        A[i] = a0 * (N[i] + O);
     }
 
     return;
@@ -204,16 +208,16 @@ inline double F_it__(const uint32_t& i,
                      const double& r0,
                      const arma::mat& D) {
 
-    double Omega = N[i];
+    double viTvi = -1 * arma::as_scalar(V[i].t() * V[i]);
+    double O = 0;
     double z;
     for (uint32_t j = 0; j < V.size(); j++) {
-        if (j != i) {
-            z = std::exp(-1 * arma::as_scalar(V[j].t() * D * V[j]));
-            Omega += (N[j] * z);
-        }
+        if (j == i) continue;
+        z = std::exp(viTvi - arma::as_scalar(V[j].t() * D * V[j]));
+        O += (N[j] * z);
     }
 
-    double A = a0 * std::exp(-1 * arma::as_scalar(V[i].t() * V[i])) * Omega;
+    double A = a0 * (N[i] + O);
 
     double r = r_V_<arma::vec>(V[i], f, C, r0);
 
@@ -235,18 +239,18 @@ inline double F_it__(const uint32_t& i,
 
     uint32_t n = V.n_cols;
 
-    double Omega = N[i];
-    double z;
-    for (uint32_t j = 0; j < n; j++) {
-        if (j != i) {
-            z = std::exp(-1 * arma::as_scalar(V.col(j).t() * D * V.col(j)));
-            Omega += (N[j] * z);
-        }
-    }
-
     const arma::subview_col<double>& Vi(V.col(i));
 
-    double A = a0 * std::exp(-1 * arma::as_scalar(Vi.t() * Vi)) * Omega;
+    double viTvi = -1 * arma::as_scalar(Vi.t() * Vi);
+    double O = 0;
+    double z;
+    for (uint32_t j = 0; j < n; j++) {
+        if (j == i) continue;
+        z = std::exp(viTvi - arma::as_scalar(V.col(j).t() * D * V.col(j)));
+        O += (N[j] * z);
+    }
+
+    double A = a0 * (N[i] + O);
 
     double r = r_V_<arma::subview_col<double>>(Vi, f, C, r0);
 
