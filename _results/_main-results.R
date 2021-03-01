@@ -220,17 +220,23 @@ eta_sim_df <- map_dfr(eta_sims, ~.x$ts) %>%
                       labels = c("conflicting", "neutral", "ameliorative")),
            n_spp = factor(n_spp, levels = 1:max(n_spp)))
 
-# eta_complex <- map(eta_sims, function(.z) {
+# eta_complex <- map_dfr(eta_sims, function(.z) {
 #     zz <- map(.z$jacs, ~ eigen(.x, only.values = TRUE)$values)
 #     zzz <- map_int(zz, function(.x) {
 #         if (any(which(Im(.x) != 0))) {max(which(Im(.x) != 0))} else NA
 #     })
-#     zzz[!is.na(zzz)]
+#     zzz <- zzz[!is.na(zzz)]
+#     if (length(zzz) == 0) {
+#         zzz <- 0
+#     } else zzz <- min(zzz)
+#     distinct(.z$ts, eta1, d, n_spp) %>%
+#         mutate(min_ind = zzz) %>%
+#         filter(zzz > 0)
 # })
 # eta_stability <- map_dfr(eta_sims, function(.z) {
 #     zz <- map(.z$jacs, ~ eigen(.x, only.values = TRUE)$values)
 #     zzz <- map_dbl(zz, function(.x) max(Re(.x)))
-#     distinct(.z$ts, eta1, d) %>%
+#     distinct(.z$ts, eta1, d, n_spp) %>%
 #         mutate(low = min(zzz), high = max(zzz))
 # })
 
@@ -239,9 +245,10 @@ eta_sim_df <- map_dfr(eta_sims, ~.x$ts) %>%
 
 
 #'
-#' Based on eigenvalues (see `_main-results__stability.R`)...
+#' Based on eigenvalues...
 #'   * When the tradeoff is additive, the state is neutrally stable
 #'   * Everything else is stable
+#'   * Some eigenvalues are complex with d = -1, especially with n_spp = 2
 #'
 #'
 
