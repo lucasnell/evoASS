@@ -452,7 +452,6 @@ pop_sizes <- function(n, eta, d, ...) {
 #' @noRd
 #'
 one_jacobian <- function(one_rep, qg_obj, evo_only) {
-
     if (!is.null(one_rep[["time"]])) {
         one_rep <- dplyr::filter(one_rep, time == max(time))
     }
@@ -515,24 +514,6 @@ one_jacobian <- function(one_rep, qg_obj, evo_only) {
     }
 
     jac <- jacobian_cpp(V, N, f, a0, r0, D, C, add_var, evo_only)
-
-    # Now dealing with the step function that keeps axes >= 0
-    # The ramp function is how we made axes >= 0, and the
-    # Heaviside step function is the derivative of the ramp function
-    heaviside <- function(x) ifelse(x > 0, 1, 0)
-    if (length(add_var) == 1) {
-        S <- matrix(add_var)
-    } else S <- diag(add_var)
-    deltaV <- sel_str_cpp(V = V, N = N, f = f, a0 = a0,
-                          C = C, r0 = r0, D = D) %*% S
-    newV <- as.numeric(V + deltaV)
-    if (evo_only) {
-        jac <- diag(heaviside(newV)) %*% jac
-    } else {
-        newN <- N * as.numeric(F_t_cpp(V, N, f, a0, C, r0, D))
-        jac <- diag(heaviside(c(newV, newN))) %*% jac
-    }
-
 
 
     return(jac)

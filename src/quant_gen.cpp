@@ -100,7 +100,6 @@ arma::mat sel_str_cpp(const arma::mat& V,
 
     if (n != N.size()) stop("V.n_cols != N.size()");
 
-    arma::vec F(n);
     std::vector<arma::vec> VV;
     VV.reserve(n);
     for (uint32_t i = 0; i < n; i++) VV.push_back(V.col(i));
@@ -590,11 +589,52 @@ arma::mat dNi_dNk_cpp(const uint32_t& i,
 
 
 
+
+//
+// Account for step function to keep traits >= 0
+//
+inline void correct_jac(arma::mat& jac,
+                        const arma::mat& V,
+                        const std::vector<double>& N,
+                        const double& f,
+                        const double& a0,
+                        const double& r0,
+                        const arma::mat& D,
+                        const arma::mat& C,
+                        const arma::vec& add_var,
+                        const bool& evo_only) {
+
+    std::vector<arma::vec> VV;
+    VV.reserve(V.n_cols);
+    for (uint32_t i = 0; i < V.n_cols; i++) VV.push_back(V.col(i));
+
+    arma::mat S = arma::diagmat(add_var);
+
+    arma::mat ss;
+    sel_str__(ss, VV, N, f, a0, C, r0, D);
+    arma::mat deltaV = ss * S;
+
+    arma::vec newV = arma::vectorise(V + deltaV);
+    for (double& d : newV) d = (d > 0) ? 1 : 0;  // <-- Heaviside function
+
+    if (evo_only) {
+        jac = arma::diagmat(newV) * jac;
+    } else {
+        arma::vec newVN(newV.n_elem + V.n_cols);
+        newVN.head(newV.n_elem) = newV;
+        newVN.tail(V.n_cols).ones(); // No Heaviside for N derivatives!
+        jac = arma::diagmat(newVN) * jac;
+    }
+
+    return;
+}
+
+
 //' Calculate the Jacobian of first derivatives.
 //'
 //' Cell [i,j] contains the partial derivative of j with respect to i.
 //'
-//' NOTE: This does NOT account for step function to keep traits >= 0
+//' NOTE: This DOES account for step function to keep traits >= 0
 //'
 //' @noRd
 //'
@@ -666,7 +706,11 @@ arma::mat jacobian_cpp(const arma::mat& V,
 
     }
 
-    if (evo_only) return(jcb_mat);
+    if (evo_only) {
+        // account for step function to keep traits >= 0
+        correct_jac(jcb_mat, V, N, f, a0, r0, D, C, add_var, evo_only);
+        return(jcb_mat);
+    }
 
 
     /*
@@ -767,9 +811,14 @@ arma::mat jacobian_cpp(const arma::mat& V,
 
     }
 
+    // account for step function to keep traits >= 0
+    correct_jac(jcb_mat, V, N, f, a0, r0, D, C, add_var, evo_only);
+
 
     return jcb_mat;
 }
+
+
 
 
 

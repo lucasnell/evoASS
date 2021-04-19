@@ -184,7 +184,7 @@ dNi_dNk_cpp <- function(i, k, V, N, f, a0, C, r0, D) {
 #'
 #' Cell [i,j] contains the partial derivative of j with respect to i.
 #'
-#' NOTE: This does NOT account for step function to keep traits >= 0
+#' NOTE: This DOES account for step function to keep traits >= 0
 #'
 #' @noRd
 #'
