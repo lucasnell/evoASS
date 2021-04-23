@@ -336,13 +336,18 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 
 
 
+.d <- function(.weak) {
+    .weak <- match.arg(.weak, c("conflicting", "ameliorative"))
+    if (.weak == "conflicting") c(-0.6, 4) else c(-2.5, 0.6)
+}
+
 
 one_history_d_combo <- function(.weak, .n, .eta, .state) {
 
-    # .weak = "conflicting"
+    # .weak = "ameliorative"
     # .n = 2
-    # .eta = -0.6
-    # .state = "above"
+    # .eta = 0.6
+    # .state = "below"
 
     # rm(.weak, .n, .eta, .state, .d, .V0_0, sim0, eig0, L, .N0, .V0, sims1)
 
@@ -351,15 +356,13 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
     stopifnot(length(.eta) == 1 && .eta %in% (-1:1 * 0.6))
     stopifnot(length(.state) == 1 && .state %in% c("above", "below", "both"))
 
-    .d <- if (.weak == "conflicting") c(-0.6, 4) else c(-2.5, 0.6)
-
     .V0_0 = cbind(c(0.3, 1), c(0.3, 1))
     if (.n == 1) .V0_0 <- .V0_0[,1]
     if (.state == "below" || .state == "both") .V0_0 <- .V0_0[2:1,]
     if (.state == "both") .V0_0[,1] <- c(0.001, 2)
 
     sim0 <- quant_gen(q = 2, eta = .eta, V0 = .V0_0,
-                      n = .n, d = .d, n_reps = 1,
+                      n = .n, d = .d(.weak), n_reps = 1,
                       spp_gap_t = 0L,
                       final_t = 50e3L,
                       save_every = 0L,
@@ -369,10 +372,16 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
     sim0$call[["eta"]] <- .eta
     sim0$call[["V0"]] <- .V0_0
     sim0$call[["n"]] <- .n
-    sim0$call[["d"]] <- .d
+    sim0$call[["d"]] <- .d(.weak)
 
     # You need to start with a stable community!
-    eig0 <- eigen(jacobians(sim0)[[1]], only.values = TRUE)[["values"]]
+    J <- jacobians(sim0)[[1]]
+    if (any(is.na(J))) {
+        msg <- sprintf(paste("NA in Jacobian: weak = %s, n = %i, eta = %.1f,",
+                             "state = %s"), .weak, .n, .eta, .state)
+        stop(msg)
+    }
+    eig0 <- eigen(J, only.values = TRUE)[["values"]]
     L <- max(Re(eig0))
     if ((L >= 1 && .eta != 0) || ((L - 1) > 1e-6 && .eta == 0)) {
         msg <- sprintf("lambda = %.6f, weak = %s, n = %i, eta = %.1f, state = %s",
@@ -396,7 +405,7 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
             quant_gen(q = 2, eta = .eta,
                       V0 = cbind(.V0, c(.x, .y)),
                       N0 = c(.N0, 1),
-                      n = .n+1, d = .d, n_reps = 1,
+                      n = .n+1, d = .d(.weak), n_reps = 1,
                       spp_gap_t = 0L,
                       final_t = 50e3L,
                       save_every = 10L,
@@ -493,9 +502,15 @@ comms$two <- hist_d_sims %>%
     summarize(V1 = V1[1], V2 = V2[1], N = N[1], .groups = "drop") %>%
     group_by(eta, weak) %>%
     mutate(comm = rep(1:(n() / 2), each = 2)) %>%
+    group_by(eta, weak, comm) %>%
+    mutate(z = sum(V1 > 1e-9)) %>%
+    ungroup() %>%
+    arrange(eta, weak, z, spp) %>%
+    group_by(eta, weak) %>%
+    mutate(comm = rep(1:(n() / 2), each = 2)) %>%
     ungroup() %>%
     mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
-    select(eta, weak, comm, spp, everything()) %>%
+    select(eta, weak, comm, spp, everything(), -z, -state) %>%
     # split(interaction(.$eta, .$weak, .$comm, drop = TRUE)) %>%
     # map_dfr(check_stable) %>%
     # distinct(eta, weak, comm, lambda) %>%
@@ -527,14 +542,21 @@ comms$two <- hist_d_sims %>%
 Z <- quant_gen(q = 2, eta = -0.6,
                V0 = matrix(c(2, 2.1), 2, 3),
                N0 = rep(1, 3),
-               n = 3, d = c(-2.5, 0.6), n_reps = 1,
+               n = 3, d = .d("ameliorative"), n_reps = 1,
                spp_gap_t = 0L,
                final_t = 50e3L,
                save_every = 0L,
                sigma_V0 = 0,
                show_progress = FALSE) %>%
+    # jacobians() %>%
+    # .[[1]] %>%
+    # eigen(only.values = TRUE) %>%
+    # .[["values"]] %>%
+    # Re() %>%
+    # max()
     .[["nv"]] %>%
     pivot()
+
 
 #' All these are stable, except for...
 #'
@@ -573,11 +595,18 @@ comms$three <- hist_d_sims %>%
     group_by(eta, weak) %>%
     mutate(comm = 1:n()) %>%
     ungroup() %>%
-    mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
     select(-V) %>%
     unnest(c(N, V1, V2)) %>%
     mutate(spp = factor(rep(1:3, n() / 3), levels = 1:3)) %>%
-    select(eta, weak, comm, spp, everything())
+    group_by(eta, weak, comm) %>%
+    mutate(z = sum(V1 > 1e-9)) %>%
+    ungroup() %>%
+    arrange(eta, weak, z, spp) %>%
+    group_by(eta, weak) %>%
+    mutate(comm = rep(1:(n() / 3), each = 3)) %>%
+    ungroup() %>%
+    mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
+    select(eta, weak, comm, spp, everything(), -z)
 
 rm(Z)
 
@@ -607,7 +636,7 @@ comm_fit <- function(.dd) {
 
     C <- diag(.q)
     C[1,2] <- C[2,1] <- .eta
-    D <- diag(if (.weak == "conflicting") c(-0.6, 4) else c(-2.5, 0.6))
+    D <- diag(.d(.weak))
 
     f <- formals(quant_gen)[["f"]]
     a0 <- formals(quant_gen)[["a0"]]
@@ -777,143 +806,74 @@ if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 5, .prefix = "3-")
 
 
 
+comms_p_df3 <- crossing(.n = 3,
+                       .w = c("conflicting", "ameliorative"),
+                       .e = c(-0.6, 0.6)) %>%
+    pmap_dfr(unq_comm_p_fun)
+
+comms_p_legend3 <- get_legend(comms_p_df3[["plot"]][[1]])
+
+
+comms_p_list3 <- comms_p_df3 %>%
+    mutate(plot = map(plot, ~ .x + theme(legend.position = "none")))
+
+comms_p3 <- plot_grid(plot_grid(plotlist = comms_p_list3[["plot"]],
+                                align = "hv", axis = "tl", ncol = 1, hjust = 0),
+                      comms_p_legend3, nrow = 1, rel_widths = c(1, 0.3))
+
+
+
+if (.RESAVE_PLOTS) save_plot(comms_p3, 7, 9, .prefix = "S1-")
 
 
 
 
 
 
-# >>>>>>>>> ---------
-hist_d_p_fun <- function(.eta, .weak) {
 
-    # .eta <- 0.6
-    # .weak <- "ameliorative"
-    # rm(.eta, .weak, .dd, .xlab, .ylab, .groups, p)
+# =============================================================================*
+# =============================================================================*
 
+# Fig 4: Stabilizers ----
 
-    .dd <- hist_d_sims %>%
-        filter(eta == .eta, weak == .weak) %>%
-        mutate(state = paste(state, n_spp, sep = "__") %>% factor()) %>%
-        select(-eta, -weak) %>%
-        mutate(id = interaction(state, start, drop = TRUE))
-
-    # Groups for coloring:
-    .groups <- .dd %>%
-        filter(time == max(time)) %>%
-        filter(spp == (n_spp+1)) %>%
-        select(state, start, id, V1, V2) %>%
-        split(.$state) %>%
-        map_dfr(~ mutate(.x, grp = group_spp(V1, V2))) %>%
-        select(id, grp)
-
-    .find_grp <- function(.id) {
-        z <- .groups$grp[.groups$id == .id]
-        if (length(z) == 0) return(-1L)
-        return(z)
-    }
-
-    .dd <- .dd %>%
-        mutate(grp = map_int(id, .find_grp) %>% factor())
+# =============================================================================*
+# =============================================================================*
 
 
+z <- comms$three %>%
+    filter(weak == "conflicting", eta > 0) %>%
+    group_by(comm) %>%
+    mutate(z = sum(V2 > 1e-9)) %>%
+    ungroup() %>%
+    filter(z == 2) %>%
+    select(-z)
 
-    .xlab <- paste(ifelse(.weak == "conflicting", "Weak", "Strong"),
-                   "conflicting axis")
-    .ylab <- paste(ifelse(.weak == "ameliorative", "Weak", "Strong"),
-                   "ameliorative axis")
-    .title <- paste0(case_when(.eta > 0 ~ "Super-a", .eta < 0 ~ "Sub-a",
-                               .eta == 0 ~ "A"), "dditive")
+zz <- quant_gen(q = 2, eta = z$eta[1],
+          V0 = cbind(rbind(z$V1, z$V2), c(0.00001, 0)),
+          N0 = c(z$N, 1),
+          n = nrow(z)+1, d = .d(z$weak[1]), n_reps = 1,
+          spp_gap_t = 0L,
+          final_t = 50e3L,
+          save_every = 10L,
+          sigma_V0 = 0,
+          show_progress = FALSE) %>%
+    .[["nv"]] %>%
+    pivot()
 
-    .invaders <- .dd %>%
-        filter(spp == (n_spp+1))
-    .residents <- .dd %>%
-        filter(spp != (n_spp+1))
-
-    p <- .invaders %>%
-        ggplot(aes(V1, V2, color = grp)) +
-        ggtitle(.title) +
-        geom_hline(yintercept = 0, color = "gray70") +
-        geom_vline(xintercept = 0, color = "gray70") +
-        geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
-        geom_point(data = .residents %>%
-                       filter(time == 0) %>%
-                       filter(unq_spp_filter(V1, V2)),
-                   shape = 21, size = 5, color = "black", fill = "gray80") +
-        geom_path(aes(group = id)) +
-        geom_point(data = .dd %>%
-                       filter(time == max(time)) %>%
-                       group_by(state, start) %>%
-                       mutate(coexist = any(spp != (n_spp + 1)) %>%
-                                  factor(levels = c(TRUE, FALSE))) %>%
-                       filter(spp == (n_spp + 1)) %>%
-                       filter(unq_spp_filter(V1, V2)) %>%
-                       ungroup(),
-                   aes(shape = coexist), size = 4, fill = NA) +
-        geom_point(data = .invaders %>% filter(time == 0), shape = 1) +
-        geom_point(data = .invaders %>%
-                       group_by(state, start) %>%
-                       filter(time == max(time)) %>%
-                       ungroup() %>%
-                       filter(time < max(.dd$time)),
-                   shape = 4) +
-        coord_equal(xlim = c(-0.2, 2.2), ylim = c(-0.2, 2.2)) +
-        scale_color_viridis_d(option = "A", begin = 0.2, end = 0.8, guide = FALSE) +
-        scale_shape_manual(values = c(17, 24), guide = FALSE, drop = FALSE) +
-        facet_wrap(~ state) +
-        scale_y_continuous(.ylab, breaks = 1:2) +
-        scale_x_continuous(.xlab, breaks = 1:2) +
-        theme(strip.text = element_blank(),
-              plot.title = element_text(size = 11, hjust = 0.5, vjust = 1,
-                                        margin = margin(0,0,0,b=12)))
-
-    # p
-
-    return(tibble(eta = .eta, weak = .weak, plot = list(p)))
+zz %>% filter(time == max(time))
 
 
-}
-
-hist_d_all_ps <- hist_d_sims %>%
-    distinct(eta, weak) %>%
-    rename(.eta = eta, .weak = weak) %>%
-    pmap_dfr(hist_d_p_fun)
 
 
-hist_d_all_ps %>%
-    filter(eta == -0.6) %>%
-    .[["plot"]] %>%
-    {ggarrange(plots = .)}
 
 
-hist_d_ps <- map(c("ameliorative", "conflicting"),
-    function(.x) {
-        # .x <- "ameliorative"
-        ps <- hist_d_all_ps %>%
-            filter(eta != 0, weak == .x) %>%
-            arrange(eta) %>%
-            .[["plot"]] %>%
-            map(~ .x + theme(axis.title = element_blank()))
-        if (.x == "conflicting") {
-            ps <- map(ps, ~ .x + theme(plot.title = element_blank()))
-            .labs <- letters[3:4]
-        } else .labs <- letters[1:2]
-        .xlab <- ggplot_build(ps[[1]])$layout$panel_params[[1]]$x[["name"]] %>%
-            textGrob(gp = grid::gpar(fontsize = 11))
-        .ylab <- ggplot_build(ps[[1]])$layout$panel_params[[1]]$y[["name"]] %>%
-            textGrob(gp = grid::gpar(fontsize = 11), rot = 90)
-        ggarrange(plots = ps, nrow = 1, widths = c(2, 3),
-                  draw = FALSE, bottom = .xlab, left = .ylab,
-                  labels = .labs,
-                  label.args = list(gp = grid::gpar(fontface = "plain",
-                                                    fontsize = 14)))
-    })
 
-hist_d_p <- plot_grid(hist_d_ps[[1]], NULL, hist_d_ps[[2]],
-                      align = "hv", axis = "l", ncol = 1,
-                      rel_heights = c(1, 0.1, 1))
+zz %>%
+    filter(time < 2000) %>%
+    ggplot(aes(time, N, color = spp)) +
+    geom_line()
 
 
-if (.RESAVE_PLOTS) save_plot(hist_d_p, 6.5, 4, .prefix = "3-")
 
 
 
