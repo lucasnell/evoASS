@@ -29,9 +29,9 @@ cc <- function(.x) {
 }
 
 # whether to re-do simulations (use rds files otherwise)
-.REDO_SIMS <- TRUE
+.REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- TRUE
+.RESAVE_PLOTS <- FALSE
 # number of threads to use for simulations
 .N_THREADS <- max(1, parallel::detectCores()-2)
 
@@ -336,35 +336,53 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 
 
 
-.d <- function(.weak) {
-    .weak <- match.arg(.weak, c("conflicting", "ameliorative"))
-    if (.weak == "conflicting") c(-0.6, 4) else c(-2.5, 0.6)
+.d <- function(.strong, .barely) {
+    .strong <- match.arg(.strong, c("conflicting", "ameliorative"))
+    if (.strong == "conflicting") {
+        z <- c(-2.5, 0.6)
+        if (.barely) z[1] <- z[1] / 2
+    } else {
+        z <- c(-0.6, 4)
+        if (.barely) z[2] <- z[2] / 2
+    }
+    return(z)
 }
 
 
-one_history_d_combo <- function(.weak, .n, .eta, .state) {
+one_history_d_combo <- function(.dat) {
 
-    # .weak = "ameliorative"
+    .strong <- .dat$.strong
+    .n <- .dat$.n
+    .eta <- .dat$.eta
+    .state <- .dat$.state
+    .barely <- .dat$.barely
+
+
+    # .strong = "ameliorative"
+    # .barely <- TRUE
     # .n = 2
     # .eta = 0.6
-    # .state = "below"
+    # .state = "both"
 
-    # rm(.weak, .n, .eta, .state, .d, .V0_0, sim0, eig0, L, .N0, .V0, sims1)
+    # rm(.dat, .dd, .strong, .n, .eta, .state, .V0_0, sim0, eig0, L, .N0, .V0, sims1)
 
-    stopifnot(length(.weak) == 1 && .weak %in% c("conflicting", "ameliorative"))
+    stopifnot(length(.strong) == 1 && .strong %in% c("conflicting", "ameliorative"))
     stopifnot(length(.n) == 1 && .n %in% 1:2)
     stopifnot(length(.eta) == 1 && .eta %in% (-1:1 * 0.6))
     stopifnot(length(.state) == 1 && .state %in% c("above", "below", "both"))
+    stopifnot(length(.barely) == 1 && is.logical(.barely))
 
     .V0_0 = cbind(c(0.3, 1), c(0.3, 1))
     if (.n == 1) .V0_0 <- .V0_0[,1]
     if (.state == "below" || .state == "both") .V0_0 <- .V0_0[2:1,]
     if (.state == "both") .V0_0[,1] <- c(0.001, 2)
 
+    .dd <- .d(.strong, .barely)
+
     sim0 <- quant_gen(q = 2, eta = .eta, V0 = .V0_0,
-                      n = .n, d = .d(.weak), n_reps = 1,
+                      n = .n, d = .dd, n_reps = 1,
                       spp_gap_t = 0L,
-                      final_t = 50e3L,
+                      final_t = 100e3L,
                       save_every = 0L,
                       sigma_V0 = 0,
                       show_progress = FALSE)
@@ -372,20 +390,22 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
     sim0$call[["eta"]] <- .eta
     sim0$call[["V0"]] <- .V0_0
     sim0$call[["n"]] <- .n
-    sim0$call[["d"]] <- .d(.weak)
+    sim0$call[["d"]] <- .dd
 
     # You need to start with a stable community!
     J <- jacobians(sim0)[[1]]
     if (any(is.na(J))) {
-        msg <- sprintf(paste("NA in Jacobian: weak = %s, n = %i, eta = %.1f,",
-                             "state = %s"), .weak, .n, .eta, .state)
+        msg <- sprintf(paste("NA in Jacobian: strong = %s, barely = %s,",
+                             "n = %i, eta = %.1f,",
+                             "state = %s"), .strong, .barely, .n, .eta, .state)
         stop(msg)
     }
     eig0 <- eigen(J, only.values = TRUE)[["values"]]
     L <- max(Re(eig0))
     if ((L >= 1 && .eta != 0) || ((L - 1) > 1e-6 && .eta == 0)) {
-        msg <- sprintf("lambda = %.6f, weak = %s, n = %i, eta = %.1f, state = %s",
-                       L, .weak, .n, .eta, .state)
+        msg <- sprintf(paste("lambda = %.6f, strong = %s, barely = %s,",
+                             "n = %i, eta = %.1f, state = %s"),
+                       L, .strong, .barely, .n, .eta, .state)
         message(msg)
     }
 
@@ -405,7 +425,7 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
             quant_gen(q = 2, eta = .eta,
                       V0 = cbind(.V0, c(.x, .y)),
                       N0 = c(.N0, 1),
-                      n = .n+1, d = .d(.weak), n_reps = 1,
+                      n = .n+1, d = .dd, n_reps = 1,
                       spp_gap_t = 0L,
                       final_t = 50e3L,
                       save_every = 10L,
@@ -417,8 +437,9 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
                 select(-rep)
         }) %>%
         mutate(start = interaction(V1_0, V2_0, sep = "_"),
-               eta = .eta, weak = .weak, n_spp = .n, state = .state) %>%
-        select(eta, weak, n_spp, state, start, everything(), -V1_0, -V2_0)
+               eta = .eta, strong = .strong, barely = .barely,
+               n_spp = .n, state = .state) %>%
+        select(eta, strong, barely, n_spp, state, start, everything(), -V1_0, -V2_0)
 
     return(sims1)
 }
@@ -426,17 +447,21 @@ one_history_d_combo <- function(.weak, .n, .eta, .state) {
 
 
 if (.REDO_SIMS) {
-    # Takes ~21 sec
+    # Takes ~24 sec
     set.seed(199707675)
-    hist_d_sims <- crossing(.weak = c("conflicting", "ameliorative"),
+    hist_d_sims <- crossing(.strong = c("conflicting", "ameliorative"),
+                            .barely = c(TRUE, FALSE),
                             .eta = -1:1 * 0.6,
                             .n = 1:2,
                             .state = c("above", "below", "both")) %>%
         # Remove combos that are boring or that can't produce equilibrium pops:
         filter(!(.state == "below" & (.eta < 0 | .n == 1)),
                !(.state == "both" & .n == 1),
-               !(.state == "both" & .eta < 0 & .weak == "ameliorative")) %>%
-        pmap_dfr(one_history_d_combo)
+               # !(.state == "both" & .eta < 0 & .strong == "ameliorative"),
+               TRUE) %>%
+        split(1:nrow(.)) %>%
+        mclapply(one_history_d_combo, mc.cores = .N_THREADS) %>%
+        do.call(what = rbind)
     saveRDS(hist_d_sims, rds("hist_d_sims"))
 } else {
     hist_d_sims <- readRDS(rds("hist_d_sims"))
@@ -464,7 +489,7 @@ check_stable <- function(.x) {
     q <- nrow(V)
 
     D <- matrix(0, q, q)
-    diag(D) <- if (.x$weak[1] == "conflicting") c(-0.6, 4) else c(-2.5, 0.6)
+    diag(D) <- .d(.x$strong[1], .x$barely[1])
     C <- matrix(.x$eta[1], q, q)
     diag(C) <- 1
 
@@ -481,6 +506,23 @@ check_stable <- function(.x) {
 }
 
 
+# Returns a vector of which communities are duplicated
+dup_comm <- function(.V, .prec = 1e-4) {
+    n <- length(.V)
+    if (n == 1) return(FALSE)
+    .V <- map(.V, ~ round(.x, 20))
+    .V <- map(.V, ~ .x[,order(.x[1,], .x[2,])])
+    dups <- rep(FALSE, n)
+    for (i in 1:(n-1)) {
+        for (j in (i+1):n) {
+            .z <- sum((.V[[i]] - .V[[j]])^2)
+            if (.z < .prec) dups[j] <- TRUE
+        }
+    }
+    return(dups)
+}
+
+
 # options(pillar.sigfig = 7)
 # options(pillar.sigfig = NULL)
 
@@ -489,50 +531,77 @@ comms <- list()
 # Two species communities
 # --------------*
 comms$two <- hist_d_sims %>%
-    filter(time == 0 & eta != 0 & (spp == 1 | spp == n_spp)) %>%
-    filter(n_spp == 2) %>%
+    filter(time == 0 & eta != 0 & n_spp == 2 & spp %in% 1:2) %>%
+    # filter(eta == 0.6, strong == "ameliorative", barely == TRUE, state == "both")
     # remove unstable communities:
-    filter(!(weak == "ameliorative" & eta == 0.0 & state == "below") &
-               !(weak == "ameliorative" & eta == 0.6 & state == "below") &
-               !(weak == "conflicting" & eta == -0.6 & state == "above") &
-               !(weak == "conflicting" & eta == 0.0 & state == "above") &
-               !(weak == "conflicting" & eta == 0.6 & state == "above")) %>%
-    group_by(eta, weak, state, spp) %>%
+    filter(!(barely == FALSE & strong == "ameliorative" & eta == -0.6 &
+                     state == "above") &
+               !(barely == FALSE & strong == "ameliorative" & eta == 0.6 &
+                     state == "above") &
+               !(barely == FALSE & strong == "conflicting" & eta == 0.6 &
+                     state == "below") &
+               !(barely == TRUE & strong == "ameliorative" & eta == 0.6 &
+                     state == "above"),
+               !(barely == TRUE & strong == "conflicting" & eta == 0.6 &
+                     state == "below")) %>%
+    group_by(eta, strong, barely, state, spp) %>%
     # Because these are repeated by invader starting points:
     summarize(V1 = V1[1], V2 = V2[1], N = N[1], .groups = "drop") %>%
-    group_by(eta, weak) %>%
-    mutate(comm = rep(1:(n() / 2), each = 2)) %>%
-    group_by(eta, weak, comm) %>%
-    mutate(z = sum(V1 > 1e-9)) %>%
-    ungroup() %>%
-    arrange(eta, weak, z, spp) %>%
-    group_by(eta, weak) %>%
-    mutate(comm = rep(1:(n() / 2), each = 2)) %>%
-    ungroup() %>%
-    mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
-    select(eta, weak, comm, spp, everything(), -z, -state) %>%
-    # split(interaction(.$eta, .$weak, .$comm, drop = TRUE)) %>%
+    group_by(eta, strong, barely, state) %>%
+    summarize(V = list(rbind(V1, V2)), N = list(N), .groups = "drop") %>%
+    # split(1:nrow(.)) %>%
     # map_dfr(check_stable) %>%
-    # distinct(eta, weak, comm, lambda) %>%
-    # arrange(lambda) %>%
+    # arrange(desc(lambda))
+    mutate(z1 = map_dbl(V, ~ sum(.x[1,])),
+           z2 = map_dbl(V, ~ sum(.x[2,]))) %>%
+    arrange(eta, strong, barely, z1) %>%
+    group_by(eta, strong, barely) %>%
+    mutate(dup = dup_comm(V)) %>%
+    filter(!dup) %>%
+    mutate(comm = 1:n()) %>%
+    ungroup() %>%
+    mutate(V1 = map(V, ~ .x[1,]),
+           V2 = map(V, ~ .x[2,])) %>%
+    select(-V, -z1, -z2, -state, -dup) %>%
+    unnest(c(N, V1, V2)) %>%
+    mutate(comm = factor(comm, levels = sort(unique(comm))),
+           spp = factor(rep(1:2, n() / 2), levels = 1:2)) %>%
+    select(eta, strong, barely, comm, spp, everything()) %>%
     identity()
 
 
-
 #' These communities are not stable:
-#' lambda = 1.069842, weak = ameliorative, n = 2, eta = 0.0, state = below
+#'
+#' lambda = 1.069842, strong = conflicting, barely = FALSE, n = 2,
+#' eta = 0.0, state = below
 #'     - small perturbation and it goes to 1 species
-#' lambda = 1.067329, weak = ameliorative, n = 2, eta = 0.6, state = below
+#' lambda = 1.067329, strong = conflicting, barely = FALSE, n = 2,
+#' eta = 0.6, state = below
 #'     - small perturbation and it goes to 1 species
-#' lambda = 1.001227, weak = conflicting, n = 2, eta = -0.6, state = above
+#' lambda = 1.001227, strong = ameliorative, barely = FALSE, n = 2,
+#' eta = -0.6, state = above
 #'     - small perturbation and it goes to one species investing in both,
 #'       the other not investing
-#' lambda = 1.004468, weak = conflicting, n = 2, eta = 0.0, state = above
+#' lambda = 1.004468, strong = ameliorative, barely = FALSE, n = 2,
+#' eta = 0.0, state = above
 #'     - small perturbation and it goes to one investing in both,
 #'       another investing in neither
-#' lambda = 1.004679, weak = conflicting, n = 2, eta = 0.6, state = above
+#' lambda = 1.004679, strong = ameliorative, barely = FALSE, n = 2,
+#' eta = 0.6, state = above
 #'     - small perturbation and it goes to one species investing in axis 2,
 #'       the other not investing
+#' lambda = 1.002689, strong = ameliorative, barely = TRUE, n = 2,
+#' eta = 0.0, state = above
+#'     - small perturbation and it goes to one species investing 0.361 in V1
+#'       and 1.20 in V2, the other investing ~0 in both
+#' lambda = 1.003003, strong = ameliorative, barely = TRUE, n = 2,
+#' eta = 0.6, state = above
+#'     - small perturbation and it goes to one species investing 0 in V1
+#'       and 1.26 in V2, the other investing ~0 in both
+#' lambda = 1.030829, strong = conflicting, barely = TRUE, n = 2,
+#' eta = 0.6, state = below
+#'     - small perturbation and it goes to 1 species
+
 
 
 
@@ -542,7 +611,7 @@ comms$two <- hist_d_sims %>%
 Z <- quant_gen(q = 2, eta = -0.6,
                V0 = matrix(c(2, 2.1), 2, 3),
                N0 = rep(1, 3),
-               n = 3, d = .d("ameliorative"), n_reps = 1,
+               n = 3, d = .d("conflicting", FALSE), n_reps = 1,
                spp_gap_t = 0L,
                final_t = 50e3L,
                save_every = 0L,
@@ -558,57 +627,72 @@ Z <- quant_gen(q = 2, eta = -0.6,
     pivot()
 
 
+
 #' All these are stable, except for...
 #'
-#' lambda = 1.0044020, weak = conflicting, n = 3, eta = 0.6, all spp investing
-#' in V2, but at different magnitudes (2 at 0.5253733, 1 at 0.950722)
+#' lambda = 1.0044020, strong = ameliorative, barely = FALSE, n = 3, eta = 0.6,
+#' all spp investing in V2, but at different magnitudes
+#' (2 at 0.5253733, 1 at 0.950722)
 #'     - small perturbation of either of two species at 0.5253733, and
 #'       it goes to 2 species at V2 = 1.27, one species at V2 ≈ 0
 #'
+#' lambda = 1.001222, strong = ameliorative, barely = TRUE, n = 3, eta = 0.6,
+#' all spp investing in V2, but at different magnitudes
+#' (2 at 0.7520488, 1 at 0.8920994)
+#'     - small perturbation of either of two species at 0.7520488, and
+#'       it goes to 2 species at V2 = 1.26, one species at V2 ≈ 0
+#'
+#'
+
+
 
 comms$three <- hist_d_sims %>%
     filter(time == max(time) & eta != 0, n_spp > 1) %>%
-    group_by(eta, weak, state, start) %>%
+    group_by(eta, strong, barely, state, start) %>%
     mutate(spp3 = all(1:3 %in% spp)) %>%
     ungroup() %>%
     filter(spp3) %>%
     select(-n_spp, -spp3, -time) %>%
-    arrange(eta, weak, state, start, spp) %>%
-    group_by(eta, weak) %>%
-    mutate(grp = group_spp(V1, V2)) %>%
-    group_by(eta, weak, state, start) %>%
-    summarize(grp = grp %>% sort() %>% paste(collapse = "_"),
-              N = list(N), V = list(rbind(V1, V2)),
+    arrange(eta, strong, barely, state, start, spp) %>%
+    group_by(eta, strong, barely, state, start) %>%
+    summarize(N = list(N), V = list(rbind(V1, V2)),
               .groups = "drop") %>%
-    distinct(eta, weak, grp, .keep_all = TRUE) %>%
-    select(-state, -start, -grp) %>%
-    # Remove unstable community:
-    filter(!map_lgl(V, ~ all(.x[1,] == 0) &
-                        sum((.x[2,] - 0.5253733)^2 < 1e-10) == 2 &
-                        sum((.x[2,] - 0.9507220)^2 < 1e-10) == 1)) %>%
-    add_row(eta = -0.6, weak = "ameliorative",
+    add_row(eta = -0.6, strong = "conflicting", barely = FALSE,
             N = list(Z$N), V = list(t(Z[,c("V1", "V2")]))) %>%
-    # split(1:nrow(.)) %>%
-    # map_dfr(check_stable)
-    mutate(V1 = map(V, ~ .x[1,]),
-           V2 = map(V, ~ .x[2,])) %>%
-    group_by(eta, weak) %>%
+    mutate(z1 = map_dbl(V, ~ sum(.x[1,])),
+           z2 = map_dbl(V, ~ sum(.x[2,]))) %>%
+    arrange(eta, strong, barely, z1) %>%
+    group_by(eta, strong, barely) %>%
+    mutate(dup = dup_comm(V, .prec = 1e-3)) %>%
+    filter(!dup) %>%
     mutate(comm = 1:n()) %>%
     ungroup() %>%
+    select(-state, -start, -z1, -z2, -dup) %>%
+    # Remove unstable communities:
+    filter(barely |
+               !map_lgl(V, ~ all(.x[1,] == 0) &
+                            sum((.x[2,] - 0.5253733)^2 < 1e-10) == 2 &
+                            sum((.x[2,] - 0.9507220)^2 < 1e-10) == 1)) %>%
+    filter(!barely |
+               !map_lgl(V, ~ all(.x[1,] == 0) &
+                            sum((.x[2,] - 0.7520488)^2 < 1e-10) == 2 &
+                            sum((.x[2,] - 0.8920994)^2 < 1e-10) == 1)) %>%
+    arrange(eta, strong, barely, comm) %>%
+    # split(1:nrow(.)) %>%
+    # map_dfr(check_stable) %>%
+    # arrange(desc(lambda))
+    mutate(V1 = map(V, ~ .x[1,]),
+           V2 = map(V, ~ .x[2,])) %>%
     select(-V) %>%
     unnest(c(N, V1, V2)) %>%
     mutate(spp = factor(rep(1:3, n() / 3), levels = 1:3)) %>%
-    group_by(eta, weak, comm) %>%
-    mutate(z = sum(V1 > 1e-9)) %>%
-    ungroup() %>%
-    arrange(eta, weak, z, spp) %>%
-    group_by(eta, weak) %>%
-    mutate(comm = rep(1:(n() / 3), each = 3)) %>%
-    ungroup() %>%
     mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
-    select(eta, weak, comm, spp, everything(), -z)
+    select(eta, strong, barely, comm, spp, everything())
 
-rm(Z)
+# rm(Z)
+
+
+if (.REDO_SIMS) saveRDS(comms, rds("comms"))
 
 
 
@@ -623,11 +707,15 @@ rm(Z)
 comm_fit <- function(.dd) {
 
     # .dd <- comms$two %>%
-    #     split(interaction(.$eta, .$weak, .$comm, drop = TRUE)) %>%
+    #     split(interaction(.$eta, .$strong, .$barely, .$comm, drop = TRUE)) %>%
     #     .[[1]]
 
+    # rm(.eta, .strong, .barely, .N, .V, .q, .n, C, D, f, a0, r0, ..comm_fit,
+    #    ..comm_exist, X)
+
     .eta <- .dd$eta[1]
-    .weak <- .dd$weak[1]
+    .strong <- .dd$strong[1]
+    .barely <- .dd$barely[1]
     .N <- .dd$N
     .V <- rbind(.dd$V1, .dd$V2)
     .q <- nrow(.V)
@@ -636,7 +724,7 @@ comm_fit <- function(.dd) {
 
     C <- diag(.q)
     C[1,2] <- C[2,1] <- .eta
-    D <- diag(.d(.weak))
+    D <- diag(.d(.strong, .barely))
 
     f <- formals(quant_gen)[["f"]]
     a0 <- formals(quant_gen)[["a0"]]
@@ -667,8 +755,9 @@ comm_fit <- function(.dd) {
     X <- crossing(V1 = seq(0, 3, 0.1) %>% round(2), V2 = V1) %>%
         mutate(fit = map2_dbl(V1, V2, ..comm_fit)) %>%
         mutate(surv = fit >= 1, coexist_spp = .n,
-               eta = .eta, weak = .weak, comm = .dd$comm[1]) %>%
-        select(eta, weak, comm, everything())
+               eta = .eta, strong = .strong, barely = .barely,
+               comm = .dd$comm[1]) %>%
+        select(eta, strong, comm, everything())
 
     X$coexist_spp[X$surv] <- map2_int(X$V1[X$surv], X$V2[X$surv],
                                       ..comm_coexist)
@@ -679,16 +768,20 @@ comm_fit <- function(.dd) {
 
 
 
+
+
 if (.REDO_SIMS) {
     hist_d_fit <- list()
     # Takes ~2 min
     hist_d_fit$two <- comms$two %>%
-        split(interaction(.$eta, .$weak, .$comm, drop = TRUE)) %>%
-        map_dfr(comm_fit)
-    # Takes ~3.5 min
+        split(interaction(.$eta, .$strong, .$barely, .$comm, drop = TRUE)) %>%
+        mclapply(comm_fit, mc.cores = .N_THREADS) %>%
+        do.call(what = rbind)
+    # Takes ~2.5 min
     hist_d_fit$three <- comms$three %>%
-        split(interaction(.$eta, .$weak, .$comm, drop = TRUE)) %>%
-        map_dfr(comm_fit)
+        split(interaction(.$eta, .$strong, .$barely, .$comm, drop = TRUE)) %>%
+        mclapply(comm_fit, mc.cores = .N_THREADS) %>%
+        do.call(what = rbind)
     saveRDS(hist_d_fit, rds("hist_d_fit"))
 } else {
     hist_d_fit <- readRDS(rds("hist_d_fit"))
@@ -717,18 +810,19 @@ stopifnot(!any(is.na(hist_d_fit$three$outcome)))
 
 
 
-unq_comm_p_fun <- function(.n, .w, .e, ...) {
+unq_comm_p_fun <- function(.n, .s, .b, .e, ...) {
 
-    # .n <- 3
-    # .w <- "conflicting"
+    # .n <- 2
+    # .s <- "conflicting"
+    # .b <- FALSE
     # .e <- -0.6
-    # rm(.n, .w, .e, .xlab, .ylab, .title, .p, .pal)
+    # rm(.n, .s, .e, .xlab, .ylab, .title, .p, .pal)
 
     .nn <- c("one", "two", "three")[.n]
 
-    .xlab <- ifelse(.w == "conflicting", "Weak conflicting axis",
+    .xlab <- ifelse(.s == "ameliorative", "Weak conflicting axis",
                     expression(bold("Strong") ~ "conflicting axis"))
-    .ylab <- ifelse(.w == "ameliorative", "Weak ameliorative axis",
+    .ylab <- ifelse(.s == "conflicting", "Weak ameliorative axis",
                     expression(bold("Strong") ~ "ameliorative axis"))
     .title <- paste0(c("Sub-a", "A", "Super-a"),
                      "dditive")[which(-1:1 * 0.6 == .e)]
@@ -739,15 +833,15 @@ unq_comm_p_fun <- function(.n, .w, .e, ...) {
 
     .p <- comms %>%
         .[[.nn]] %>%
-        filter(weak == .w, eta == .e) %>%
+        filter(strong == .s, barely == .b, eta == .e) %>%
         group_by(comm) %>%
         mutate(grp = group_spp(V1, V2, .prec = 0.001)) %>%
         group_by(comm, grp) %>%
         summarize(V1 = mean(V1), V2 = mean(V2), N = n(), .groups = "drop") %>%
-        ggplot(aes(V1, V2, color = comm)) +
+        ggplot(aes(V1, V2)) +
         ggtitle(.title) +
         geom_raster(data = hist_d_fit[[.nn]] %>%
-                        filter(weak == .w, eta == .e),
+                        filter(strong == .s, barely == .b, eta == .e),
                     aes(fill = outcome), interpolate = FALSE) +
         geom_abline(slope = 1, intercept = 0, linetype = 2,
                     color  = "gray70") +
@@ -756,7 +850,8 @@ unq_comm_p_fun <- function(.n, .w, .e, ...) {
                   fontface = "bold", color = "black") +
         facet_wrap(~ comm, nrow = 1) +
         coord_equal(xlim = c(-0.2, 3), ylim = c(-0.2, 3)) +
-        scale_fill_manual(NULL, values = c("white", .pal), drop = FALSE) +
+        scale_fill_manual(NULL, values = c("white", .pal), drop = FALSE,
+                          aesthetics = c("color", "fill")) +
         xlab(.xlab) +
         ylab(.ylab) +
         theme(strip.text = element_blank(),
@@ -766,13 +861,14 @@ unq_comm_p_fun <- function(.n, .w, .e, ...) {
         theme(...) +
         NULL
 
-    tibble(n_spp = .n, weak = .w, eta = .e, plot = list(.p))
+    tibble(n_spp = .n, strong = .s, barely = .b, eta = .e, plot = list(.p))
 }
 
 
 comms_p_df <- crossing(.n = 2,
-                    .w = c("conflicting", "ameliorative"),
-                    .e = c(-0.6, 0.6)) %>%
+                       .b = FALSE,
+                       .s = c("conflicting", "ameliorative"),
+                       .e = c(-0.6, 0.6)) %>%
     pmap_dfr(unq_comm_p_fun)
 
 comms_p_legend <- get_legend(comms_p_df[["plot"]][[1]])
@@ -790,13 +886,13 @@ comms_p_list <- comms_p_df %>%
 comms_p <- plot_grid(plot_grid(plot_grid(plotlist = comms_p_list[["plot"]][1:2],
                                nrow = 1, rel_widths = c(1, 1.9),
                                axis = "bl", align = "vh"),
-                     textGrob(expression(bold("Strong") ~
-                                             "conflicting axis"),
-                              y = 1, vjust = 1),
+                     textGrob("Weak conflicting axis", y = 1, vjust = 1),
                      plot_grid(plotlist = comms_p_list[["plot"]][3:4],
                                nrow = 1, rel_widths = c(1, 1.9),
                                axis = "bl", align = "vh"),
-                     textGrob("Weak conflicting axis", y = 1, vjust = 1),
+                     textGrob(expression(bold("Strong") ~
+                                             "conflicting axis"),
+                              y = 1, vjust = 1),
                      ncol = 1, rel_heights = c(1, 0.08, 1, 0.08)),
                      comms_p_legend,
                      nrow = 1, rel_widths = c(1, 0.3))
@@ -807,7 +903,8 @@ if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 5, .prefix = "3-")
 
 
 comms_p_df3 <- crossing(.n = 3,
-                       .w = c("conflicting", "ameliorative"),
+                        .b = FALSE,
+                       .s = c("conflicting", "ameliorative"),
                        .e = c(-0.6, 0.6)) %>%
     pmap_dfr(unq_comm_p_fun)
 
@@ -827,6 +924,11 @@ if (.RESAVE_PLOTS) save_plot(comms_p3, 7, 9, .prefix = "S1-")
 
 
 
+# LEFT OFF ----
+# Add plots (probably supplementary) for when barely == TRUE
+
+
+
 
 
 
@@ -841,17 +943,20 @@ if (.RESAVE_PLOTS) save_plot(comms_p3, 7, 9, .prefix = "S1-")
 
 
 z <- comms$three %>%
-    filter(weak == "conflicting", eta > 0) %>%
+    filter(strong == "ameliorative", eta > 0) %>%
     group_by(comm) %>%
     mutate(z = sum(V2 > 1e-9)) %>%
     ungroup() %>%
     filter(z == 2) %>%
     select(-z)
 
+# z[3,"V2"] <- z[3,"V1"]
+# z[3,"V1"] <- 0
+
 zz <- quant_gen(q = 2, eta = z$eta[1],
-          V0 = cbind(rbind(z$V1, z$V2), c(0.00001, 0)),
+          V0 = cbind(rbind(z$V1, z$V2), c(0, 0.1)),
           N0 = c(z$N, 1),
-          n = nrow(z)+1, d = .d(z$weak[1]), n_reps = 1,
+          n = nrow(z)+1, d = .d(z$strong[1]), n_reps = 1,
           spp_gap_t = 0L,
           final_t = 50e3L,
           save_every = 10L,
