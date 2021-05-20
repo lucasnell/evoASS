@@ -869,32 +869,26 @@ comms_p_df <- crossing(.n = 2,
                        .b = FALSE,
                        .s = c("conflicting", "ameliorative"),
                        .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun)
-
-comms_p_legend <- get_legend(comms_p_df[["plot"]][[1]])
-
-
-comms_p_list <- comms_p_df %>%
-    mutate(plot = ifelse(eta > 0,
+    pmap_dfr(unq_comm_p_fun,
+             legend.position = "none",
+             axis.title.x = element_blank()) %>%
+    mutate(plot = ifelse(eta <= 0, plot,
                          map(plot, ~ .x + theme(axis.title.y = element_blank(),
-                                                axis.text.y = element_blank())),
-                         plot),
-           plot = map(plot, ~ .x + theme(legend.position = "none",
-                                         axis.title.x = element_blank())))
+                                                axis.text.y = element_blank()))))
 
-
-comms_p <- plot_grid(plot_grid(plot_grid(plotlist = comms_p_list[["plot"]][1:2],
+comms_p <- plot_grid(plot_grid(plot_grid(plotlist = comms_p_df[["plot"]][1:2],
                                nrow = 1, rel_widths = c(1, 1.9),
                                axis = "bl", align = "vh"),
                      textGrob("Weak conflicting axis", y = 1, vjust = 1),
-                     plot_grid(plotlist = comms_p_list[["plot"]][3:4],
+                     plot_grid(plotlist = comms_p_df[["plot"]][3:4],
                                nrow = 1, rel_widths = c(1, 1.9),
                                axis = "bl", align = "vh"),
                      textGrob(expression(bold("Strong") ~
                                              "conflicting axis"),
                               y = 1, vjust = 1),
                      ncol = 1, rel_heights = c(1, 0.08, 1, 0.08)),
-                     comms_p_legend,
+                     get_legend(comms_p_df[["plot"]][[1]] +
+                                    theme(legend.position = "right")),
                      nrow = 1, rel_widths = c(1, 0.3))
 
 
@@ -906,17 +900,14 @@ comms_p_df3 <- crossing(.n = 3,
                         .b = FALSE,
                        .s = c("conflicting", "ameliorative"),
                        .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun)
+    pmap_dfr(unq_comm_p_fun,
+             legend.position = "none")
 
-comms_p_legend3 <- get_legend(comms_p_df3[["plot"]][[1]])
-
-
-comms_p_list3 <- comms_p_df3 %>%
-    mutate(plot = map(plot, ~ .x + theme(legend.position = "none")))
-
-comms_p3 <- plot_grid(plot_grid(plotlist = comms_p_list3[["plot"]],
+comms_p3 <- plot_grid(plot_grid(plotlist = comms_p_df3[["plot"]],
                                 align = "hv", axis = "tl", ncol = 1, hjust = 0),
-                      comms_p_legend3, nrow = 1, rel_widths = c(1, 0.3))
+                      get_legend(comms_p_df3[["plot"]][[1]] +
+                                     theme(legend.position = "right")),
+                      nrow = 1, rel_widths = c(1, 0.3))
 
 
 
@@ -924,9 +915,61 @@ if (.RESAVE_PLOTS) save_plot(comms_p3, 7, 9, .prefix = "S1-")
 
 
 
-# LEFT OFF ----
-# Add plots (probably supplementary) for when barely == TRUE
 
+# ----------------*
+# Similar plots for when barely == TRUE (i.e., when strong axis isn't so strong)
+# ----------------*
+
+
+
+
+b_comms_p_df <- crossing(.n = 2,
+                       .b = TRUE,
+                       .s = c("conflicting", "ameliorative"),
+                       .e = c(-0.6, 0.6)) %>%
+    pmap_dfr(unq_comm_p_fun,
+             legend.position = "none",
+             axis.title.x = element_blank()) %>%
+    mutate(plot = ifelse(eta <= 0, plot,
+                         map(plot, ~ .x + theme(axis.title.y = element_blank(),
+                                                axis.text.y = element_blank()))))
+
+b_comms_p <- plot_grid(plot_grid(plot_grid(plotlist =
+                                               b_comms_p_df[["plot"]][1:2],
+                                         nrow = 1, rel_widths = c(1, 1.9),
+                                         axis = "bl", align = "vh"),
+                               textGrob("Weak conflicting axis", y = 1, vjust = 1),
+                               plot_grid(plotlist = b_comms_p_df[["plot"]][3:4],
+                                         nrow = 1, rel_widths = c(1, 1.9),
+                                         axis = "bl", align = "vh"),
+                               textGrob(expression(bold("Strong") ~
+                                                       "conflicting axis"),
+                                        y = 1, vjust = 1),
+                               ncol = 1, rel_heights = c(1, 0.08, 1, 0.08)),
+                       get_legend(b_comms_p_df[["plot"]][[1]] +
+                                      theme(legend.position = "right")),
+                     nrow = 1, rel_widths = c(1, 0.3))
+
+
+
+if (.RESAVE_PLOTS) save_plot(b_comms_p, 6.5, 5, .prefix = "S2-")
+
+
+b_comms_p_df3 <- crossing(.n = 3,
+                        .b = TRUE,
+                        .s = c("conflicting", "ameliorative"),
+                        .e = c(-0.6, 0.6)) %>%
+    pmap_dfr(unq_comm_p_fun,
+             legend.position = "none")
+
+b_comms_p3 <- plot_grid(plot_grid(plotlist = b_comms_p_df3[["plot"]],
+                                align = "hv", axis = "tl", ncol = 1, hjust = 0),
+                      get_legend(b_comms_p_df3[["plot"]][[1]] +
+                                     theme(legend.position = "right")),
+                      nrow = 1, rel_widths = c(1, 0.3))
+
+
+if (.RESAVE_PLOTS) save_plot(b_comms_p3, 7, 9, .prefix = "S3-")
 
 
 
