@@ -985,41 +985,182 @@ if (.RESAVE_PLOTS) save_plot(b_comms_p3, 7, 9, .prefix = "S3-")
 # =============================================================================*
 
 
-z <- comms$three %>%
-    filter(strong == "ameliorative", eta > 0) %>%
-    group_by(comm) %>%
-    mutate(z = sum(V2 > 1e-9)) %>%
-    ungroup() %>%
-    filter(z == 2) %>%
-    select(-z)
-
-# z[3,"V2"] <- z[3,"V1"]
-# z[3,"V1"] <- 0
-
-zz <- quant_gen(q = 2, eta = z$eta[1],
-          V0 = cbind(rbind(z$V1, z$V2), c(0, 0.1)),
-          N0 = c(z$N, 1),
-          n = nrow(z)+1, d = .d(z$strong[1]), n_reps = 1,
-          spp_gap_t = 0L,
-          final_t = 50e3L,
-          save_every = 10L,
-          sigma_V0 = 0,
-          show_progress = FALSE) %>%
-    .[["nv"]] %>%
-    pivot()
-
-zz %>% filter(time == max(time))
+#' Also maybe show plot here about how it's not always most conducive to
+#' coexistence when ameliorative axis is really strong.
+#' (Because when it's really strong, all species investing in it isn't
+#'  a stable community.)
 
 
 
+stab_sims <- function(n_lower, d1, d2) {
+
+    # n_lower = 4; d1 = -0.1; d2 = 0.5
+    # rm(n_lower, d1, d2, .n, .V0_0, sim0, L, X)
+
+    .n <- 5
+
+    stopifnot(n_lower <= .n && n_lower >= 0)
+
+    .V0_0 <- c(rep(list(c(1,0)), n_lower), rep(list(c(0,1)), .n - n_lower))
+    .V0_0 <- do.call(cbind, .V0_0)
+
+    sim0 <- quant_gen(q = 2, eta = 0.6, V0 = .V0_0,
+                      n = .n, d = c(d1, d2), n_reps = 1,
+                      spp_gap_t = 0L,
+                      final_t = 100e3L,
+                      save_every = 0L,
+                      sigma_V0 = 0,
+                      show_progress = FALSE)
+    sim0$call$d <- c(d1, d2)
+    sim0$call$n <- .n
+
+    # stable?
+    L <- sim0 %>%
+        jacobians() %>%
+        .[[1]] %>%
+        eigen(only.values = TRUE) %>%
+        .[["values"]] %>%
+        Re() %>%
+        max()
+    if (L >= 1) return(rep(NA_real_, 3))
+
+    X <- sim0 %>%
+        .[["nv"]] %>%
+        pivot()
+
+    O <- map_dbl(1:nrow(X),
+                 ~ X$N[.x] * exp(- d1 * X$V1[.x]^2 - d2 * X$V2[.x]^2)) %>%
+        sum()
+
+
+    V <- X %>%
+        select(V1, V2) %>%
+        map_dbl(max)
+
+    return(c(V, Omega = O))
+}
+
+# Takes ~ 6 sec
+stab_sim_df <- crossing(n_lower = 0:5, d1 = - c(0, 0.1, 0.5, 1),
+                        d2 = abs(d1)) %>%
+    mutate(Z = mcmapply(stab_sims, n_lower, d1, d2,
+                         SIMPLIFY = FALSE, mc.cores = .N_THREADS)) %>%
+    mutate(V1 = map_dbl(Z, ~ .x[1]),
+           V2 = map_dbl(Z, ~ .x[2]),
+           O = map_dbl(Z, ~ .x[3])) %>%
+    select(-Z)
+
+stab_sim_df %>% filter(is.na(V1))
+stab_sim_df %>% filter(is.na(V2))
+stab_sim_df %>% filter(is.na(O))
+
+
+#'
+#' The plot below shows that the only thing `d2` does  is make the
+#' `n_lower ~ V1` relationship steeper.
+#' Specifically, it doesn't affect V1 when `n_lower == 5`, but it reduces
+#' V1 when `n_lower < 5`.
+#' The effect of `d2` is reduced for lower (more negative) values of `d1`.
+#'
+stab_sim_df %>%
+    filter(n_lower > 0) %>%
+    mutate(across(starts_with("d"), ~ factor(.x,
+                                             levels = sign(.x[.x != 0][1]) *
+                                                 sort(unique(abs(.x)))))) %>%
+    ggplot(aes(n_lower, V1, color = d2)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ d1, labeller = label_both)
+
+
+
+stab_sim_df %>%
+    filter(n_lower < 5) %>%
+    mutate(across(starts_with("d"), ~ factor(.x,
+                                             levels = sign(.x[.x != 0][1]) *
+                                                 sort(unique(abs(.x)))))) %>%
+    ggplot(aes(n_lower, V2, color = d2)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ d1, labeller = label_both)
+
+
+
+stab_sim_df %>%
+    filter(d1 != 0, d2 != 0) %>%
+    mutate(across(starts_with("d"), ~ factor(.x,
+                                             levels = sign(.x[.x != 0][1]) *
+                                                 sort(unique(abs(.x)))))) %>%
+    ggplot(aes(n_lower, O, color = d2)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ d1, labeller = label_both)
+
+
+#'
+#' ... so the plot below just uses `d2 == 0.5`.
+#' I'm also not using the case when `d1 == 0` because axis 1 is not actually
+#' a conflicting axis in that case.
+#' I simulated it just to understand the dynamics.
+#'
+
+stab_p <- stab_sim_df %>%
+    filter(d2 == 0.5, d1 != 0) %>%
+    mutate(d1 = factor(d1)) %>%
+    ggplot(aes(n_lower, V1, color = d1)) +
+    geom_line() +
+    geom_point() +
+    geom_text(data = stab_sim_df %>%
+                  filter(d2 == 0.5, d1 != 0, n_lower == 5) %>%
+                  mutate(lab = factor(d1, levels = sort(unique(d1)),
+                                      labels = c("strong", "moderate", "weak")),
+                         d1 = factor(d1)),
+              aes(label = lab),
+              size = 10 / 2.83465, hjust = 1, vjust = 1, nudge_y = -0.05) +
+    scale_color_manual(values = c("black", "gray40", "gray70")) +
+    xlab("Species investing in conflicting axis") +
+    ylab("Conflicting investment per species") +
+    theme(legend.position = "none")
+
+
+
+stab_sim_df %>%
+    filter(d2 == 0.5, d1 != 0) %>%
+    mutate(d1 = factor(d1)) %>%
+    ggplot(aes(n_lower, O, color = d1)) +
+    geom_line() +
+    geom_point() +
+    scale_color_manual(values = c("black", "gray40", "gray70")) +
+    xlab("Species investing in conflicting axis") +
+    ylab("Conflicting investment per species") +
+    theme(legend.position = "none")
+
+
+
+stab_sim_df %>%
+    filter(d1 != 0, d2 != 0) %>%
+    mutate(across(starts_with("d"), ~ factor(.x,
+                                             levels = sign(.x[.x != 0][1]) *
+                                                 sort(unique(abs(.x)))))) %>%
+    ggplot(aes(n_lower, O, color = d2)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ d1, labeller = label_both)
+
+
+
+if (.RESAVE_PLOTS) save_plot(stab_p, 5, 3, .prefix = "4-")
 
 
 
 
-zz %>%
-    filter(time < 2000) %>%
-    ggplot(aes(time, N, color = spp)) +
-    geom_line()
+comms$two %>%
+    group_by(eta, strong, barely, comm) %>%
+    summarize(O = pmap_dbl(list(N, V1, V2, barely, strong),
+                           function(.n, .v1, .v2, .b, .s) {
+                               d <- .d(.s, .b)
+                               .n * exp(- d[1] * .v1^2 - d[2] * .v2^2)
+                           }))
 
 
 
