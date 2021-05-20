@@ -992,12 +992,10 @@ if (.RESAVE_PLOTS) save_plot(b_comms_p3, 7, 9, .prefix = "S3-")
 
 
 
-stab_sims <- function(n_lower, d1, d2) {
+stab_sims <- function(n_lower, d1, d2, .n = 10) {
 
     # n_lower = 4; d1 = -0.1; d2 = 0.5
     # rm(n_lower, d1, d2, .n, .V0_0, sim0, L, X)
-
-    .n <- 5
 
     stopifnot(n_lower <= .n && n_lower >= 0)
 
@@ -1040,8 +1038,9 @@ stab_sims <- function(n_lower, d1, d2) {
     return(c(V, Omega = O))
 }
 
-# Takes ~ 6 sec
-stab_sim_df <- crossing(n_lower = 0:5, d1 = - c(0, 0.1, 0.5, 1),
+# Takes ~ 20 sec
+stab_sim_df <- crossing(n_lower = 0:formals(stab_sims)$.n,
+                        d1 = - c(0, 0.1, 0.5, 1),
                         d2 = abs(d1)) %>%
     mutate(Z = mcmapply(stab_sims, n_lower, d1, d2,
                          SIMPLIFY = FALSE, mc.cores = .N_THREADS)) %>%
@@ -1050,6 +1049,7 @@ stab_sim_df <- crossing(n_lower = 0:5, d1 = - c(0, 0.1, 0.5, 1),
            O = map_dbl(Z, ~ .x[3])) %>%
     select(-Z)
 
+# Should all be zero:
 stab_sim_df %>% filter(is.na(V1))
 stab_sim_df %>% filter(is.na(V2))
 stab_sim_df %>% filter(is.na(O))
@@ -1068,33 +1068,40 @@ stab_sim_df %>%
                                              levels = sign(.x[.x != 0][1]) *
                                                  sort(unique(abs(.x)))))) %>%
     ggplot(aes(n_lower, V1, color = d2)) +
+    scale_y_continuous("Conflicting investment per species") +
+    facet_wrap(~ d1, labeller = label_both) +
     geom_line() +
-    geom_point() +
-    facet_wrap(~ d1, labeller = label_both)
-
-
+    geom_point()
 
 stab_sim_df %>%
-    filter(n_lower < 5) %>%
+    filter(n_lower < max(n_lower)) %>%
     mutate(across(starts_with("d"), ~ factor(.x,
                                              levels = sign(.x[.x != 0][1]) *
                                                  sort(unique(abs(.x)))))) %>%
     ggplot(aes(n_lower, V2, color = d2)) +
+    scale_y_continuous("Ameliorative investment per species") +
+    facet_wrap(~ d1, labeller = label_both) +
     geom_line() +
-    geom_point() +
-    facet_wrap(~ d1, labeller = label_both)
-
+    geom_point()
 
 
 stab_sim_df %>%
-    filter(d1 != 0, d2 != 0) %>%
     mutate(across(starts_with("d"), ~ factor(.x,
                                              levels = sign(.x[.x != 0][1]) *
                                                  sort(unique(abs(.x)))))) %>%
+    mutate(O = O * formals(quant_gen)$a0) %>%
     ggplot(aes(n_lower, O, color = d2)) +
     geom_line() +
     geom_point() +
-    facet_wrap(~ d1, labeller = label_both)
+    ylab(expression(italic(alpha)[0] ~ sum(italic(N[j]) ~ textstyle(e)^{
+        -bolditalic(v)[italic(j)]^T ~ bolditalic(D) ~ bolditalic(v)[italic(j)]},
+        italic(j)))) +
+    facet_wrap(~ d1, labeller = label_both) +
+    theme(axis.title.y = element_text(angle = 0, vjust = 0.5,
+                                      family = "Times"))
+
+
+
 
 
 #'
@@ -1105,63 +1112,99 @@ stab_sim_df %>%
 #'
 
 stab_p <- stab_sim_df %>%
-    filter(d2 == 0.5, d1 != 0) %>%
+    filter(d2 == 0.5, d1 != 0, n_lower > 0) %>%
     mutate(d1 = factor(d1)) %>%
     ggplot(aes(n_lower, V1, color = d1)) +
     geom_line() +
     geom_point() +
     geom_text(data = stab_sim_df %>%
-                  filter(d2 == 0.5, d1 != 0, n_lower == 5) %>%
+                  filter(d2 == 0.5, d1 != 0, n_lower == max(n_lower)) %>%
                   mutate(lab = factor(d1, levels = sort(unique(d1)),
                                       labels = c("strong", "moderate", "weak")),
                          d1 = factor(d1)),
               aes(label = lab),
               size = 10 / 2.83465, hjust = 1, vjust = 1, nudge_y = -0.05) +
     scale_color_manual(values = c("black", "gray40", "gray70")) +
-    xlab("Species investing in conflicting axis") +
+    scale_x_continuous("Species investing in conflicting axis",
+                       breaks = 0:max(stab_sim_df$n_lower)) +
     ylab("Conflicting investment per species") +
     theme(legend.position = "none")
-
-
-
-stab_sim_df %>%
-    filter(d2 == 0.5, d1 != 0) %>%
-    mutate(d1 = factor(d1)) %>%
-    ggplot(aes(n_lower, O, color = d1)) +
-    geom_line() +
-    geom_point() +
-    scale_color_manual(values = c("black", "gray40", "gray70")) +
-    xlab("Species investing in conflicting axis") +
-    ylab("Conflicting investment per species") +
-    theme(legend.position = "none")
-
-
-
-stab_sim_df %>%
-    filter(d1 != 0, d2 != 0) %>%
-    mutate(across(starts_with("d"), ~ factor(.x,
-                                             levels = sign(.x[.x != 0][1]) *
-                                                 sort(unique(abs(.x)))))) %>%
-    ggplot(aes(n_lower, O, color = d2)) +
-    geom_line() +
-    geom_point() +
-    facet_wrap(~ d1, labeller = label_both)
-
 
 
 if (.RESAVE_PLOTS) save_plot(stab_p, 5, 3, .prefix = "4-")
 
 
 
+stab_supp_shared <-  list(
+    geom_line(), geom_point(),
+    scale_x_continuous("Species investing in conflicting axis",
+                       breaks = 0:max(stab_sim_df$n_lower)),
+    scale_color_manual("Conflicting axis:",
+                       values = c("black", "gray40", "gray70")),
+    theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
+          legend.position = "top"))
 
-comms$two %>%
-    group_by(eta, strong, barely, comm) %>%
-    summarize(O = pmap_dbl(list(N, V1, V2, barely, strong),
-                           function(.n, .v1, .v2, .b, .s) {
-                               d <- .d(.s, .b)
-                               .n * exp(- d[1] * .v1^2 - d[2] * .v2^2)
-                           }))
 
+stab_supp_p_list <- list()
+
+stab_supp_p_list[[1]] <- stab_sim_df %>%
+    filter(d1 != 0, d2 == 0.5, n_lower > 0) %>%
+    mutate(d1 = factor(d1, levels = sort(unique(d1)),
+                        labels = c("strong", "moderate", "weak"))) %>%
+    ggplot(aes(n_lower, V1, color = d1)) +
+    scale_y_continuous("Conflicting\ninvestment\nper species",
+                       limits = c(1.1, 2)) +
+    stab_supp_shared
+
+stab_supp_p_list[[2]] <- stab_sim_df %>%
+    filter(d1 != 0, d2 == 0.5, n_lower < max(n_lower)) %>%
+    mutate(d1 = factor(d1, levels = sort(unique(d1)),
+                       labels = c("strong", "moderate", "weak"))) %>%
+    ggplot(aes(n_lower, V2, color = d1)) +
+    scale_y_continuous("Ameliorative\ninvestment\nper species",
+                       limits = c(1.1, 2)) +
+    stab_supp_shared
+
+stab_supp_p_list[[3]] <- stab_sim_df %>%
+    filter(d1 != 0, d2 == 0.5) %>%
+    mutate(d1 = factor(d1, levels = sort(unique(d1)),
+                       labels = c("strong", "moderate", "weak"))) %>%
+    mutate(O = O * formals(quant_gen)$a0) %>%
+    ggplot(aes(n_lower, O, color = d1)) +
+    scale_y_continuous(expression(italic(alpha)[0] ~
+                                      sum(italic(N[j]) ~ textstyle(e)^{
+                                          -bolditalic(v)[italic(j)]^T ~
+                                              bolditalic(D) ~
+                                              bolditalic(v)[italic(j)]},
+                                          italic(j))),
+                       label = comma) +
+    stab_supp_shared
+
+for (i in c(2,3)) {
+    stab_supp_p_list[[i]] <- stab_supp_p_list[[i]] +
+        theme(legend.position = "none")
+}
+for (i in c(1,2)) {
+    stab_supp_p_list[[i]] <- stab_supp_p_list[[i]] +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_blank())
+}
+
+
+stab_supp_p <- ggarrange(plots = stab_supp_p_list, ncol = 1, draw = FALSE)
+
+if (.RESAVE_PLOTS) save_plot(stab_supp_p, 5, 6, .prefix = "S4-")
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# LEFT OFF ----
+# Fig 5: Stochasticity ----
+
+# =============================================================================*
+# =============================================================================*
 
 
 
