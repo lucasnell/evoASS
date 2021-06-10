@@ -28,6 +28,9 @@ cc <- function(.x) {
     return(.x)
 }
 
+# Empty ggplot object, used in `plot_grid`
+BLANK <- ggplot() + geom_blank() + theme_nothing()
+
 # whether to re-do simulations (use rds files otherwise)
 .REDO_SIMS <- FALSE
 # whether to re-save plots
@@ -554,7 +557,7 @@ comms$two <- hist_d_sims %>%
     # arrange(desc(lambda))
     mutate(z1 = map_dbl(V, ~ sum(.x[1,])),
            z2 = map_dbl(V, ~ sum(.x[2,]))) %>%
-    arrange(eta, strong, barely, z1) %>%
+    arrange(eta, strong, barely, (z1 - z2)^2) %>%
     group_by(eta, strong, barely) %>%
     mutate(dup = dup_comm(V)) %>%
     filter(!dup) %>%
@@ -788,188 +791,259 @@ if (.REDO_SIMS) {
 }
 
 
+add_outcomes_col <- function(.df) {
+
+    max_spp <- .df$coexist_spp %>% max()
+    stopifnot(max_spp >= 3 && max_spp %% 1 == 0)
+
+    lvls <- c("invader excluded",
+              paste((max_spp-1):1, "residents excluded"),
+              paste(max_spp, "species coexist"))
+    .df_env <- as.environment(.df)
+    parent.env(.df_env) <- environment()
+    forms <- c(list(!surv ~ lvls[1]),
+               map(2:length(lvls),
+                   ~ sprintf("coexist_spp == %i ~ '%s'", .x-1, lvls[.x]) %>%
+                       as.formula(env = .df_env)))
+    environment(forms[[1]]) <- .df_env
+
+    .df <- .df %>%
+        mutate(outcome = do.call(case_when, forms))
+
+    stopifnot(!any(is.na(.df$outcome)))
+
+    .df <- .df %>%
+        mutate(outcome = factor(outcome, levels = lvls))
+
+    return(.df)
+
+}
+
+add_axes_col <- function(.df) {
+
+    .df <- .df %>%
+        mutate(axes = case_when(strong == "ameliorative" & !barely ~ "C << A",
+                                strong == "ameliorative" & barely ~ "C < A",
+                                strong == "conflicting" & !barely ~ "C >> A",
+                                strong == "conflicting" & barely ~ "C > A"))
+
+    stopifnot(!any(is.na(.df$axes)))
+
+    .df <- .df %>%
+        mutate(axes = factor(axes, levels = c("C >> A", "C > A",
+                                              "C < A", "C << A")))
+    return(.df)
+}
+
+
+
 hist_d_fit$two <- hist_d_fit$two %>%
-    mutate(outcome = case_when(!surv ~ "invader excluded",
-                               coexist_spp == 3 ~ "3 species coexist",
-                               coexist_spp == 2 ~ "1 resident excluded",
-                               coexist_spp == 1 ~ "2 residents excluded") %>%
-               factor(levels = c("invader excluded", "2 residents excluded",
-                                 "1 resident excluded", "3 species coexist")))
+    add_outcomes_col() %>%
+    add_axes_col()
 hist_d_fit$three <- hist_d_fit$three %>%
-    mutate(outcome = case_when(!surv ~ "invader excluded",
-                               coexist_spp == 4 ~ "4 species coexist",
-                               coexist_spp == 3 ~ "1 resident excluded",
-                               coexist_spp == 2 ~ "2 residents excluded",
-                               coexist_spp == 1 ~ "3 residents excluded") %>%
-    factor(levels = c("invader excluded", "3 residents excluded",
-                      "2 residents excluded", "1 resident excluded",
-                      "4 species coexist")))
-
-stopifnot(!any(is.na(hist_d_fit$two$outcome)))
-stopifnot(!any(is.na(hist_d_fit$three$outcome)))
+    add_outcomes_col() %>%
+    add_axes_col()
 
 
 
-unq_comm_p_fun <- function(.n, .s, .b, .e, ...) {
+
+
+unq_comm_p_fun <- function(.n, .e, .c, ...) {
 
     # .n <- 2
-    # .s <- "conflicting"
-    # .b <- FALSE
+    # .c <- 1
     # .e <- -0.6
-    # rm(.n, .s, .e, .xlab, .ylab, .title, .p, .pal)
+    # rm(.n, .c, .e, .xlab, .ylab, .title, .p, .pal)
 
     .nn <- c("one", "two", "three")[.n]
 
-    .xlab <- ifelse(.s == "ameliorative", "Weak conflicting axis",
-                    expression(bold("Strong") ~ "conflicting axis"))
-    .ylab <- ifelse(.s == "conflicting", "Weak ameliorative axis",
-                    expression(bold("Strong") ~ "ameliorative axis"))
-    .title <- paste0(c("Sub-a", "A", "Super-a"),
-                     "dditive")[which(-1:1 * 0.6 == .e)]
+    .title <- case_when(.e > 0 ~ "Super-additive",
+                        .e < 0 ~ "Sub-additive")
+    .pal <- magma(n = hist_d_fit[[.nn]] %>% .[["outcome"]] %>%
+                      levels() %>% length() %>% `-`(1),
+                  begin = 0.2, end = 0.8) %>%
+        rev()
     .pal <- magma(n = hist_d_fit[[.nn]] %>% .[["outcome"]] %>%
                         levels() %>% length() %>% `-`(1),
                     begin = 0.2, end = 0.8) %>%
         rev()
 
-    .p <- comms %>%
+    comms %>%
         .[[.nn]] %>%
-        filter(strong == .s, barely == .b, eta == .e) %>%
-        group_by(comm) %>%
+        filter(eta == .e, comm == .c) %>%
+        add_axes_col() %>%
+        select(axes, spp, N, starts_with("V")) %>%
+        group_by(axes) %>%
         mutate(grp = group_spp(V1, V2, .prec = 0.001)) %>%
-        group_by(comm, grp) %>%
+        group_by(axes, grp) %>%
         summarize(V1 = mean(V1), V2 = mean(V2), N = n(), .groups = "drop") %>%
         ggplot(aes(V1, V2)) +
         ggtitle(.title) +
         geom_raster(data = hist_d_fit[[.nn]] %>%
-                        filter(strong == .s, barely == .b, eta == .e),
+                        filter(eta == .e, comm == .c) %>%
+                        select(axes, V1, V2, fit, outcome),
                     aes(fill = outcome), interpolate = FALSE) +
         geom_abline(slope = 1, intercept = 0, linetype = 2,
                     color  = "gray70") +
         geom_point(size = 7, shape = 21, color = "black", fill = "white") +
         geom_text(aes(label = N), size = 12 / 2.83465,
                   fontface = "bold", color = "black") +
-        facet_wrap(~ comm, nrow = 1) +
+        facet_grid(axes ~ .) +
         coord_equal(xlim = c(-0.2, 3), ylim = c(-0.2, 3)) +
         scale_fill_manual(NULL, values = c("white", .pal), drop = FALSE,
                           aesthetics = c("color", "fill")) +
-        xlab(.xlab) +
-        ylab(.ylab) +
-        theme(strip.text = element_blank(),
-              plot.title = element_text(hjust = 0.5, size = 12,
+        xlab("Conflicting axis") +
+        ylab("Ameliorative axis") +
+        theme(plot.title = element_text(hjust = 0.5, size = 12,
                                         margin = margin(0,0,0,b=3)),
-              legend.key = element_rect(colour = "black")) +
+              legend.key = element_rect(colour = "black"),
+              legend.text = element_text(size = 8),
+              legend.key.size = unit(0.75, "lines"),
+              panel.spacing.y = unit(1, "lines"),
+              plot.margin = margin(0,0,0,0)) +
         theme(...) +
         NULL
 
-    tibble(n_spp = .n, strong = .s, barely = .b, eta = .e, plot = list(.p))
 }
 
 
-comms_p_df <- crossing(.n = 2,
-                       .b = FALSE,
-                       .s = c("conflicting", "ameliorative"),
-                       .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun,
-             legend.position = "none",
-             axis.title.x = element_blank()) %>%
-    mutate(plot = ifelse(eta <= 0, plot,
-                         map(plot, ~ .x + theme(axis.title.y = element_blank(),
-                                                axis.text.y = element_blank()))))
-
-comms_p <- plot_grid(plot_grid(plot_grid(plotlist = comms_p_df[["plot"]][1:2],
-                               nrow = 1, rel_widths = c(1, 1.9),
-                               axis = "bl", align = "vh"),
-                     textGrob("Weak conflicting axis", y = 1, vjust = 1),
-                     plot_grid(plotlist = comms_p_df[["plot"]][3:4],
-                               nrow = 1, rel_widths = c(1, 1.9),
-                               axis = "bl", align = "vh"),
-                     textGrob(expression(bold("Strong") ~
-                                             "conflicting axis"),
-                              y = 1, vjust = 1),
-                     ncol = 1, rel_heights = c(1, 0.08, 1, 0.08)),
-                     get_legend(comms_p_df[["plot"]][[1]] +
-                                    theme(legend.position = "right")),
-                     nrow = 1, rel_widths = c(1, 0.3))
+comms_p_list <- crossing(.n = 2,
+                         .e = c(-0.6, 0.6),
+                         .c = 1:2) %>%
+    filter(!(.c == 2 & .e < 0)) %>%
+    pmap(unq_comm_p_fun,
+         legend.position = "none",
+         plot.title = element_blank(),
+         strip.text = element_blank(),
+         axis.title = element_blank())
 
 
-if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 5, .prefix = "3-")
+# For gradient from strong conflicting to strong ameliorative
+upper_labs <- map(c(TRUE, FALSE), function(big_conf) {
+    dd <- tibble(x = c(0, 1), y = c(1, 0),
+           lab = c("conflicting", "ameliorative"),
+           face = c("bold", "plain") %>% factor(levels = c("plain", "bold")))
+    if (!big_conf) dd$face <- rev(dd$face)
+    dd %>%
+        ggplot() +
+        geom_text(aes(x, y, label = lab, fontface = face, size = face)) +
+        scale_x_continuous(expand = expansion(1, 0)) +
+        scale_y_continuous(expand = expansion(1, 0)) +
+        scale_size_manual(values = c(8, 12) / 2.83465) +
+        theme_nothing() +
+        coord_cartesian(clip = "off")
+})
+upper_arrow <- tibble(x = 0, xend = 1, y = 0) %>%
+    ggplot() +
+    geom_segment(aes(x, y, xend = xend, yend = y),
+                 arrow = arrow(length = unit(0.5, "lines"))) +
+    theme_nothing() +
+    coord_cartesian(expand = FALSE)
 
 
-
-comms_p_df3 <- crossing(.n = 3,
-                        .b = FALSE,
-                       .s = c("conflicting", "ameliorative"),
-                       .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun,
-             legend.position = "none")
-
-comms_p3 <- plot_grid(plot_grid(plotlist = comms_p_df3[["plot"]],
-                                align = "hv", axis = "tl", ncol = 1, hjust = 0),
-                      get_legend(comms_p_df3[["plot"]][[1]] +
-                                     theme(legend.position = "right")),
-                      nrow = 1, rel_widths = c(1, 0.3))
+# plot_grid(upper_labs[[1]], upper_arrow, upper_labs[[2]],
+#           BLANK,
+#           nrow = 1, rel_widths = c(1, 2, 1, 0.4))
 
 
+comm_lab <- function(i) textGrob(paste("comm.", i), gp = gpar(fontsize = 10))
+comms_legend <- get_legend(comms_p_list[[1]] + theme(legend.position = "right"))
+comms_ylab <- textGrob("Ameliorative axis", just = c("center", "bottom"),
+                       x = unit(0.7, "npc"), rot = 90)
 
-if (.RESAVE_PLOTS) save_plot(comms_p3, 7, 9, .prefix = "S1-")
+main_block <- plot_grid(BLANK, comm_lab(1), BLANK, comm_lab(1),
+                            comm_lab(2),
+                        comms_ylab, comms_p_list[[1]], BLANK, comms_p_list[[2]],
+                            comms_p_list[[3]],
+                        ncol = 5, rel_widths = c(0.15, 1, 0.2, 1, 1),
+                        nrow = 2, rel_heights = c(0.1, 1))
+tradeoff_block <- plot_grid(BLANK,
+                            textGrob("Sub-additive", gp = gpar(fontsize = 14)),
+                            BLANK,
+                            textGrob("Super-additive", gp = gpar(fontsize = 14)),
+                            nrow = 1, rel_widths = c(0.15, 1, 0.2, 2))
+xlab_block <- plot_grid(BLANK, textGrob("Conflicting axis"),
+                        nrow = 1, rel_widths = c(0.15, 3.2))
 
 
+axes_plot <- tibble(x = 0, y = 4:1, lab = c("conflicting >>\nameliorative",
+                                            "conflicting > \nameliorative",
+                                            "conflicting < \nameliorative",
+                                            "conflicting <<\nameliorative")) %>%
+    ggplot(aes(x, y, label = lab)) +
+    geom_text(hjust = 0) +
+    scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
+    theme_nothing() +
+    coord_cartesian(clip = "off")
 
 
-# ----------------*
-# Similar plots for when barely == TRUE (i.e., when strong axis isn't so strong)
-# ----------------*
-
-
-
-
-b_comms_p_df <- crossing(.n = 2,
-                       .b = TRUE,
-                       .s = c("conflicting", "ameliorative"),
-                       .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun,
-             legend.position = "none",
-             axis.title.x = element_blank()) %>%
-    mutate(plot = ifelse(eta <= 0, plot,
-                         map(plot, ~ .x + theme(axis.title.y = element_blank(),
-                                                axis.text.y = element_blank()))))
-
-b_comms_p <- plot_grid(plot_grid(plot_grid(plotlist =
-                                               b_comms_p_df[["plot"]][1:2],
-                                         nrow = 1, rel_widths = c(1, 1.9),
-                                         axis = "bl", align = "vh"),
-                               textGrob("Weak conflicting axis", y = 1, vjust = 1),
-                               plot_grid(plotlist = b_comms_p_df[["plot"]][3:4],
-                                         nrow = 1, rel_widths = c(1, 1.9),
-                                         axis = "bl", align = "vh"),
-                               textGrob(expression(bold("Strong") ~
-                                                       "conflicting axis"),
-                                        y = 1, vjust = 1),
-                               ncol = 1, rel_heights = c(1, 0.08, 1, 0.08)),
-                       get_legend(b_comms_p_df[["plot"]][[1]] +
-                                      theme(legend.position = "right")),
+comms_p <- plot_grid(plot_grid(tradeoff_block, main_block, xlab_block,
+                               ncol = 1, rel_heights = c(0.04, 1.1, 0.09)),
+                     plot_grid(comms_legend,
+                               axes_plot +
+                                   scale_y_continuous(expand = expansion(0.15)),
+                               BLANK,
+                               ncol = 1, rel_heights = c(0.1138211, 0.81300813,
+                                                         0.07317073 + 0.03)),
                      nrow = 1, rel_widths = c(1, 0.3))
 
 
 
-if (.RESAVE_PLOTS) save_plot(b_comms_p, 6.5, 5, .prefix = "S2-")
+# TESTING ----
+# Below is an early attempt to make indicating the axis strengths more
+# streamlined. It doesn't really work as-is, nor is it a finished product.
+
+#
+# # axes_plot2 <-
+#
+# crossing(strong = c("conflicting", "ameliorative"),
+#          barely = c(TRUE, FALSE)) %>%
+#     mutate(d = map2(strong, barely, .d)) %>%
+#     unnest(d) %>%
+#     mutate(var = rep(c("C", "A"), n() / 2) %>%
+#                factor(levels = sort(unique(.), decreasing = TRUE))) %>%
+#     add_axes_col() %>%
+#     ggplot(aes(var, abs(d))) +
+#     geom_bar(stat = "identity", position = "dodge", color = NA, fill = "dodgerblue") +
+#     scale_y_continuous(limits = c(0, NA)) +
+#     facet_grid(axes ~ .)
+#
+# # .d(.strong, .barely)
+#
+# tibble(x = 0, y = 4:1, lab = c("conflicting >>\nameliorative",
+#                                             "conflicting > \nameliorative",
+#                                             "conflicting < \nameliorative",
+#                                             "conflicting <<\nameliorative")) %>%
+#     ggplot(aes(x, y, label = lab)) +
+#     geom_text(hjust = 0) +
+#     scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
+#     theme_nothing() +
+#     coord_cartesian(clip = "off")
+#
+#
+# comms_p <- plot_grid(plot_grid(tradeoff_block, main_block, xlab_block,
+#                                ncol = 1, rel_heights = c(0.04, 1.1, 0.09)),
+#                      plot_grid(comms_legend,
+#                                axes_plot2,
+#                                BLANK,
+#                                ncol = 1, rel_heights = c(0.1138211, 0.81300813,
+#                                                          0.07317073 + 0.03)),
+#                      nrow = 1, rel_widths = c(1, 0.3))
+#
+#
+#
+#
+# save_plot(comms_p, 6.5, 6, .prefix = "TEST-")
 
 
-b_comms_p_df3 <- crossing(.n = 3,
-                        .b = TRUE,
-                        .s = c("conflicting", "ameliorative"),
-                        .e = c(-0.6, 0.6)) %>%
-    pmap_dfr(unq_comm_p_fun,
-             legend.position = "none")
-
-b_comms_p3 <- plot_grid(plot_grid(plotlist = b_comms_p_df3[["plot"]],
-                                align = "hv", axis = "tl", ncol = 1, hjust = 0),
-                      get_legend(b_comms_p_df3[["plot"]][[1]] +
-                                     theme(legend.position = "right")),
-                      nrow = 1, rel_widths = c(1, 0.3))
 
 
-if (.RESAVE_PLOTS) save_plot(b_comms_p3, 7, 9, .prefix = "S3-")
+if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 6, .prefix = "3-")
+
+
+
+
+
 
 
 
@@ -1193,7 +1267,7 @@ for (i in c(1,2)) {
 
 stab_supp_p <- ggarrange(plots = stab_supp_p_list, ncol = 1, draw = FALSE)
 
-if (.RESAVE_PLOTS) save_plot(stab_supp_p, 5, 6, .prefix = "S4-")
+if (.RESAVE_PLOTS) save_plot(stab_supp_p, 5, 6, .prefix = "S1-")
 
 
 
