@@ -34,7 +34,7 @@ BLANK <- ggplot() + geom_blank() + theme_nothing()
 # whether to re-do simulations (use rds files otherwise)
 .REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- FALSE
+.RESAVE_PLOTS <- TRUE
 # number of threads to use for simulations
 .N_THREADS <- max(1, parallel::detectCores()-2)
 
@@ -342,10 +342,10 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 .d <- function(.strong, .barely) {
     .strong <- match.arg(.strong, c("conflicting", "ameliorative"))
     if (.strong == "conflicting") {
-        z <- c(-2.5, 0.6)
+        z <- c(-2.7, 0.6)
         if (.barely) z[1] <- z[1] / 2
     } else {
-        z <- c(-0.6, 4)
+        z <- c(-0.6, 2.7)
         if (.barely) z[2] <- z[2] / 2
     }
     return(z)
@@ -361,11 +361,11 @@ one_history_d_combo <- function(.dat) {
     .barely <- .dat$.barely
 
 
-    # .strong = "ameliorative"
-    # .barely <- TRUE
+    # .strong = "conflicting"
+    # .barely <- FALSE
     # .n = 2
     # .eta = 0.6
-    # .state = "both"
+    # .state = "below"
 
     # rm(.dat, .dd, .strong, .n, .eta, .state, .V0_0, sim0, eig0, L, .N0, .V0, sims1)
 
@@ -389,6 +389,14 @@ one_history_d_combo <- function(.dat) {
                       save_every = 0L,
                       sigma_V0 = 0,
                       show_progress = FALSE)
+
+
+    if (any(is.na(sim0$nv$spp))) {
+        msg <- sprintf(paste("Total extinction: strong = %s, barely = %s,",
+                             "n = %i, eta = %.1f,",
+                             "state = %s"), .strong, .barely, .n, .eta, .state)
+        stop(msg)
+    }
 
     sim0$call[["eta"]] <- .eta
     sim0$call[["V0"]] <- .V0_0
@@ -575,124 +583,25 @@ comms$two <- hist_d_sims %>%
 
 #' These communities are not stable:
 #'
-#' lambda = 1.069842, strong = conflicting, barely = FALSE, n = 2,
-#' eta = 0.0, state = below
+#' lambda = 1.067329, strong = conflicting, barely = FALSE, eta = 0.6,
+#' state = below
 #'     - small perturbation and it goes to 1 species
-#' lambda = 1.067329, strong = conflicting, barely = FALSE, n = 2,
-#' eta = 0.6, state = below
+#' lambda = 1.030829, strong = conflicting, barely = TRUE, eta = 0.6,
+#' state = below
 #'     - small perturbation and it goes to 1 species
-#' lambda = 1.001227, strong = ameliorative, barely = FALSE, n = 2,
-#' eta = -0.6, state = above
-#'     - small perturbation and it goes to one species investing in both,
-#'       the other not investing
-#' lambda = 1.004468, strong = ameliorative, barely = FALSE, n = 2,
-#' eta = 0.0, state = above
-#'     - small perturbation and it goes to one investing in both,
-#'       another investing in neither
-#' lambda = 1.004679, strong = ameliorative, barely = FALSE, n = 2,
-#' eta = 0.6, state = above
+#' lambda = 1.004679, strong = ameliorative, barely = FALSE, eta = 0.6,
+#' state = above
 #'     - small perturbation and it goes to one species investing in axis 2,
 #'       the other not investing
-#' lambda = 1.002689, strong = ameliorative, barely = TRUE, n = 2,
-#' eta = 0.0, state = above
-#'     - small perturbation and it goes to one species investing 0.361 in V1
-#'       and 1.20 in V2, the other investing ~0 in both
-#' lambda = 1.003003, strong = ameliorative, barely = TRUE, n = 2,
-#' eta = 0.6, state = above
+#' lambda = 1.003003, strong = ameliorative, barely = TRUE, eta = 0.6,
+#' state = above
 #'     - small perturbation and it goes to one species investing 0 in V1
 #'       and 1.26 in V2, the other investing ~0 in both
-#' lambda = 1.030829, strong = conflicting, barely = TRUE, n = 2,
-#' eta = 0.6, state = below
-#'     - small perturbation and it goes to 1 species
-
-
-
-
-# Three species communities:
-# --------------*
-# This community isn't found in `hist_d_sims` (it's pretty hard to achieve)
-Z <- quant_gen(q = 2, eta = -0.6,
-               V0 = matrix(c(2, 2.1), 2, 3),
-               N0 = rep(1, 3),
-               n = 3, d = .d("conflicting", FALSE), n_reps = 1,
-               spp_gap_t = 0L,
-               final_t = 50e3L,
-               save_every = 0L,
-               sigma_V0 = 0,
-               show_progress = FALSE) %>%
-    # jacobians() %>%
-    # .[[1]] %>%
-    # eigen(only.values = TRUE) %>%
-    # .[["values"]] %>%
-    # Re() %>%
-    # max()
-    .[["nv"]] %>%
-    pivot()
-
-
-
-#' All these are stable, except for...
+#' lambda = 1.001227, strong = ameliorative, barely = FALSE, eta = -0.6,
+#' state = above
+#'     - small perturbation and it goes to one species investing in both,
+#'       the other not investing
 #'
-#' lambda = 1.0044020, strong = ameliorative, barely = FALSE, n = 3, eta = 0.6,
-#' all spp investing in V2, but at different magnitudes
-#' (2 at 0.5253733, 1 at 0.950722)
-#'     - small perturbation of either of two species at 0.5253733, and
-#'       it goes to 2 species at V2 = 1.27, one species at V2 ≈ 0
-#'
-#' lambda = 1.001222, strong = ameliorative, barely = TRUE, n = 3, eta = 0.6,
-#' all spp investing in V2, but at different magnitudes
-#' (2 at 0.7520488, 1 at 0.8920994)
-#'     - small perturbation of either of two species at 0.7520488, and
-#'       it goes to 2 species at V2 = 1.26, one species at V2 ≈ 0
-#'
-#'
-
-
-
-comms$three <- hist_d_sims %>%
-    filter(time == max(time) & eta != 0, n_spp > 1) %>%
-    group_by(eta, strong, barely, state, start) %>%
-    mutate(spp3 = all(1:3 %in% spp)) %>%
-    ungroup() %>%
-    filter(spp3) %>%
-    select(-n_spp, -spp3, -time) %>%
-    arrange(eta, strong, barely, state, start, spp) %>%
-    group_by(eta, strong, barely, state, start) %>%
-    summarize(N = list(N), V = list(rbind(V1, V2)),
-              .groups = "drop") %>%
-    add_row(eta = -0.6, strong = "conflicting", barely = FALSE,
-            N = list(Z$N), V = list(t(Z[,c("V1", "V2")]))) %>%
-    mutate(z1 = map_dbl(V, ~ sum(.x[1,])),
-           z2 = map_dbl(V, ~ sum(.x[2,]))) %>%
-    arrange(eta, strong, barely, z1) %>%
-    group_by(eta, strong, barely) %>%
-    mutate(dup = dup_comm(V, .prec = 1e-3)) %>%
-    filter(!dup) %>%
-    mutate(comm = 1:n()) %>%
-    ungroup() %>%
-    select(-state, -start, -z1, -z2, -dup) %>%
-    # Remove unstable communities:
-    filter(barely |
-               !map_lgl(V, ~ all(.x[1,] == 0) &
-                            sum((.x[2,] - 0.5253733)^2 < 1e-10) == 2 &
-                            sum((.x[2,] - 0.9507220)^2 < 1e-10) == 1)) %>%
-    filter(!barely |
-               !map_lgl(V, ~ all(.x[1,] == 0) &
-                            sum((.x[2,] - 0.7520488)^2 < 1e-10) == 2 &
-                            sum((.x[2,] - 0.8920994)^2 < 1e-10) == 1)) %>%
-    arrange(eta, strong, barely, comm) %>%
-    # split(1:nrow(.)) %>%
-    # map_dfr(check_stable) %>%
-    # arrange(desc(lambda))
-    mutate(V1 = map(V, ~ .x[1,]),
-           V2 = map(V, ~ .x[2,])) %>%
-    select(-V) %>%
-    unnest(c(N, V1, V2)) %>%
-    mutate(spp = factor(rep(1:3, n() / 3), levels = 1:3)) %>%
-    mutate(comm = factor(comm, levels = sort(unique(comm)))) %>%
-    select(eta, strong, barely, comm, spp, everything())
-
-# rm(Z)
 
 
 if (.REDO_SIMS) saveRDS(comms, rds("comms"))
@@ -780,11 +689,6 @@ if (.REDO_SIMS) {
         split(interaction(.$eta, .$strong, .$barely, .$comm, drop = TRUE)) %>%
         mclapply(comm_fit, mc.cores = .N_THREADS) %>%
         do.call(what = rbind)
-    # Takes ~2.5 min
-    hist_d_fit$three <- comms$three %>%
-        split(interaction(.$eta, .$strong, .$barely, .$comm, drop = TRUE)) %>%
-        mclapply(comm_fit, mc.cores = .N_THREADS) %>%
-        do.call(what = rbind)
     saveRDS(hist_d_fit, rds("hist_d_fit"))
 } else {
     hist_d_fit <- readRDS(rds("hist_d_fit"))
@@ -840,10 +744,6 @@ add_axes_col <- function(.df) {
 hist_d_fit$two <- hist_d_fit$two %>%
     add_outcomes_col() %>%
     add_axes_col()
-hist_d_fit$three <- hist_d_fit$three %>%
-    add_outcomes_col() %>%
-    add_axes_col()
-
 
 
 
@@ -899,7 +799,7 @@ unq_comm_p_fun <- function(.n, .e, .c, ...) {
               legend.key = element_rect(colour = "black"),
               legend.text = element_text(size = 8),
               legend.key.size = unit(0.75, "lines"),
-              panel.spacing.y = unit(1, "lines"),
+              panel.spacing.y = unit(2, "lines"),
               plot.margin = margin(0,0,0,0)) +
         theme(...) +
         NULL
@@ -916,6 +816,9 @@ comms_p_list <- crossing(.n = 2,
          plot.title = element_blank(),
          strip.text = element_blank(),
          axis.title = element_blank())
+
+
+
 
 
 # For gradient from strong conflicting to strong ameliorative
@@ -941,11 +844,6 @@ upper_arrow <- tibble(x = 0, xend = 1, y = 0) %>%
     coord_cartesian(expand = FALSE)
 
 
-# plot_grid(upper_labs[[1]], upper_arrow, upper_labs[[2]],
-#           BLANK,
-#           nrow = 1, rel_widths = c(1, 2, 1, 0.4))
-
-
 comm_lab <- function(i) textGrob(paste("comm.", i), gp = gpar(fontsize = 10))
 comms_legend <- get_legend(comms_p_list[[1]] + theme(legend.position = "right"))
 comms_ylab <- textGrob("Ameliorative axis", just = c("center", "bottom"),
@@ -966,79 +864,49 @@ xlab_block <- plot_grid(BLANK, textGrob("Conflicting axis"),
                         nrow = 1, rel_widths = c(0.15, 3.2))
 
 
-axes_plot <- tibble(x = 0, y = 4:1, lab = c("conflicting >>\nameliorative",
-                                            "conflicting > \nameliorative",
-                                            "conflicting < \nameliorative",
-                                            "conflicting <<\nameliorative")) %>%
-    ggplot(aes(x, y, label = lab)) +
-    geom_text(hjust = 0) +
-    scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
-    theme_nothing() +
-    coord_cartesian(clip = "off")
+
+axes_plot <- crossing(strong = c("conflicting", "ameliorative"),
+         barely = c(TRUE, FALSE)) %>%
+    mutate(d = map2(strong, barely, .d)) %>%
+    unnest(d) %>%
+    mutate(var = rep(c("conflicting", "ameliorative"), n() / 2) %>%
+               factor(levels = sort(unique(.), decreasing = TRUE))) %>%
+    add_axes_col() %>%
+    ggplot(aes(var, abs(d))) +
+    geom_hline(yintercept = 0, linetype = 2, color  = "gray70") +
+    geom_segment(aes(xend = var, yend = 0)) +
+    geom_point(color = "black", fill = "dodgerblue", shape = 21, size = 3) +
+    scale_y_continuous("Axis strength", position = "right",
+                       limits = c(0, 1.1 *
+                                      max(map_dbl(c("c","a"),
+                                                  ~ max(abs(.d(.x, FALSE))))))) +
+    facet_grid(axes ~ .) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_text(size = 9, color = "black",
+                                     angle = 30, vjust = 0.6),
+          axis.ticks.x = element_blank(),
+          panel.spacing.y = unit(2, "lines"),
+          plot.margin = margin(0,0,0,0),
+          strip.text = element_blank())
 
 
 comms_p <- plot_grid(plot_grid(tradeoff_block, main_block, xlab_block,
-                               ncol = 1, rel_heights = c(0.04, 1.1, 0.09)),
-                     plot_grid(comms_legend,
-                               axes_plot +
-                                   scale_y_continuous(expand = expansion(0.15)),
-                               BLANK,
-                               ncol = 1, rel_heights = c(0.1138211, 0.81300813,
-                                                         0.07317073 + 0.03)),
-                     nrow = 1, rel_widths = c(1, 0.3))
-
-
-
-# TESTING ----
-# Below is an early attempt to make indicating the axis strengths more
-# streamlined. It doesn't really work as-is, nor is it a finished product.
-
-#
-# # axes_plot2 <-
-#
-# crossing(strong = c("conflicting", "ameliorative"),
-#          barely = c(TRUE, FALSE)) %>%
-#     mutate(d = map2(strong, barely, .d)) %>%
-#     unnest(d) %>%
-#     mutate(var = rep(c("C", "A"), n() / 2) %>%
-#                factor(levels = sort(unique(.), decreasing = TRUE))) %>%
-#     add_axes_col() %>%
-#     ggplot(aes(var, abs(d))) +
-#     geom_bar(stat = "identity", position = "dodge", color = NA, fill = "dodgerblue") +
-#     scale_y_continuous(limits = c(0, NA)) +
-#     facet_grid(axes ~ .)
-#
-# # .d(.strong, .barely)
-#
-# tibble(x = 0, y = 4:1, lab = c("conflicting >>\nameliorative",
-#                                             "conflicting > \nameliorative",
-#                                             "conflicting < \nameliorative",
-#                                             "conflicting <<\nameliorative")) %>%
-#     ggplot(aes(x, y, label = lab)) +
-#     geom_text(hjust = 0) +
-#     scale_x_continuous(limits = c(0, 1), expand = c(0, 0)) +
-#     theme_nothing() +
-#     coord_cartesian(clip = "off")
-#
-#
-# comms_p <- plot_grid(plot_grid(tradeoff_block, main_block, xlab_block,
-#                                ncol = 1, rel_heights = c(0.04, 1.1, 0.09)),
-#                      plot_grid(comms_legend,
-#                                axes_plot2,
-#                                BLANK,
-#                                ncol = 1, rel_heights = c(0.1138211, 0.81300813,
-#                                                          0.07317073 + 0.03)),
-#                      nrow = 1, rel_widths = c(1, 0.3))
-#
-#
-#
-#
-# save_plot(comms_p, 6.5, 6, .prefix = "TEST-")
+                                ncol = 1, rel_heights = c(0.04, 1.1, 0.09)),
+                      plot_grid(comms_legend,
+                                axes_plot,
+                                BLANK,
+                                # ncol = 1, rel_heights = c(0.1138211, 0.81300813,
+                                #                           0.07317073)),
+                                ncol = 1, rel_heights = c(0.1138211, 0.81300813,
+                                                          0.07317073 - 0.041)),
+                      nrow = 1, rel_widths = c(1, 0.3))
 
 
 
 
-if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 6, .prefix = "3-")
+if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 8, .prefix = "3-")
+
+
 
 
 
@@ -1129,145 +997,126 @@ stab_sim_df %>% filter(is.na(V2))
 stab_sim_df %>% filter(is.na(O))
 
 
-#'
-#' The plot below shows that the only thing `d2` does  is make the
-#' `n_lower ~ V1` relationship steeper.
-#' Specifically, it doesn't affect V1 when `n_lower == 5`, but it reduces
-#' V1 when `n_lower < 5`.
-#' The effect of `d2` is reduced for lower (more negative) values of `d1`.
-#'
-stab_sim_df %>%
-    filter(n_lower > 0) %>%
-    mutate(across(starts_with("d"), ~ factor(.x,
-                                             levels = sign(.x[.x != 0][1]) *
-                                                 sort(unique(abs(.x)))))) %>%
-    ggplot(aes(n_lower, V1, color = d2)) +
-    scale_y_continuous("Conflicting investment per species") +
-    facet_wrap(~ d1, labeller = label_both) +
-    geom_line() +
-    geom_point()
-
-stab_sim_df %>%
-    filter(n_lower < max(n_lower)) %>%
-    mutate(across(starts_with("d"), ~ factor(.x,
-                                             levels = sign(.x[.x != 0][1]) *
-                                                 sort(unique(abs(.x)))))) %>%
-    ggplot(aes(n_lower, V2, color = d2)) +
-    scale_y_continuous("Ameliorative investment per species") +
-    facet_wrap(~ d1, labeller = label_both) +
-    geom_line() +
-    geom_point()
-
-
-stab_sim_df %>%
-    mutate(across(starts_with("d"), ~ factor(.x,
-                                             levels = sign(.x[.x != 0][1]) *
-                                                 sort(unique(abs(.x)))))) %>%
-    mutate(O = O * formals(quant_gen)$a0) %>%
-    ggplot(aes(n_lower, O, color = d2)) +
-    geom_line() +
-    geom_point() +
-    ylab(expression(italic(alpha)[0] ~ sum(italic(N[j]) ~ textstyle(e)^{
-        -bolditalic(v)[italic(j)]^T ~ bolditalic(D) ~ bolditalic(v)[italic(j)]},
-        italic(j)))) +
-    facet_wrap(~ d1, labeller = label_both) +
-    theme(axis.title.y = element_text(angle = 0, vjust = 0.5,
-                                      family = "Times"))
-
-
-
-
 
 #'
-#' ... so the plot below just uses `d2 == 0.5`.
+#' The only thing `d2` does  is make the `n_lower ~ V1` relationship steeper,
+#' so the main-text plot below just uses `d2 == 0.5`.
+#' Showing the effect of `d2` will go into the supplement.
+#'
 #' I'm also not using the case when `d1 == 0` because axis 1 is not actually
 #' a conflicting axis in that case.
 #' I simulated it just to understand the dynamics.
 #'
 
-stab_p <- stab_sim_df %>%
-    filter(d2 == 0.5, d1 != 0, n_lower > 0) %>%
-    mutate(d1 = factor(d1)) %>%
-    ggplot(aes(n_lower, V1, color = d1)) +
-    geom_line() +
-    geom_point() +
-    geom_text(data = stab_sim_df %>%
-                  filter(d2 == 0.5, d1 != 0, n_lower == max(n_lower)) %>%
-                  mutate(lab = factor(d1, levels = sort(unique(d1)),
-                                      labels = c("strong", "moderate", "weak")),
-                         d1 = factor(d1)),
-              aes(label = lab),
-              size = 10 / 2.83465, hjust = 1, vjust = 1, nudge_y = -0.05) +
-    scale_color_manual(values = c("black", "gray40", "gray70")) +
-    scale_x_continuous("Species investing in conflicting axis",
-                       breaks = 0:max(stab_sim_df$n_lower)) +
-    ylab("Conflicting investment per species") +
-    theme(legend.position = "none")
-
-
-if (.RESAVE_PLOTS) save_plot(stab_p, 5, 3, .prefix = "4-")
-
-
-
-stab_supp_shared <-  list(
+stab_p_shared <-  list(
     geom_line(), geom_point(),
     scale_x_continuous("Species investing in conflicting axis",
-                       breaks = 0:max(stab_sim_df$n_lower)),
+                       breaks = 0:max(stab_sim_df$n_lower),
+                       limits = c(0, max(stab_sim_df$n_lower))),
     scale_color_manual("Conflicting axis:",
                        values = c("black", "gray40", "gray70")),
     theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
           legend.position = "top"))
 
 
-stab_supp_p_list <- list()
+stab_p_list <- list()
 
-stab_supp_p_list[[1]] <- stab_sim_df %>%
+stab_p_list[[1]] <- stab_sim_df %>%
     filter(d1 != 0, d2 == 0.5, n_lower > 0) %>%
     mutate(d1 = factor(d1, levels = sort(unique(d1)),
                         labels = c("strong", "moderate", "weak"))) %>%
     ggplot(aes(n_lower, V1, color = d1)) +
     scale_y_continuous("Conflicting\ninvestment\nper species",
                        limits = c(1.1, 2)) +
-    stab_supp_shared
+    stab_p_shared
 
-stab_supp_p_list[[2]] <- stab_sim_df %>%
+
+stab_p_list[[2]] <- stab_sim_df %>%
     filter(d1 != 0, d2 == 0.5, n_lower < max(n_lower)) %>%
     mutate(d1 = factor(d1, levels = sort(unique(d1)),
                        labels = c("strong", "moderate", "weak"))) %>%
     ggplot(aes(n_lower, V2, color = d1)) +
     scale_y_continuous("Ameliorative\ninvestment\nper species",
                        limits = c(1.1, 2)) +
-    stab_supp_shared
+    stab_p_shared
 
-stab_supp_p_list[[3]] <- stab_sim_df %>%
+stab_p_list[[3]] <- stab_sim_df %>%
     filter(d1 != 0, d2 == 0.5) %>%
     mutate(d1 = factor(d1, levels = sort(unique(d1)),
                        labels = c("strong", "moderate", "weak"))) %>%
-    mutate(O = O * formals(quant_gen)$a0) %>%
     ggplot(aes(n_lower, O, color = d1)) +
-    scale_y_continuous(expression(italic(alpha)[0] ~
-                                      sum(italic(N[j]) ~ textstyle(e)^{
-                                          -bolditalic(v)[italic(j)]^T ~
-                                              bolditalic(D) ~
-                                              bolditalic(v)[italic(j)]},
-                                          italic(j))),
-                       label = comma) +
-    stab_supp_shared
+    scale_y_continuous("Scaled\ncommunity\nsize", label = comma) +
+    stab_p_shared
 
 for (i in c(2,3)) {
-    stab_supp_p_list[[i]] <- stab_supp_p_list[[i]] +
+    stab_p_list[[i]] <- stab_p_list[[i]] +
         theme(legend.position = "none")
 }
 for (i in c(1,2)) {
-    stab_supp_p_list[[i]] <- stab_supp_p_list[[i]] +
+    stab_p_list[[i]] <- stab_p_list[[i]] +
         theme(axis.title.x = element_blank(),
               axis.text.x = element_blank())
 }
 
 
-stab_supp_p <- ggarrange(plots = stab_supp_p_list, ncol = 1, draw = FALSE)
+stab_p <- ggarrange(plots = stab_p_list, ncol = 1, draw = FALSE)
 
-if (.RESAVE_PLOTS) save_plot(stab_supp_p, 5, 6, .prefix = "S1-")
+if (.RESAVE_PLOTS) save_plot(stab_p, 5, 5, .prefix = "4-")
+
+
+
+#' Showing how ameliorative axis (i.e., `d2`) affects things.
+#' Not as interesting, so it goes to the supplement.
+
+stab_p2_shared <- stab_p_shared
+stab_p2_shared[[4]] <- scale_color_manual("Ameliorative axis:",
+                                          values = c("black", "gray40",
+                                                     "gray70"))
+
+stab_p2_list <- list()
+
+stab_p2_list[[1]] <- stab_sim_df %>%
+    filter(d2 != 0, d1 == -0.5, n_lower > 0) %>%
+    mutate(d2 = factor(d2, levels = sort(unique(d2), decreasing = TRUE),
+                       labels = c("strong", "moderate", "weak"))) %>%
+    ggplot(aes(n_lower, V1, color = d2)) +
+    scale_y_continuous("Conflicting\ninvestment\nper species",
+                       limits = c(0.96, 1.9)) +
+    stab_p2_shared
+
+
+stab_p2_list[[2]] <- stab_sim_df %>%
+    filter(d2 != 0, d1 == -0.5, n_lower < max(n_lower)) %>%
+    mutate(d2 = factor(d2, levels = sort(unique(d2), decreasing = TRUE),
+                       labels = c("strong", "moderate", "weak"))) %>%
+    ggplot(aes(n_lower, V2, color = d2)) +
+    scale_y_continuous("Ameliorative\ninvestment\nper species",
+                       limits = c(0.96, 1.9)) +
+    stab_p2_shared
+
+stab_p2_list[[3]] <- stab_sim_df %>%
+    filter(d2 != 0, d1 == -0.5) %>%
+    mutate(d2 = factor(d2, levels = sort(unique(d2), decreasing = TRUE),
+                       labels = c("strong", "moderate", "weak"))) %>%
+    ggplot(aes(n_lower, O, color = d2)) +
+    scale_y_continuous("Scaled\ncommunity\nsize", label = comma) +
+    stab_p2_shared
+
+for (i in c(2,3)) {
+    stab_p2_list[[i]] <- stab_p2_list[[i]] + theme(legend.position = "none")
+}
+for (i in c(1,2)) {
+    stab_p2_list[[i]] <- stab_p2_list[[i]] +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_blank())
+}
+
+
+stab_p2 <- ggarrange(plots = stab_p2_list, ncol = 1, draw = FALSE)
+
+
+if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
+
 
 
 
