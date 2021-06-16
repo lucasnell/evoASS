@@ -18,7 +18,7 @@ suppressPackageStartupMessages({
 options(dplyr.summarise.inform = FALSE)
 
 # This sets plotting device on LAN computer:
-# if (file.exists(".Rprofile")) source(".Rprofile")
+if (file.exists(".Rprofile")) source(".Rprofile")
 
 
 # Clean captions
@@ -98,8 +98,15 @@ label_args <- list(gp = grid::gpar(font = 1,
 
 
 pivot <- function(.df) {
-    mutate(.df, axis = paste0("V", axis)) %>%
-        pivot_wider(names_from = axis, values_from = geno)
+    if ("pheno" %in% colnames(.df)) {
+        .df <- rename(.df, V = geno, Vp = pheno) %>%
+            pivot_wider(names_from = axis, values_from = c(V, Vp),
+                        names_sep = "")
+    } else {
+        .df <- mutate(.df, axis = paste0("V", axis)) %>%
+            pivot_wider(names_from = axis, values_from = geno)
+    }
+    return(.df)
 }
 
 
@@ -1123,7 +1130,6 @@ if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
 # =============================================================================*
 # =============================================================================*
 
-# LEFT OFF ----
 # Fig 5: Stochasticity ----
 
 # =============================================================================*
@@ -1139,7 +1145,9 @@ if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
 # =============================================================================*
 # =============================================================================*
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ----
 # OBSOLETE Fig 3: "Global" coexistence ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ----
 
 # =============================================================================*
 # =============================================================================*
