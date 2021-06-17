@@ -1138,6 +1138,266 @@ if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
 
 
 
+# Calculate Omega: scaled community size, or the community size accounting for
+# how species axes affect their competitive effect on other species.
+O_fun <- function(N, V1, V2, d = c(-0.6, 0.6)) {
+    sapply(1:length(N), function(i) sum(N[-i] * exp(-d[1] * V1[-i]^2 -
+                                                        d[2] * V2[-i]^2)))
+}
+# How does each species' axes affect the effects it experience from competition?
+O_mod_fun <- function(V1, V2) exp(- V1^2 - V2^2)
+# How much of a cost does each species pay for their axes investments?
+cost_fun <- function(V1, V2, eta = 0.6) {
+    formals(quant_gen)$f * (V1^2 + 2 * eta * V1 * V2 + V2^2)
+}
+
+
+do_stoch_sims <- function(n_spp) {
+
+    # n_spp = 10
+    # rm(n_spp, sim0, simV, sim0_nv, simV_nv, simV_nv_diff, out)
+
+    stopifnot(n_spp %% 2 == 0)
+
+    sim00 <- quant_gen(q = 2, eta = -0.6,
+              V0 = do.call(cbind, c(rep(list(c(1,0)), n_spp / 2),
+                                    rep(list(c(0,1)), n_spp / 2))),
+              n = n_spp, d = c(-1, 1),
+              spp_gap_t = 0L,
+              final_t = 100e3L,
+              save_every = 0L,
+              sigma_V0 = 0,
+              show_progress = FALSE,
+              n_reps = 1)
+
+    .V0 <- sim00 %>%
+        .[["nv"]] %>%
+        pivot() %>%
+        select(starts_with("V")) %>%
+        t()
+    .N0 <- sim00 %>%
+        .[["nv"]] %>%
+        pivot() %>%
+        .[["N"]]
+
+
+    sim0 <- sim00$call %>%
+        as.list() %>%
+        .[-1] %>%
+        list_modify(V0 = cbind(.V0, c(1.4, 1.5)),
+                    N0 = c(.N0, 1),
+                    n = n_spp+1,
+                    final_t = 5e3L,
+                    save_every = 1L) %>%
+        do.call(what = quant_gen)
+
+    simV <- sim0$call %>%
+        as.list() %>%
+        .[-1] %>%
+        list_modify(n_reps = 24,
+                    sigma_V = 0.1,
+                    n_threads = .N_THREADS) %>%
+        do.call(what = quant_gen)
+
+
+    sim0_nv <- sim0 %>%
+        .[["nv"]] %>%
+        pivot() %>%
+        group_by(rep, time) %>%
+        mutate(O = O_fun(N, V1, V2),
+               O_mod = O_mod_fun(V1, V2),
+               cost = cost_fun(V1, V2)) %>%
+        ungroup() %>%
+        mutate(stoch = FALSE)
+
+    simV_nv <- simV %>%
+        .[["nv"]] %>%
+        pivot() %>%
+        group_by(rep, time) %>%
+        mutate(O = O_fun(N, V1, V2),
+               O_mod = O_mod_fun(V1, V2),
+               cost = cost_fun(V1, V2)) %>%
+        group_by(rep, spp) %>%
+        mutate(extinct = max(time) < max(sim0_nv$time)) %>%
+        group_by(rep) %>%
+        mutate(extinct = any(extinct)) %>%
+        ungroup() %>%
+        mutate(stoch = TRUE)
+
+
+    simV_nv_diff <- simV_nv %>%
+        split(.$time) %>%
+        lapply(function(x) {
+            z <- sim0_nv[sim0_nv$time == x$time[1],]
+            stopifnot(nrow(z) == max(as.integer(sim0_nv$spp)))
+            z <- z[as.integer(x$spp),]
+            stopifnot(nrow(x) == nrow(z))
+            x <- x %>%
+                mutate(dN = (N - z$N) / z$N,
+                       dV1 = (V1 - z$V1) / z$V1,
+                       dV2 = (V2 - z$V2) / z$V2,
+                       dVp1 = (Vp1 - z$V1) / z$V1,
+                       dVp2 = (Vp2 - z$V2) / z$V2,
+                       dO = (O - z$O) / z$O,
+                       dO_mod = (O_mod - z$O_mod) / z$O_mod,
+                       dcost = (cost - z$cost) / z$cost) %>%
+                select(rep, time, spp, starts_with("d", FALSE))
+            return(x)
+        }) %>%
+        do.call(what = bind_rows)
+
+    simV_nv <- left_join(simV_nv, simV_nv_diff, by = c("rep", "time", "spp"))
+
+
+    out <- bind_rows(sim0_nv, simV_nv) %>%
+        mutate(n_spp = n_spp)
+
+    return(out)
+
+}
+
+
+varb <- quote(cost)
+
+out %>%
+    filter(time < 2500, !stoch) %>%
+    mutate(Vp1 = V1, Vp2 = V2) %>%
+    ggplot(aes(time, !!varb)) +
+    geom_line(data = out %>%
+                  filter(!extinct, time < 2500, stoch),
+              aes(color = rep), alpha = 0.25) +
+    geom_line(data = out %>%
+                  filter(!extinct, time < 2500, stoch) %>%
+                  group_by(time, spp) %>%
+                  summarize(!!varb := mean(!!varb),
+                            .groups = "drop") %>%
+                  group_by(spp) %>%
+                  mutate(!!varb := zoo::rollmean(!!varb, 10,
+                                                 fill = NA)) %>%
+                  ungroup() %>%
+                  filter(!is.na(!!varb)) %>%
+                  identity(),
+              color = "deepskyblue") +
+    geom_line(color = "black", size = 0.75, linetype = 1) +
+    facet_wrap(~ spp, ncol = 2) +
+    scale_color_viridis_d(option = "A", guide = FALSE) +
+    scale_x_continuous(breaks = c(0, 1e3, 2e3),
+                       labels = c("0", "1k", "2k")) +
+    theme(strip.text = element_blank()) +
+    NULL
+
+# Takes ~1.6 min
+set.seed(693010149)
+stoch_sims <- map_dfr(c(2, 4, 10), do_stoch_sims)
+
+
+varb <- quote(O_mod)
+dvarb <- paste0("d", varb) %>% sym()
+# Show differences? (Alternative is to show actual numbers)
+diff <- FALSE
+
+if (!diff) {
+# Version directly showing stochastic and deterministic:
+stoch_p_list <- c(2, 4, 10) %>%
+    map(function(ns) {
+        p <- stoch_sims %>%
+            filter(n_spp == ns, time < 2500, !stoch) %>%
+            ggplot(aes(time, !!varb)) +
+            ggtitle(paste(ns, "species")) +
+            geom_line(data = stoch_sims %>%
+                          filter(!extinct, n_spp == ns, time < 2500, stoch),
+                      aes(color = rep), alpha = 0.25) +
+            geom_line(data = stoch_sims %>%
+                          filter(!extinct, n_spp == ns, time < 2500, stoch) %>%
+                          group_by(time, spp) %>%
+                          summarize(!!varb := mean(!!varb),
+                                    .groups = "drop") %>%
+                          group_by(spp) %>%
+                          mutate(!!varb := zoo::rollmean(!!varb, 10,
+                                                         fill = NA)) %>%
+                          ungroup() %>%
+                          filter(!is.na(!!varb)) %>%
+                          identity(),
+                      color = "deepskyblue") +
+            geom_line(color = "black", size = 0.75, linetype = 2) +
+            facet_wrap(~ spp, ncol = 2) +
+            scale_color_viridis_d(option = "A", guide = FALSE) +
+            scale_x_continuous(breaks = c(0, 1e3, 2e3),
+                               labels = c("0", "1k", "2k")) +
+            theme(strip.text = element_blank()) +
+            NULL
+        p %>%
+            ggplotGrob()
+    })
+} else {
+    # Version using relative differences between stochastic and deterministic:
+    stoch_p_list <- c(2, 4, 10) %>%
+        map(function(ns) {
+            p <- stoch_sims %>%
+                filter(!extinct, n_spp == ns, time < 2500, stoch) %>%
+                ggplot(aes(time, !!dvarb)) +
+                ggtitle(paste(ns, "species")) +
+                geom_line(aes(color = rep), alpha = 0.25) +
+                geom_line(data = stoch_sims %>%
+                              filter(!extinct, n_spp == ns, time < 2500, stoch) %>%
+                              group_by(time, spp) %>%
+                              summarize(!!dvarb := mean(!!dvarb),
+                                        .groups = "drop") %>%
+                              group_by(spp) %>%
+                              mutate(!!dvarb := zoo::rollmean(!!dvarb, 10,
+                                                              fill = NA)) %>%
+                              ungroup() %>%
+                              filter(!is.na(!!dvarb)) %>%
+                              identity(),
+                          color = "deepskyblue") +
+                geom_hline(yintercept = 0, linetype = 2) +
+                facet_wrap(~ spp, ncol = 2) +
+                scale_color_viridis_d(option = "A", guide = FALSE) +
+                scale_x_continuous(breaks = c(0, 1e3, 2e3),
+                                   labels = c("0", "1k", "2k")) +
+                theme(strip.text = element_blank()) +
+                NULL
+            p %>%
+                ggplotGrob()
+        })
+}
+
+
+
+
+stoch_p_list[[2]] <- gtable_frame(stoch_p_list[[2]], height = unit(2, "null"))
+stoch_p_list[c(1,3)] <- map(stoch_p_list[c(1,3)], gtable_frame)
+
+fig12 <- gtable_frame(gtable_rbind(stoch_p_list[[1]], stoch_p_list[[2]]),
+                      width = unit(1, "null"),
+                      height = unit(1, "null"))
+fig3 <- gtable_frame(stoch_p_list[[3]],
+                     width = unit(1, "null"),
+                     height = unit(1, "null"))
+combined <- gtable_cbind(fig12, fig3)
+
+grid.newpage(); grid.draw(combined)
+
+cairo_pdf(paste0("~/Desktop/stoch_plots/", ifelse(diff, dvarb, varb), ".pdf"),
+          width = 6, height = 6)
+grid.newpage(); grid.draw(combined)
+dev.off()
+
+
+
+
+#'
+#' Comparison between 2- and 10-species case.
+#'
+#' - V1: qualitatively similar
+#' - Vp1: qualitatively similar
+#' - O:
+#' - O_mod:
+#' - cost:
+#'
+
+
+
 
 
 
