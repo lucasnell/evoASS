@@ -1137,6 +1137,176 @@ if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
 
 
 
+one_stoch_sim_combo <- function(.strong, .barely, .eta, .sigma_V) {
+
+    # .strong = "a"; .barely = TRUE; .eta = 1e-3; .sigma_V = 0.3
+
+    .strong <- match.arg(.strong, c("conflicting", "ameliorative"))
+    .ds <- .d(.strong, .barely)
+
+    z <- quant_gen(eta = .eta, d = .ds, q = 2, n = 2,
+                   # V0 = cbind(c(0.1, 1.5), c(1, 0.1)),
+                   V0 = cbind(c(0.1, 1.5), c(0.1, 1.5))[2:1,],
+                   sigma_V0 = 0,
+                   spp_gap_t = 0L,
+                   final_t = 2e6L,
+                   save_every = 0L,
+                   n_reps = 1,
+                   show_progress = FALSE)
+    z$nv %>% pivot() %>% mutate(radius = sqrt(V1^2 + V2^2))
+
+
+    L <- jacobians(z)[[1]] %>%
+        eigen(only.values = TRUE) %>%
+        .[["values"]] %>%
+        Re() %>%
+        max()
+    L - 1
+    if (L >= 1) {
+        stop(sprintf(paste("\nUnstable state (lambda = %.5f) for",
+                           "strong = %s, barely = %s,",
+                           "eta = %.2f, sigma_V = %.2f"),
+                     L, .strong, .barely, .eta, .sigma_V))
+    }
+
+    zz <- z$call %>%
+        as.list() %>%
+        .[-1]
+
+
+    zzz <- zz %>%
+        list_modify(V0 = 1, # z$nv %>% pivot() %>% select(V1, V2) %>% t(),
+                    N0 = NULL, # z$nv %>% pivot() %>% .$N,
+                    final_t = 10e3L,
+                    save_every = 1L,
+                    n = 10,
+                    sigma_V0 = 1,
+                    # sigma_V = c(.sigma_V / 4, .sigma_V / 4),
+                    sigma_V = .sigma_V / 2,
+                    n_reps = 12,
+                    n_threads = .N_THREADS) %>%
+        do.call(what = quant_gen)
+
+    axes_max <- 2  # max(zzz$nv$geno) * 1.1
+
+    zzz$nv %>%
+        pivot() %>%
+        ggplot(aes(V1, V2, color = spp)) +
+        geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+        geom_path() +
+        geom_point(data = zzz$nv %>% filter(time == max(time)) %>% pivot(),
+                   shape = 1) +
+        # geom_point(data = zzz$nv %>% filter(time == 0) %>% pivot() %>%
+        #                mutate(Vp1 = V1, Vp2 = V2),
+        #            aes(fill = spp), size = 2, shape = 21, color = "black") +
+        facet_wrap(~ rep, ncol = 3) +
+        scale_color_viridis_d(end = 0.8, guide = FALSE) +
+        coord_equal(xlim = c(0, axes_max), ylim = c(0, axes_max)) +
+        NULL
+
+
+    zzz$nv %>%
+        # filter(rep == 1) %>%
+        # filter(spp == 1) %>%
+        pivot() %>%
+        ggplot(aes(time, V1, color = spp)) +
+        # geom_line() +
+        geom_line(aes(group = interaction(rep, spp)), alpha = 0.25) +
+        geom_point(data = zzz$nv %>% filter(time == 0, rep == 1) %>%
+                       # filter(spp == 1) %>%
+                       select(-rep) %>%
+                       pivot() %>%
+                       mutate(Vp1 = V1, Vp2 = V2),
+                   aes(fill = spp), size = 2, shape = 21, color = "black") +
+        facet_wrap(~ rep, ncol = 3) +
+        coord_cartesian(ylim = c(1.3, NA)) +
+        NULL
+
+
+
+
+    filter_comms <- function(.V1, .V2, .outcome, .comm) {
+        l1 <- .outcome != "invader excluded" &
+            (.V1 - mean(range(.V1)))^2 == min((.V1 - mean(range(.V1)))^2) &
+            (.V2 - mean(range(.V2)))^2 == min((.V2 - mean(range(.V2)))^2)
+
+        cmty <- communities[[.comm]]
+        .V1 - .V2
+        # l2 <-
+        .outcome == "invader excluded" &
+
+    }
+
+
+    hist_d_fit$two %>%
+        filter(strong == .strong, barely == .barely, eta == .eta) %>%
+        select(comm, V1, V2, outcome) %>%
+        group_by(comm, outcome) %>%
+        filter(filter_comms(V1, V2, outcome, comm)) %>%
+        summarize(V1 = mean(V1), V2 = mean(V2), .groups = "drop")
+
+
+        # arrange(comm) %>%
+        # split(.$comm)
+
+
+
+
+    if (.sigma_V == 0 && .sigma_N == 0) {
+        # These simulations are totally deterministic, so no need to run > once
+        .nreps <- 1
+        .N_THREADS <- 1
+    } else .nreps <- 96
+
+    .seed <- sample.int(2^31 - 1, 1)
+    set.seed(.seed)
+
+
+    one_V12_combo <- function(.v1, .v2) {
+        # .v1 = 1; .v2 = 1
+        # rm(.v1, .v2)
+        ..seed <- sample.int(2^31-1, 1)
+        set.seed(..seed)
+        X <- quant_gen(eta = .eta, d = .ds, q = 2, n = 2,
+                       V0 = cbind(t(stable_points(.eta)[1,]),
+                                  c(.v1, .v2)),
+                       sigma_V0 = 0,
+                       N0 = c(1, 1),
+                       spp_gap_t = 1e3L, final_t = 20e3L, save_every = 0L,
+                       sigma_V = .sigma_V,
+                       sigma_N = .sigma_N,
+                       add_var = rep(0.05, 2),
+                       n_reps = .nreps, n_threads = .N_THREADS,
+                       show_progress = FALSE)
+        # X$nv %>%
+        #     filter(trait == 1) %>%
+        #     group_by(rep) %>%
+        #     summarize(inv = any(spp == 2, na.rm = TRUE),
+        #               res = any(spp == 1, na.rm = TRUE)) %>%
+        #     select(-rep) %>%
+        #     summarise(across(.fns = mean)) %>%
+        #     mutate(V1 = .v1, V2 = .v2, seed = ..seed)
+        X$seed = ..seed
+        return(X)
+    }
+
+    Z <- crossing(V1 = seq(0, 4, 0.2),
+                  V2 = seq(0, 4, 0.2)) %>%
+        # bc `seq` makes weird numbers that are ~1e-15 from what they should be:
+        mutate(across(.fns = round, digits = 1)) %>%
+        mutate(sigma_V = .sigma_V, sigma_N = .sigma_N,
+               eta = .eta, d1 = .d1)
+    Z$qg = pmap(list(.v1 = Z$V1, .v2 = Z$V2), one_V12_combo)
+
+    return(Z)
+}
+
+
+crossing(.strong = c("c","a"),
+         .barely = c(TRUE, FALSE),
+         .eta = c(-1,1) * 0.6,
+         .sigma_N = c(0, 0.1, 0.2),
+         .sigma_V = c(0, 0.1, 0.2))
 
 
 
