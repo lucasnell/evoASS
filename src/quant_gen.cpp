@@ -907,27 +907,30 @@ IntegerVector group_spp_cpp(const std::vector<arma::vec>& V,
 //'
 //' @noRd
 //'
-int one_quant_gen__(OneRepInfo& info,
-                    std::deque<arma::vec> V0,
-                    std::deque<arma::vec> Vp0,
-                    std::deque<double> N0,
-                    const double& f,
-                    const double& a0,
-                    const arma::mat& C,
-                    const double& r0,
-                    const arma::mat& D,
-                    std::deque<double> add_var,
-                    const double& sigma_V0,
-                    const double& sigma_N,
-                    const std::vector<double>& sigma_V,
-                    const uint32_t& spp_gap_t,
-                    const uint32_t& final_t,
-                    const double& min_N,
-                    const bool& adjust_mu_V,
-                    const bool& lnorm_V,
-                    const uint32_t& save_every,
-                    pcg64& eng,
-                    Progress& prog_bar) {
+void one_quant_gen__(int& status,
+                     OneRepInfo& info,
+                     std::deque<arma::vec> V0,
+                     std::deque<arma::vec> Vp0,
+                     std::deque<double> N0,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D,
+                     std::deque<double> add_var,
+                     const double& sigma_V0,
+                     const double& sigma_N,
+                     const std::vector<double>& sigma_V,
+                     const uint32_t& spp_gap_t,
+                     const uint32_t& final_t,
+                     const double& min_N,
+                     const bool& adjust_mu_V,
+                     const bool& lnorm_V,
+                     const uint32_t& save_every,
+                     pcg64& eng,
+                     Progress& prog_bar) {
+
+    if (status != 0) return; // previous user interrupt
 
 
     uint32_t n = N0.size();
@@ -1058,11 +1061,14 @@ int one_quant_gen__(OneRepInfo& info,
 
 
         // Check for user interrupt:
-        if (interrupt_check(interrupt_iters, prog_bar, 100)) return -1;
+        if (interrupt_check(interrupt_iters, prog_bar, 100)) {
+            status = -1;
+            return;
+        }
 
     }
 
-    if (final_t == 0) return 0;
+    if (final_t == 0) return;
 
     uint32_t total_time = final_t + t;
 
@@ -1088,13 +1094,16 @@ int one_quant_gen__(OneRepInfo& info,
         t++;
 
         // Check for user interrupt:
-        if (interrupt_check(interrupt_iters, prog_bar, 100)) return -1;
+        if (interrupt_check(interrupt_iters, prog_bar, 100)) {
+            status = -1;
+            return;
+        }
 
     }
 
     if (n_pb_incr > 0) prog_bar.increment(n_pb_incr);
 
-    return 0;
+    return;
 }
 
 
@@ -1171,6 +1180,8 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     uint32_t active_thread = 0;
     #endif
 
+    int status = 0;
+
     pcg64 eng;
 
     #ifdef _OPENMP
@@ -1178,11 +1189,12 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
         eng.seed(seeds[i][0], seeds[i][1]);
-        int status = one_quant_gen__(rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
-                                     add_var, sigma_V0, sigma_N, sigma_V,
-                                     spp_gap_t, final_t, min_N, adjust_mu_V,
-                                     lnorm_V,
-                                     save_every, eng, prog_bar);
+        one_quant_gen__(status,
+                        rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
+                        add_var, sigma_V0, sigma_N, sigma_V,
+                        spp_gap_t, final_t, min_N, adjust_mu_V,
+                        lnorm_V,
+                        save_every, eng, prog_bar);
 
         if (active_thread == 0 && status != 0) interrupted = true;
     }
