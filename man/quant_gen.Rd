@@ -2,7 +2,6 @@
 % Please edit documentation in R/quant_gen.R
 \name{quant_gen}
 \alias{quant_gen}
-\alias{perturb.quant_gen}
 \title{Quantitative genetics.}
 \usage{
 quant_gen(
@@ -10,37 +9,24 @@ quant_gen(
   d,
   q,
   n = 10,
-  V0 = NULL,
+  V0 = 1,
   N0 = rep(1, n),
   f = 0.1,
-  a0 = 0.5,
+  a0 = 1e-04,
   r0 = 0.5,
   add_var = rep(0.01, n),
   sigma_V0 = 1,
   sigma_N = 0,
   sigma_V = 0,
   n_reps = 10,
-  spp_gap_t = 5000L,
-  final_t = 20000L,
-  min_N = 1e-04,
+  spp_gap_t = 500L,
+  final_t = 5000L,
+  min_N = 1,
   adjust_mu_V = FALSE,
   lnorm_V = TRUE,
   save_every = 10L,
   show_progress = TRUE,
   n_threads = 1
-)
-
-\method{perturb}{quant_gen}(
-  obj,
-  final_t,
-  save_every,
-  spp_gap_t = 0,
-  sigma_V0 = 0,
-  new_V = NULL,
-  new_Vp = NULL,
-  new_N = NULL,
-  which_rep = 1,
-  ...
 )
 }
 \arguments{
@@ -73,13 +59,13 @@ matrix row or column.}
 \item{add_var}{Vector of additive genetic variances for all starting species.}
 
 \item{sigma_V0}{Standard deviation for normal distribution from which
-starting trait values can be derived.
-Set to 0 for species to start with the exact values of traits
+starting axis values can be derived.
+Set to 0 for species to start with the exact values of axes
 specified in \code{V0}.}
 
 \item{sigma_N}{Standard deviation for stochasticity in population dynamics.}
 
-\item{sigma_V}{Standard deviation for stochasticity in trait evolution.}
+\item{sigma_V}{Standard deviation for stochasticity in axis evolution.}
 
 \item{n_reps}{Number of reps to perform.}
 
@@ -90,7 +76,7 @@ specified in \code{V0}.}
 \item{min_N}{Minimum N that's considered extant.}
 
 \item{adjust_mu_V}{Logical for whether to adjust the mean of the lognormal
-distribution that creates stochasticity in trait values so that
+distribution that creates stochasticity in axis values so that
 the mean of the transformed distribution (i.e.,
 \code{exp(~ N(mu, sigma_V))}) is 1.}
 
@@ -103,18 +89,6 @@ Defaults to \code{TRUE}.}
 \item{show_progress}{Boolean for whether to show a progress bar.}
 
 \item{n_threads}{Number of cores to use. Defaults to 1.}
-
-\item{obj}{A \code{quant_gen} object.}
-
-\item{new_V}{List of trait values for the new species being added.
-Defaults to \code{NULL}, which causes no new species to be add.}
-
-\item{new_N}{Numeric vector of new species to add. Defaults to \code{NULL}, which
-causes no new species to be add.}
-
-\item{which_rep}{Integer for which repetition to perturb.}
-
-\item{...}{Other parameters to pass to \code{quant_gen}.}
 }
 \value{
 A \code{quant_gen} object with \code{nv} (for N and V output) and
@@ -123,8 +97,3 @@ A \code{quant_gen} object with \code{nv} (for N and V output) and
 \description{
 Quantitative genetics.
 }
-\section{Methods (by generic)}{
-\itemize{
-\item \code{perturb}: Add a perturbation to a \code{quant_gen} object.
-}}
-

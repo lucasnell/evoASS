@@ -2,7 +2,6 @@
 % Please edit documentation in R/adapt_dyn.R
 \name{adapt_dyn}
 \alias{adapt_dyn}
-\alias{perturb.adapt_dyn}
 \title{Adaptive dynamics.}
 \usage{
 adapt_dyn(
@@ -11,30 +10,22 @@ adapt_dyn(
   q,
   n_reps,
   n = 1,
-  V0 = rep(list(matrix(0, 1, q)), n),
+  V0 = 1,
   N0 = rep(1, n),
   f = 0.1,
-  a0 = 0.5,
+  a0 = 1e-04,
   r0 = 0.5,
+  sigma_V0 = 1,
+  sigma_N = 0,
+  sigma_V = 0,
   max_t = 10000L,
-  min_N = 1e-04,
+  min_N = 1,
   save_every = 10L,
   mut_sd = 0.1,
   mut_prob = 0.01,
   max_clones = 10000,
-  show_progress = FALSE,
+  show_progress = TRUE,
   n_threads = 1
-)
-
-\method{perturb}{adapt_dyn}(
-  obj,
-  new_prop,
-  new_trait_means,
-  new_N_mean,
-  new_N_sd,
-  which_traits = NULL,
-  new_trait_sigmas = NULL,
-  ...
 )
 }
 \arguments{
@@ -80,30 +71,7 @@ memory for some of the inner C++ objects, so when deciding on a value for this,
 you should choose a high value.}
 
 \item{show_progress}{Boolean for whether to show a progress bar.}
-
-\item{obj}{An \code{adapt_dyn} object.}
-
-\item{new_prop}{Proportion of new clones.}
-
-\item{new_trait_means}{Mean(s) of new clones' trait(s).}
-
-\item{new_N_mean}{Mean of new clones' abundances.}
-
-\item{new_N_sd}{SD of new clones' abundances.}
-
-\item{which_traits}{Traits to change. Defaults to \code{1:length(new_trait_means)}.}
-
-\item{new_trait_sigmas}{SDs of new clones' trait(s).
-Defaults to SD of each trait at the end of the previous run of
-\code{adapt_dyn()}.}
-
-\item{...}{Arguments to pass to \code{adapt_dyn()}.}
 }
 \description{
 Adaptive dynamics.
 }
-\section{Methods (by generic)}{
-\itemize{
-\item \code{perturb}: Add a perturbation to an \code{adapt_dyn} object.
-}}
-
