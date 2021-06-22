@@ -12,6 +12,62 @@ using namespace Rcpp;
 
 
 
+void one_adapt_dyn__(int& status,
+                     OneRepInfoAD& info,
+                     const std::vector<arma::vec>& V0,
+                     const std::vector<double>& N0,
+                     const double& f,
+                     const double& a0,
+                     const arma::mat& C,
+                     const double& r0,
+                     const arma::mat& D,
+                     const double& sigma_V0,
+                     const double& sigma_N,
+                     const std::vector<double>& sigma_V,
+                     const double& max_t,
+                     const double& min_N,
+                     const double& mut_sd,
+                     const double& mut_prob,
+                     const uint32_t& max_clones,
+                     const uint32_t& save_every,
+                     pcg64& eng,
+                     Progress& prog_bar) {
+
+    if (status != 0) return; // previous user interrupt
+
+    uint32_t interrupt_iters = 0;   // checking for user interrupt
+    uint32_t n_pb_incr = 0;         // progress bar increments
+
+    info = OneRepInfoAD(V0, N0, max_clones, max_t, save_every,
+                                mut_sd, sigma_V0, eng);
+
+    for (uint32_t t = 0; t < max_t; t++) {
+
+        n_pb_incr++;
+
+        info.iterate(t, f, a0, C, r0, D, max_t, min_N,
+                             sigma_N, sigma_V,
+                             mut_sd, mut_prob, save_every, eng);
+
+        if (n_pb_incr > 100) {
+            prog_bar.increment(n_pb_incr);
+            n_pb_incr = 0;
+        }
+
+        // Check for user interrupt:
+        if (interrupt_check(interrupt_iters, prog_bar, 100)) {
+            status = -1;
+            return;
+        }
+
+    }
+
+    return;
+
+}
+
+
+
 
 //' Multiple repetitions of adaptive dynamics.
 //'
@@ -27,6 +83,9 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
                         const arma::mat& C,
                         const double& r0,
                         const arma::mat& D,
+                        const double& sigma_V0,
+                        const double& sigma_N,
+                        const std::vector<double>& sigma_V,
                         const double& max_t,
                         const double& min_N,
                         const double& mut_sd,
@@ -49,14 +108,16 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
     if (D.n_rows != q) stop("D.n_rows != q");
 
     for (uint32_t i = 0; i < V0.size(); i++) {
-        if (V0[i].n_cols != q) stop("all items in V0 must have the same length / # cols");
+        if (V0[i].n_elem != q) {
+            stop("all items in V0 must have the same length / # cols");
+        }
     }
 
     std::vector<OneRepInfoAD> rep_infos(n_reps);
 
     const std::vector<std::vector<uint128_t>> seeds = mc_seeds_rep(n_reps);
 
-    Progress prog_bar(n_reps, show_progress);
+    Progress prog_bar(n_reps * max_t, show_progress);
     bool interrupted = false;
 
     #ifdef _OPENMP
@@ -70,30 +131,22 @@ arma::mat adapt_dyn_cpp(const uint32_t& n_reps,
     uint32_t active_thread = 0;
     #endif
 
+    int status = 0;
+
     pcg64 eng;
 
     #ifdef _OPENMP
     #pragma omp for schedule(static)
     #endif
     for (uint32_t i = 0; i < n_reps; i++) {
-
         eng.seed(seeds[i][0], seeds[i][1]);
+        one_adapt_dyn__(status, rep_infos[i], V0, N0, f, a0, C, r0, D,
+                        sigma_V0, sigma_N, sigma_V, max_t, min_N,
+                        mut_sd, mut_prob, max_clones,
+                        save_every, eng, prog_bar);
 
-        if (!Progress::check_abort()) {
-
-            rep_infos[i] = OneRepInfoAD(V0, N0, max_clones, max_t, save_every, mut_sd);
-
-            for (uint32_t t = 0; t < max_t; t++) {
-
-                rep_infos[i].iterate(t, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob,
-                                     save_every, eng);
-
-            }
-
-            prog_bar.increment();
-
-        } else if (active_thread == 0) interrupted = true;
     }
+    if (active_thread == 0 && status != 0) interrupted = true;
     #ifdef _OPENMP
     }
     #endif

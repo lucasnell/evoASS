@@ -1,29 +1,63 @@
+#
+# Checks inputs to `adapt_dyn`, creates the D and C matrices, and edits
+# the `n_threads` value if necessary.
+#
+#
+check_adapt_dyn_args <- function(eta, d, q, n, V0, N0, f, a0, r0,
+                                 mut_sd, mut_prob, max_clones,
+                                 sigma_V0, sigma_N, sigma_V, n_reps, max_t,
+                                 min_N, save_every, show_progress, n_threads) {
 
-#' Create list of arguments for running a set of simulations using `adapt_dyn`.
-#'
-#' @param eta_sign Sign of the `eta` parameter.
-#' @param d_sign Sign of the `d` parameter.
-#' @param q Number of traits.
-#' @param ... Other arguments to add for `adapt_dyn` function, namely `n_reps`.
-#'
-#' @export
-#'
-adapt_dyn_args <- function(eta_sign, d_sign, q, ...) {
-    stopifnot(is.numeric(eta_sign), is.numeric(d_sign), is.numeric(q))
-    stopifnot(length(eta_sign) == 1, length(d_sign) == 1, length(q) == 1)
-    # List for all parameters:
-    args <- list(n_threads = 4, q = q)
-    # the non-additive effects of traits on `r`:
-    args$eta <- 0.01 * sign(eta_sign)
-    # changes how the focal line's traits affect other lines' effects of competition:
-    args$d <- 0.1 * sign(d_sign)
-    # High d takes a very long time to run using quant_gen, so I reduced its value
-    # when positive. I want to use the same value here.
-    if (args$d > 0) args$d <- 1e-4
-    others <- list(...)
-    args[names(others)] <- others
-    return(args)
+
+    stopifnot(sapply(list(eta, d, q, n, f, a0, r0, sigma_V0, sigma_N, sigma_V,
+                          n_reps, max_t, min_N, save_every,
+                          mut_sd, mut_prob, max_clones,
+                          n_threads, N0), is.numeric))
+    stopifnot(sapply(list(q, n, f, a0, r0, sigma_V0, sigma_N,
+                          mut_sd, mut_prob, max_clones,
+                          n_reps, max_t, save_every, n_threads),
+                     length) == 1)
+    stopifnot(length(sigma_V) %in% c(1, q))
+    if (!is.null(V0)) {
+        stopifnot(is.numeric(V0))
+        stopifnot(inherits(V0, "matrix") || length(V0) %in% c(1, q))
+        stopifnot(all(V0 >= 0))
+        if (inherits(V0, "matrix")) stopifnot(nrow(V0) == q && ncol(V0) == n)
+    }
+
+    stopifnot(n >= 1 && q >= 1)
+    stopifnot(N0 >= 0)
+    stopifnot(c(n_reps, max_t, n_threads) >= 1)
+    stopifnot(c(save_every, sigma_V0, min_N) >= 0)
+    stopifnot(mut_sd > 0)
+    stopifnot(mut_prob >= 0 && mut_prob <= 1)
+
+    stopifnot(length(eta) %in% c(1, q^2))
+    stopifnot(length(d) %in% c(1, q))
+
+    if (n_threads > 1 && !using_openmp()) {
+        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
+        n_threads <- 1
+    }
+
+    C <- matrix(eta[1], q, q)
+    if (length(eta) == q^2) {
+        stopifnot(inherits(eta, "matrix") &&
+                      identical(dim(eta), as.integer(c(q,q))) &&
+                      isSymmetric(eta))
+        C <- eta
+    }
+    diag(C) <- 1
+
+    D <- matrix(0, q, q)
+    diag(D) <- d
+
+    return(list(C = C, D = D, n_threads = n_threads))
+
+
 }
+
+
 
 #' Adaptive dynamics.
 #'
@@ -73,56 +107,23 @@ adapt_dyn <- function(
     q,
     n_reps,
     n = 1,
-    V0 = rep(list(matrix(0, 1, q)), n),
+    V0 = 1,
     N0 = rep(1, n),
     f = 0.1,
-    a0 = 0.5,
+    a0 = 1e-4,
     r0 = 0.5,
+    sigma_V0 = 1,
+    sigma_N = 0,
+    sigma_V = 0,
     max_t = 1e4L,
-    min_N = 1e-4,
+    min_N = 1,
     save_every = 10L,
     mut_sd = 0.1,
     mut_prob = 0.01,
     max_clones = 1e4,
-    show_progress = FALSE,
+    show_progress = TRUE,
     n_threads = 1) {
 
-    stopifnot(inherits(V0, "list"))
-    stopifnot(sapply(V0, inherits, what = c("numeric", "matrix", "array")))
-    stopifnot(all(sapply(V0, function(x) all(x >= 0))))
-    stopifnot(sapply(list(eta, d, q, n_reps, n, N0, f, a0, r0, max_t, min_N, save_every,
-                          mut_sd, mut_prob, max_clones, n_threads), is.numeric))
-    stopifnot(inherits(show_progress, "logical"))
-    stopifnot(sapply(list(q, n_reps, n, f, a0, r0, max_t, min_N, save_every,
-                          mut_sd, mut_prob, max_clones, show_progress, n_threads),
-                     length) == 1)
-    stopifnot(c(N0, min_N, mut_sd) > 0)
-    stopifnot(mut_prob >= 0 && mut_prob <= 1)
-    stopifnot(c(q, n_reps, n, max_t, save_every, n_threads) >= 1)
-
-    stopifnot(length(eta) %in% c(1, q^2))
-    stopifnot(length(d) %in% c(1, q))
-
-    if (n_threads > 1 && !using_openmp()) {
-        message("\nOpenMP not enabled. Only 1 thread will be used.\n")
-        n_threads <- 1
-    }
-
-    C <- matrix(eta[1], q, q)
-    if (length(eta) == q^2) {
-        stopifnot(inherits(eta, "matrix") && isSymmetric(eta))
-        C <- eta
-    }
-    diag(C) <- 1
-
-    D <- matrix(0, q, q)
-    if (length(d) == 1) {
-        diag(D) <- rep(d, q)
-    } else if (length(d) == q) {
-        diag(D) <- rep(d, q)
-    }
-
-    if (max_clones < 100) max_clones <- 100
 
     call_ <- match.call()
     # So it doesn't show the whole function if using do.call:
@@ -130,11 +131,59 @@ adapt_dyn <- function(
         call_[1] <- as.call(quote(adapt_dyn()))
     }
 
-    sim_output <- adapt_dyn_cpp(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N,
-                                mut_sd, mut_prob, show_progress, max_clones,
-                                save_every, n_threads)
+    args <- check_adapt_dyn_args(eta, d, q, n, V0, N0, f, a0, r0,
+                                 mut_sd, mut_prob, max_clones,
+                                 sigma_V0, sigma_N, sigma_V, n_reps, max_t,
+                                 min_N, save_every, show_progress, n_threads)
+
+    C <- args$C
+    D <- args$D
+    n_threads <- args$n_threads
+
+    if (length(sigma_V) == 1) sigma_V <- rep(sigma_V, q)
+
+    if (max_clones < 100) max_clones <- 100
+
+    if (is.null(V0)) {
+        # Otherwise start at zero:
+        if (sigma_V0 == 0 && all(sigma_V) == 0) {
+            warning(paste("\nSimulations start with species having all axes",
+                          "at zero, and you aren't providing stochasticity in",
+                          "either the starting values or via phenotypes.",
+                          "Because this is often an unstable equilibrium,",
+                          "these simulations may be odd or boring.",
+                          "Continuing anyway..."))
+        }
+        V0 <- matrix(0, q, n)
+    } else if (!inherits(V0, "matrix")) {
+        stopifnot(length(V0) == 1 || length(V0) == q)
+        V0 <- matrix(V0, q, n)
+    }
+
+
+    sim_output <- adapt_dyn_cpp(n_reps = n_reps,
+                                V0 = split(t(V0), 1:ncol(V0)),
+                                N0 = N0,
+                                f = f,
+                                a0 = a0,
+                                C = C,
+                                r0 = r0,
+                                D = D,
+                                sigma_V0 = sigma_V0,
+                                sigma_N = sigma_N,
+                                sigma_V = sigma_V,
+                                max_t = max_t,
+                                min_N = min_N,
+                                mut_sd = mut_sd,
+                                mut_prob = mut_prob,
+                                show_progress = show_progress,
+                                max_clones = max_clones,
+                                save_every = save_every,
+                                n_threads = n_threads)
 
     colnames(sim_output) <- c("rep", "time", "clone", "N", sprintf("V%i", 1:q))
+
+    if (show_progress) cat("Simulations finished...\n")
 
     NVt <- as_tibble(sim_output) %>%
         gather("trait", "V", dplyr::starts_with("V")) %>%

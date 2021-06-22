@@ -6,8 +6,8 @@
 #'
 #' @noRd
 #'
-adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads) {
-    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads)
+adapt_dyn_cpp <- function(n_reps, V0, N0, f, a0, C, r0, D, sigma_V0, sigma_N, sigma_V, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads) {
+    .Call(`_sauron_adapt_dyn_cpp`, n_reps, V0, N0, f, a0, C, r0, D, sigma_V0, sigma_N, sigma_V, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads)
 }
 
 #' Derivative of fitness with respect to the trait divided by mean fitness.

@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // adapt_dyn_cpp
-arma::mat adapt_dyn_cpp(const uint32_t& n_reps, const std::vector<arma::vec>& V0, const std::vector<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every, const uint32_t& n_threads);
-RcppExport SEXP _sauron_adapt_dyn_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP, SEXP n_threadsSEXP) {
+arma::mat adapt_dyn_cpp(const uint32_t& n_reps, const std::vector<arma::vec>& V0, const std::vector<double>& N0, const double& f, const double& a0, const arma::mat& C, const double& r0, const arma::mat& D, const double& sigma_V0, const double& sigma_N, const std::vector<double>& sigma_V, const double& max_t, const double& min_N, const double& mut_sd, const double& mut_prob, const bool& show_progress, const uint32_t& max_clones, const uint32_t& save_every, const uint32_t& n_threads);
+RcppExport SEXP _sauron_adapt_dyn_cpp(SEXP n_repsSEXP, SEXP V0SEXP, SEXP N0SEXP, SEXP fSEXP, SEXP a0SEXP, SEXP CSEXP, SEXP r0SEXP, SEXP DSEXP, SEXP sigma_V0SEXP, SEXP sigma_NSEXP, SEXP sigma_VSEXP, SEXP max_tSEXP, SEXP min_NSEXP, SEXP mut_sdSEXP, SEXP mut_probSEXP, SEXP show_progressSEXP, SEXP max_clonesSEXP, SEXP save_everySEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -20,6 +20,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const double& >::type r0(r0SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma_V0(sigma_V0SEXP);
+    Rcpp::traits::input_parameter< const double& >::type sigma_N(sigma_NSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sigma_V(sigma_VSEXP);
     Rcpp::traits::input_parameter< const double& >::type max_t(max_tSEXP);
     Rcpp::traits::input_parameter< const double& >::type min_N(min_NSEXP);
     Rcpp::traits::input_parameter< const double& >::type mut_sd(mut_sdSEXP);
@@ -28,7 +31,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const uint32_t& >::type max_clones(max_clonesSEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type save_every(save_everySEXP);
     Rcpp::traits::input_parameter< const uint32_t& >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(adapt_dyn_cpp(n_reps, V0, N0, f, a0, C, r0, D, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads));
+    rcpp_result_gen = Rcpp::wrap(adapt_dyn_cpp(n_reps, V0, N0, f, a0, C, r0, D, sigma_V0, sigma_N, sigma_V, max_t, min_N, mut_sd, mut_prob, show_progress, max_clones, save_every, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -357,7 +360,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_sauron_adapt_dyn_cpp", (DL_FUNC) &_sauron_adapt_dyn_cpp, 16},
+    {"_sauron_adapt_dyn_cpp", (DL_FUNC) &_sauron_adapt_dyn_cpp, 19},
     {"_sauron_sel_str_cpp", (DL_FUNC) &_sauron_sel_str_cpp, 7},
     {"_sauron_dVi_dVi_cpp", (DL_FUNC) &_sauron_dVi_dVi_cpp, 7},
     {"_sauron_dVi_dVk_cpp", (DL_FUNC) &_sauron_dVi_dVk_cpp, 7},

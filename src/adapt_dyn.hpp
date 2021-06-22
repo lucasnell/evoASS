@@ -8,6 +8,10 @@
 using namespace Rcpp;
 
 
+typedef std::normal_distribution<double> normal_distr;
+
+
+
 
 
 /*
@@ -51,7 +55,9 @@ public:
                  const uint32_t& max_clones,
                  const uint32_t& max_t,
                  const uint32_t& save_every,
-                 const double& mut_sd)
+                 const double& mut_sd,
+                 const double& sigma_V0,
+                 pcg64& eng)
         : N(N0), A(N0.size()), I(N0.size()), clone_I(0),
           all_V(V0), all_N(1), all_I(1), all_t(1),
           mut_sd_(mut_sd) {
@@ -73,6 +79,13 @@ public:
         all_t[0] = 0;
         all_t.reserve(max_times);
 
+        // Add variability to all_V, if desired:
+        if (sigma_V0 > 0) {
+            for (arma::vec& v : all_V) {
+                for (double& d : v) d = trunc_rnorm_(d, sigma_V0, eng);
+            }
+        }
+
     }
 
 
@@ -84,25 +97,63 @@ public:
                  const arma::mat& D,
                  const double& max_t,
                  const double& min_N,
+                 const double& sigma_N,
+                 const std::vector<double>& sigma_V,
                  const double& mut_sd,
                  const double& mut_prob,
                  const uint32_t& save_every,
                  pcg64& eng) {
 
-        // Fill in density dependences:
-        A_VNI__<std::vector<double>>(A, all_V, N, I, a0, D);
+        bool has_phenos = std::accumulate(sigma_V.begin(), sigma_V.end(), 0) == 0;
 
         // Extinct clones (if any):
         std::vector<uint32_t> extinct;
-        // Fill in abundances:
-        for (uint32_t i = 0; i < A.size(); i++) {
-            double r = r_V_<arma::vec>(all_V[I[i]], f, C, r0);
-            N[i] *= std::exp(r - A[i]);
-            // See if it goes extinct:
-            if (N[i] < min_N) {
-                extinct.push_back(i);
+
+        if (!has_phenos) {
+
+            // Fill in density dependences:
+            A_VNI__<std::vector<double>>(A, all_V, N, I, a0, D);
+
+            // Fill in abundances:
+            for (uint32_t i = 0; i < A.size(); i++) {
+                double r = r_V_<arma::vec>(all_V[I[i]], f, C, r0);
+                if (sigma_N <= 0) {
+                    N[i] *= std::exp(r - A[i]);
+                } else N[i] *= std::exp(r - A[i] + rand_norm(eng) * sigma_N);
+                // See if it goes extinct:
+                if (N[i] < min_N) extinct.push_back(i);
             }
+
+        } else {
+
+            // Fill in phenotypes:
+            std::vector<arma::vec> Vp(A.size());
+            for (uint32_t i = 0; i < A.size(); i++) {
+                Vp[i] = all_V[I[i]];
+                for (uint32_t j = 0; j < sigma_V.size(); j++) {
+                    if (sigma_V[j] > 0) {
+                        Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V[j]);
+                    }
+                }
+            }
+
+            // Fill in density dependences:
+            A_VN_<std::vector<double>>(A, Vp, N, a0, D);
+
+            // Fill in abundances:
+            for (uint32_t i = 0; i < A.size(); i++) {
+                double r = r_V_<arma::vec>(Vp[i], f, C, r0);
+                if (sigma_N <= 0) {
+                    N[i] *= std::exp(r - A[i]);
+                } else N[i] *= std::exp(r - A[i] + rand_norm(eng) * sigma_N);
+                // See if it goes extinct:
+                if (N[i] < min_N) extinct.push_back(i);
+            }
+
         }
+
+
+
         // If everything is gone, output results and stop simulations:
         if (extinct.size() == N.size()) {
             all_N.push_back(N);
@@ -206,6 +257,7 @@ public:
 private:
 
     double mut_sd_;
+    normal_distr rand_norm = normal_distr(0, 1);
 
 };
 
