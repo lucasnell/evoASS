@@ -1053,7 +1053,7 @@ stab_p_shared <-  list(
     scale_color_manual("Conflicting axis:",
                        values = c("black", "gray40", "gray70")),
     theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
-          legend.position = "top"))
+          legend.position = "none"))
 
 
 stab_p_list <- list()
@@ -1085,18 +1085,22 @@ stab_p_list[[3]] <- stab_sim_df %>%
     scale_y_continuous("Scaled\ncommunity\nsize", label = comma) +
     stab_p_shared
 
-for (i in c(2,3)) {
-    stab_p_list[[i]] <- stab_p_list[[i]] +
-        theme(legend.position = "none")
-}
+
 for (i in c(1,2)) {
     stab_p_list[[i]] <- stab_p_list[[i]] +
         theme(axis.title.x = element_blank(),
               axis.text.x = element_blank())
 }
 
+stab_p_legend <- get_legend(stab_p_list[[1]] +
+                                theme(legend.position = "top"))
 
-stab_p <- ggarrange(plots = stab_p_list, ncol = 1, draw = FALSE)
+
+stab_p <- plot_grid(plotlist = c(list(stab_p_legend), stab_p_list),
+                    labels = c("", sprintf("(%s)", letters[1:length(stab_p_list)])),
+                    label_fontface = "plain", label_size = 12,
+                    align = "vh", axis = "lb",
+                    rel_heights = c(0.2, 1, 1, 1), ncol = 1)
 
 if (.RESAVE_PLOTS) save_plot(stab_p, 5, 5, .prefix = "4-")
 
