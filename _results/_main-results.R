@@ -1225,7 +1225,33 @@ one_stoch_sim <- function(.eta,
 
 
 
-
+#'
+#' The function below produces a plot showing all simulation reps (from
+#' simulation dataframes below).
+#' I used it on all simulations to show that all reps conform to the
+#' "representative" reps and that `d1` doesn't do anything useful here.
+#' I've commented it out because it produces a very large, time-consuming plot.
+#'
+#'
+#' stoch_big_plotter <- function(.sims) {
+#'     .sims %>%
+#'         ggplot(aes(V1, V2, color = spp)) +
+#'         geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
+#'         geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
+#'         geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
+#'         geom_path() +
+#'         geom_point(data = .sims %>% filter(time == 0),
+#'                    shape = 1, size = 1) +
+#'         geom_point(data = .sims %>% filter(time == max(time)),
+#'                    shape = 19, color = "black", size = 3) +
+#'         facet_grid(d1 + sigma_V ~ rep) +
+#'         scale_color_viridis_d(end = 0.8, guide = FALSE) +
+#'         coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
+#'         NULL
+#' }
+#' # For example:
+#' # stoch_big_plotter(stoch_comm_sims)
+#'
 
 
 
@@ -1277,6 +1303,209 @@ one_stoch_sim <- function(.eta,
 
 
 
+
+
+
+
+#'
+#' Finds unique communities by `sigma_V`.
+#' NOTE: This assumes that all reps are representative and that you're
+#' not interested in `d1`.
+#'
+stoch_comms <- function(.sims) {
+    .sims %>%
+        filter(time == max(time), rep == 1, d1 == median(d1)) %>%
+        group_by(sigma_V) %>%
+        mutate(grp = group_spp(V1, V2, .prec = 1e-1)) %>%
+        group_by(sigma_V, grp) %>%
+        summarize(V1 = mean(V1), V2 = mean(V2), n_spp = n(), .groups = "drop")
+}
+
+
+#'
+#' Plots how species evolve through axis space, for a given set of simulations
+#' and `sigma_V`.
+#'
+stoch_comm_V_plotter <- function(.s, .sims) {
+    .sims_comms <- stoch_comms(.sims) %>%
+        filter(sigma_V == .s)
+    .sims %>%
+        filter(rep == 1, d1 == median(d1), sigma_V == .s) %>%
+        ggplot(aes(V1, V2, color = spp)) +
+        geom_abline(slope = 1, intercept = 0,
+                    linetype = 2, color = "gray70") +
+        geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
+        geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
+        geom_path() +
+        geom_point(data = .sims %>%
+                       filter(time == 0, rep == 1, d1 == median(d1),
+                              sigma_V == .s),
+                   shape = 1, size = 1) +
+        geom_point(data = .sims_comms, shape = 19, color = "black", size = 3) +
+        geom_text(data = .sims_comms, aes(label = n_spp),
+                  color = "white", size = 8 / 2.83465) +
+        scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
+        scale_y_continuous("Ameliorative axis") +
+        scale_x_continuous("Conflicting axis") +
+        coord_equal(xlim = c(0, 1.5), ylim = c(0, 1.5)) +
+        theme(plot.margin = margin(0,0,0,0)) +
+        NULL
+}
+#'
+#' Plots how Omega (scaled community size) changes through time,
+#' for a given set of simulations and `sigma_V`.
+#' NOTE: it filters out time < 1000 as we're most interested in
+#' dynamics at "equilibrium".
+#'
+stoch_comm_O_plotter <- function(.s, .sims, .y_scale = NULL, .rollmean = FALSE) {
+    .dd <- .sims %>%
+        filter(time > 1000, rep == 1, d1 == median(d1), sigma_V == .s) %>%
+        group_by(time) %>%
+        summarize(cs = comm_size_fun(N,
+                                     ifelse(is.na(Vp1), V1, Vp1),
+                                     ifelse(is.na(Vp2), V2, Vp2),
+                                     d = c(d1[1], d2[1])),
+                  .groups = "drop")
+    if (is.null(.y_scale)) {
+        .y_scale <- scale_y_continuous("Scaled\ncommunity size",
+                                       labels = comma,
+                                       breaks = c(7,9,11)*1e3,
+                                       limits = c(6500, 12500))
+    }
+    .p <- .dd %>%
+        ggplot(aes(time, cs)) +
+        geom_line(color = "black") +
+        scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
+        .y_scale +
+        scale_x_continuous("Time", breaks = c(0, 75e3, 150e3), labels = comma)
+    if (.rollmean) {
+        .p <- .p +
+            geom_line(data = .dd %>%
+                          mutate(cs = zoo::rollmean(cs, 50, fill = NA)) %>%
+                          filter(!is.na(cs)), color = "dodgerblue")
+    }
+    return(.p)
+}
+
+#'
+#' Plots PDF of normal distributions with varying `sigma_V`.
+#' Set `.flip` to `TRUE` for plots on right side.
+#'
+sigma_distr_plotter <- function(.s,
+                                .flip,
+                                .max_y = 12,
+                                .x_range = c(-0.6, 0.6),
+                                .xlim_mult = 2) {
+    .coord <- if (.flip) coord_flip else coord_cartesian
+    tibble(x = seq(min(.x_range), max(.x_range), 0.001) %>% round(3)) %>%
+        mutate(dens = map_dbl(x, ~ dnorm(.x, sd = .s))) %>%
+        ggplot(aes(x, dens)) +
+        geom_area(color = NA, fill = "gray60") +
+        theme_nothing() +
+        .coord(ylim = c(0, .max_y),
+               xlim = .x_range * .xlim_mult,
+               expand = FALSE)
+}
+#'
+#' Combines plots of axis evolution, Omega, and sigmas into one plot.
+#'
+stoch_comm_p_combiner <- function(.V_plots,
+                                  .O_plots,
+                                  .sigmas) {
+
+    # .V_plots = stoch_super_V_p_list
+    # .O_plots = stoch_super_O_p_list
+    # .sigmas =  c(0.05, 0.1, 0.2)
+    # rm(.V_plots, .O_plots, .sigmas, i, combined_V, combined_O, combined)
+
+    stopifnot(length(.V_plots) == length(.O_plots))
+
+    stopifnot(inherits(.sigmas, "matrix") || inherits(.sigmas, "numeric"))
+
+    if (inherits(.sigmas, "matrix")) {
+        if (ncol(.sigmas)!=2) stop("\nIf a matrix, `.sigmas` must have 2 cols")
+        if (nrow(.sigmas) != length(.V_plots)) {
+            stop("\nIf `.sigmas` is a matrix, nrow(.sigmas) must equal ",
+                 "`length(.V_plots)`")
+            }
+    } else {
+        if (length(.sigmas) != length(.V_plots)) {
+            stop("\nIf `.sigmas` is numeric, length(.sigmas) must equal ",
+                 "`length(.V_plots)`")
+        }
+        .sigmas <- unname(cbind(.sigmas, .sigmas))
+    }
+
+    for (i in 1:length(.V_plots)) {
+        if (i > 1) {
+            .V_plots[[i]] <- .V_plots[[i]] +
+                theme(axis.title.y = element_blank(),
+                      axis.text.y = element_blank())
+            .O_plots[[i]] <- .O_plots[[i]] +
+                theme(axis.title.y = element_blank(),
+                      axis.text.y = element_blank())
+        }
+        if (i != median(c(1, length(.V_plots)))) {
+            .V_plots[[i]] <- .V_plots[[i]] +
+                theme(axis.title.x = element_blank())
+            .O_plots[[i]] <- .O_plots[[i]] +
+                theme(axis.title.x = element_blank())
+        }
+    }
+
+    combined_V <- lapply(1:nrow(.sigmas),
+                         function(i){
+                             main_plot <- .V_plots[[i]] %>%
+                                 ggplotGrob() %>%
+                                 gtable_frame(g3, width = unit(1, "null"))
+                             top_sigma <- .sigmas[i,1] %>%
+                                 sigma_distr_plotter(.flip = FALSE) %>%
+                                 ggplotGrob() %>%
+                                 gtable_frame(width = unit(1, "null"))
+                             right_sigma <- .sigmas[i,2] %>%
+                                 sigma_distr_plotter(.flip = TRUE) %>%
+                                 ggplotGrob() %>%
+                                 gtable_frame(width = unit(0.2, "null"))
+                             blank <- BLANK %>%
+                                 ggplotGrob() %>%
+                                 gtable_frame(width = unit(0.2, "null"))
+                             top_row <- gtable_frame(
+                                 gtable_cbind(blank, blank),
+                                 height = unit(0.05, "null"))
+                             mid_row <- gtable_frame(
+                                 gtable_cbind(top_sigma, blank),
+                                 height = unit(0.1, "null"))
+                             bot_row <- gtable_frame(
+                                 gtable_cbind(main_plot, right_sigma),
+                                 height = unit(1, "null"))
+                             combined <- gtable_rbind(top_row, mid_row, bot_row)
+                             # grid.newpage(); grid.draw(combined)
+                             return(combined)
+                         }) %>%
+        do.call(what = gtable_cbind)
+    # grid.newpage(); grid.draw(combined_V)
+
+    combined_O <- .O_plots %>%
+        lapply(ggplotGrob) %>%
+        lapply(gtable_frame, width = unit(1, "null"), height = unit(0.2, "null")) %>%
+        # lapply(function(.x) {
+        #     gtable_cbind(.x,
+        #                  gtable_frame(ggplotGrob(BLANK),
+        #                               width = unit(0.2, "null")))
+        # }) %>%
+        do.call(what = gtable_cbind) %>%
+        identity()
+    # grid.newpage(); grid.draw(combined_O)
+
+    combined <- gtable_rbind(combined_V, combined_O)
+    # grid.newpage(); grid.draw(combined)
+
+    return(combined)
+
+}
+
+
+
 #' ----------------------------------------------------------------------------
 #' ----------------------------------------------------------------------------
 #'
@@ -1285,219 +1514,24 @@ one_stoch_sim <- function(.eta,
 #'
 # Takes ~20 sec
 set.seed(1630767640)
-stoch_comm_sims <- crossing(.eta = 1e-2,
+stoch_super_sims <- crossing(.eta = 1e-2,
                             .sigma_V = c(0.05, 0.1, 0.2)) %>%
     pmap_dfr(one_stoch_sim) %>%
     select(-eta)
 
-# Only interested in reps where all species survived, so verify that this
-# returns nothing:
-stoch_comm_sims %>%
-    group_by(sigma_V, d1, rep) %>%
-    mutate(n_spp = length(unique(spp[time == max(time)]))) %>%
-    ungroup() %>%
-    filter(n_spp < 4)
 
+stoch_super_V_p_list <- map(sort(unique(stoch_super_sims$sigma_V)),
+                            stoch_comm_V_plotter, .sims = stoch_super_sims)
+# stoch_super_V_p_list[[3]]
 
+stoch_super_O_p_list <- map(sort(unique(stoch_super_sims$sigma_V)),
+                            stoch_comm_O_plotter, .sims = stoch_super_sims)
+# stoch_super_O_p_list[[2]]
 
-
-
-#' #'
-#' #' The plot below shows that all reps conform to the "representative" reps
-#' #' and that d1 doesn't do anything useful here.
-#' #' I've commented it out because it's a very large, time-consuming plot.
-#' #'
-#' stoch_comm_sims %>%
-#'     ggplot(aes(V1, V2, color = spp)) +
-#'     geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
-#'     geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
-#'     geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
-#'     geom_path() +
-#'     geom_point(data = stoch_comm_sims %>% filter(time == 0),
-#'                shape = 1, size = 1) +
-#'     geom_point(data = stoch_comm_sims %>% filter(time == max(time)),
-#'                shape = 19, color = "black", size = 3) +
-#'     facet_grid(d1 + sigma_V ~ rep) +
-#'     scale_color_viridis_d(end = 0.8, guide = FALSE) +
-#'     coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-#'     NULL
-
-
-stoch_comms <- stoch_comm_sims %>%
-    filter(time == max(time), rep == 1, d1 == median(d1)) %>%
-    group_by(sigma_V) %>%
-    mutate(grp = group_spp(V1, V2, .prec = 1e-1)) %>%
-    group_by(sigma_V, grp) %>%
-    summarize(V1 = mean(V1), V2 = mean(V2), n_spp = n(), .groups = "drop")
-
-stoch_comm_V_p_list <- map(
-    sort(unique(stoch_comm_sims$sigma_V)),
-    function(.v) {
-        stoch_comm_sims %>%
-            filter(rep == 1, d1 == median(d1), sigma_V == .v) %>%
-            ggplot(aes(V1, V2, color = spp)) +
-            geom_abline(slope = 1, intercept = 0,
-                        linetype = 2, color = "gray70") +
-            geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
-            geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
-            geom_path() +
-            geom_point(data = stoch_comm_sims %>%
-                           filter(time == 0, rep == 1, d1 == median(d1),
-                                  sigma_V == .v),
-                       shape = 1, size = 1) +
-            geom_point(data = stoch_comms %>%
-                           filter(sigma_V == .v),
-                       shape = 19, color = "black", size = 3) +
-            geom_text(data = stoch_comms %>%
-                          filter(sigma_V == .v),
-                      aes(label = n_spp), color = "white", size = 8 / 2.83465) +
-            scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
-            scale_y_continuous("Ameliorative axis") +
-            scale_x_continuous("Conflicting axis") +
-            coord_equal(xlim = c(0, 1.5), ylim = c(0, 1.5)) +
-            theme(plot.margin = margin(0,0,0,0)) +
-            NULL
-    })
-# stoch_comm_V_p_list[[3]]
-
-
-
-stoch_comm_cs_p_list <- map(
-    sort(unique(stoch_comm_sims$sigma_V)),
-    function(.v) {
-        stoch_comm_sims %>%
-            filter(time > 1000, rep == 1, d1 == median(d1), sigma_V == .v) %>%
-            group_by(time) %>%
-            summarize(cs = comm_size_fun(N,
-                                         ifelse(is.na(Vp1), V1, Vp1),
-                                         ifelse(is.na(Vp2), V2, Vp2),
-                                         d = c(d1[1], d2[1])),
-                      .groups = "drop") %>%
-            ggplot(aes(time, cs)) +
-            geom_line(color = "black") +
-            # geom_line(data = stoch_comm_sims %>%
-            #               filter(time > 1000, rep == 1, d1 == median(d1),
-            #                      sigma_V == .v) %>%
-            #               group_by(time) %>%
-            #               summarize(cs = comm_size_fun(N, Vp1, Vp2,
-            #                                            d = c(d1[1], d2[1])),
-            #                         .groups = "drop") %>%
-            #               mutate(cs = zoo::rollmean(cs, 50, fill = NA)) %>%
-            #               ungroup() %>%
-            #               filter(!is.na(cs)), color = "dodgerblue") +
-            scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
-            # scale_y_continuous(expression(Omega), # "Scaled community size",
-            scale_y_continuous("Scaled\ncommunity size",
-                               labels = comma,
-                               breaks = c(7,9,11)*1e3,
-                               limits = c(6500, 12500)) +
-            scale_x_continuous("Time", breaks = c(0, 75e3, 150e3),
-                               labels = comma) +
-            NULL
-    })
-
-# stoch_comm_cs_p_list[[2]]
-
-
-
-sigma_distr_df <- crossing(sigma_V = c(0.05, 0.1, 0.2),
-                     x = seq(-0.6, 0.6, 0.001) %>% round(3)) %>%
-    arrange(sigma_V, x) %>%
-    mutate(d = map2_dbl(x, sigma_V, ~ dnorm(.x, sd = .y)))
-
-
-if (!identical(sort(unique(stoch_comm_sims$sigma_V)),
-               sort(unique(sigma_distr_df$sigma_V)))) {
-    stop("\n-----------\nsigma_distr_df has incorrect sigma values!\n-----------")
-}
-
-
-sigma_distr_p_list <- map(
-    sort(unique(sigma_distr_df$sigma_V)),
-    function(.v) {
-        sigma_distr_df %>%
-            filter(sigma_V == .v) %>%
-            ggplot(aes(x, d)) +
-            geom_area(color = NA, fill = "gray60") +
-            theme_nothing() +
-            coord_cartesian(ylim = c(0, max(sigma_distr_df$d) * 1.5), expand = FALSE)
-    })
-
-sigma_distr_flip_p_list <- map(
-    sort(unique(sigma_distr_df$sigma_V)),
-    function(.v) {
-        sigma_distr_df %>%
-            filter(sigma_V == .v) %>%
-            ggplot(aes(x, d)) +
-            geom_area(color = NA, fill = "gray60") +
-            theme_nothing() +
-            coord_flip(ylim = c(0, max(sigma_distr_df$d) * 1.5), expand = FALSE)
-    })
-
-
-
-
-
-sigma_comm_V_p1 <-
-    lapply(1:length(sigma_distr_p_list),
-           function(i){
-
-               main_plot <- stoch_comm_V_p_list[[i]]
-               if (i > 1) main_plot <- main_plot +
-                   theme(axis.title.y = element_blank(),
-                         axis.text.y = element_blank())
-               if (i != 2) main_plot <- main_plot +
-                   theme(axis.title.x = element_blank())
-
-               g1 <- ggplotGrob(sigma_distr_p_list[[i]])
-               g2 <- ggplotGrob(BLANK)
-               g3 <- ggplotGrob(main_plot)
-               g4 <- ggplotGrob(sigma_distr_flip_p_list[[i]])
-
-               fg1 <- gtable_frame(g1, width = unit(1, "null"))
-               fg2 <- gtable_frame(g2, width = unit(0.2, "null"))
-               fg12 <- gtable_frame(gtable_cbind(fg1, fg2),
-                                    height = unit(0.1, "null"))
-
-               fg3 <- gtable_frame(g3, width = unit(1, "null"))
-               fg4 <- gtable_frame(g4, width = unit(0.2, "null"))
-               fg34 <- gtable_frame(gtable_cbind(fg3, fg4),
-                                    height = unit(1, "null"))
-
-               combined <- gtable_rbind(fg12, fg34)
-               return(combined)
-           }) %>%
-    do.call(what = gtable_cbind)
-
-# grid.newpage(); grid.draw(sigma_comm_V_p1)
-
-
-
-sigma_comm_O_p1 <- 1:length(stoch_comm_cs_p_list) %>%
-    map(function(i) {
-        main_plot <- stoch_comm_cs_p_list[[i]]
-        if (i > 1) main_plot <- main_plot +
-                theme(axis.title.y = element_blank(),
-                      axis.text.y = element_blank())
-        if (i != 2) main_plot <- main_plot +
-                theme(axis.title.x = element_blank())
-        return(main_plot)
-    }) %>%
-    map(ggplotGrob) %>%
-    map(gtable_frame, width = unit(1, "null"), height = unit(0.2, "null")) %>%
-    # map(~ gtable_cbind(.x,
-    #                    gtable_frame(ggplotGrob(BLANK),
-    #                                 width = unit(0.2, "null")))) %>%
-    # c(rep(list(gtable_frame(ggplotGrob(BLANK), width = unit(0.2, "null"))), 3)) %>%
-    # .[c(1, 4, 2, 5, 3, 6)] %>%
-    do.call(what = gtable_cbind) %>%
-    identity()
-
-
-
-sigma_comm_p1 <- gtable_rbind(sigma_comm_V_p1, sigma_comm_O_p1)
-
-# grid.newpage(); grid.draw(sigma_comm_p1)
+stoch_super_comm_p <- stoch_comm_p_combiner(stoch_super_V_p_list,
+                                            stoch_super_O_p_list,
+                                            c(0.05, 0.1, 0.2))
+# grid.newpage(); grid.draw(stoch_super_comm_p)
 
 
 
@@ -1515,11 +1549,11 @@ sigma_comm_p1 <- gtable_rbind(sigma_comm_V_p1, sigma_comm_O_p1)
 #'
 # Takes ~10 sec
 set.seed(489421325)
-stoch_sub_comm_sims <- crossing(.eta = -1e-2,
-                                .sigma_V = list(list(c(0.05, 0.05)),
-                                                list(c(0.05, 0.20)),
-                                                list(c(0.20, 0.05))),
-                                .d_mults = 1) %>%
+stoch_sub_sims <- crossing(.eta = -1e-2,
+                           .sigma_V = list(list(c(0.05, 0.05)),
+                                           list(c(0.05, 0.20)),
+                                           list(c(0.20, 0.05))),
+                           .d_mults = 1) %>%
     pmap_dfr(one_stoch_sim) %>%
     select(-eta) %>%
     mutate(sigma_v1 = map_dbl(sigma_V, ~ .x[1]),
@@ -1528,155 +1562,40 @@ stoch_sub_comm_sims <- crossing(.eta = -1e-2,
                factor(levels = c("0.05__0.05", "0.05__0.2", "0.2__0.05")))
 
 
+stoch_sub_V_p_list <- map(sort(unique(stoch_sub_sims$sigma_V)),
+                          stoch_comm_V_plotter, .sims = stoch_sub_sims)
+stoch_sub_O_p_list <- map(sort(unique(stoch_sub_sims$sigma_V)),
+                          stoch_comm_O_plotter, .sims = stoch_sub_sims)
 
+stoch_sub_comm_p <- stoch_comm_p_combiner(stoch_sub_V_p_list,
+                                          stoch_sub_O_p_list,
+                                          rbind(c(0.05, 0.05),
+                                                c(0.05, 0.20),
+                                                c(0.20, 0.05)))
 
-stoch_sub_comms <- stoch_sub_comm_sims %>%
-    filter(time == max(time), rep == 1, d1 == median(d1)) %>%
-    group_by(sigma_V) %>%
-    mutate(grp = group_spp(V1, V2, .prec = 1e-1)) %>%
-    group_by(sigma_V, grp) %>%
-    summarize(V1 = mean(V1), V2 = mean(V2), n_spp = n(), .groups = "drop")
-
-stoch_sub_comm_V_p_list <- map(
-    levels(stoch_sub_comm_sims$sigma_V),
-    function(.v) {
-        stoch_sub_comm_sims %>%
-            filter(rep == 1, sigma_V == .v) %>%
-            ggplot(aes(V1, V2, color = spp)) +
-            geom_abline(slope = 1, intercept = 0,
-                        linetype = 2, color = "gray70") +
-            geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
-            geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
-            geom_path() +
-            geom_point(data = stoch_sub_comm_sims %>%
-                           filter(time == 0, rep == 1, sigma_V == .v),
-                       shape = 1, size = 1) +
-            geom_point(data = stoch_sub_comms %>% filter(sigma_V == .v),
-                       shape = 19, color = "black", size = 3) +
-            geom_text(data = stoch_sub_comms %>% filter(sigma_V == .v),
-                      aes(label = n_spp), color = "white", size = 8 / 2.83465) +
-            scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
-            scale_y_continuous("Ameliorative axis") +
-            scale_x_continuous("Conflicting axis") +
-            coord_equal(xlim = c(0, 1.5), ylim = c(0, 1.5)) +
-            theme(plot.margin = margin(0,0,0,0)) +
-            NULL
-    })
-
-
-sigma_comm_V_p2 <-
-    lapply(1:length(sigma_distr_p_list),
-           function(i){
-
-               main_plot <- stoch_sub_comm_V_p_list[[i]]
-               if (i > 1) main_plot <- main_plot +
-                       theme(axis.title.y = element_blank(),
-                             axis.text.y = element_blank())
-               if (i != 2) main_plot <- main_plot +
-                       theme(axis.title.x = element_blank())
-
-               v1v2 <- levels(stoch_sub_comm_sims$sigma_V)[i] %>%
-                   strsplit("__") %>% .[[1]] %>% as.numeric()
-               j <- which(sort(unique(sigma_distr_df$sigma_V)) == v1v2[1])
-               k <- which(sort(unique(sigma_distr_df$sigma_V)) == v1v2[2])
-               stopifnot(length(j) == 1 && length(k) == 1)
-               top_p <- sigma_distr_p_list[[j]]
-               right_p <- sigma_distr_flip_p_list[[k]]
-
-               g1 <- ggplotGrob(top_p)
-               g2 <- ggplotGrob(BLANK)
-               g3 <- ggplotGrob(main_plot)
-               g4 <- ggplotGrob(right_p)
-
-               fg1 <- gtable_frame(g1, width = unit(1, "null"))
-               fg2 <- gtable_frame(g2, width = unit(0.2, "null"))
-               fg12 <- gtable_frame(gtable_cbind(fg1, fg2),
-                                    height = unit(0.1, "null"))
-
-               fg3 <- gtable_frame(g3, width = unit(1, "null"))
-               fg4 <- gtable_frame(g4, width = unit(0.2, "null"))
-               fg34 <- gtable_frame(gtable_cbind(fg3, fg4),
-                                    height = unit(1, "null"))
-
-               combined <- gtable_rbind(fg12, fg34)
-               return(combined)
-           }) %>%
-    do.call(what = gtable_cbind)
+# grid.newpage(); grid.draw(stoch_sub_comm_p)
 
 
 
 
-stoch_sub_comm_cs_p_list <- map(
-    levels(stoch_sub_comm_sims$sigma_V),
-    function(.v) {
-        stoch_sub_comm_sims %>%
-            filter(time > 1000, rep == 1, sigma_V == .v) %>%
-            group_by(time) %>%
-            summarize(cs = comm_size_fun(N,
-                                         ifelse(is.na(Vp1), V1, Vp1),
-                                         ifelse(is.na(Vp2), V2, Vp2),
-                                         d = c(d1[1], d2[1])),
-                      .groups = "drop") %>%
-            ggplot(aes(time, cs)) +
-            geom_line(color = "black") +
-            # geom_line(data = stoch_sub_comm_sims %>%
-            #               filter(time > 1000, rep == 1, d1 == median(d1),
-            #                      sigma_V == .v) %>%
-            #               group_by(time) %>%
-            #               summarize(cs = comm_size_fun(N, Vp1, Vp2,
-            #                                            d = c(d1[1], d2[1])),
-            #                         .groups = "drop") %>%
-            #               mutate(cs = zoo::rollmean(cs, 50, fill = NA)) %>%
-            #               ungroup() %>%
-            #               filter(!is.na(cs)), color = "dodgerblue") +
-            scale_color_viridis_d(end = 0.9, begin = 0.4, guide = FALSE) +
-            # scale_y_continuous(expression(Omega), # "Scaled community size",
-            scale_y_continuous("Scaled\ncommunity size",
-                               labels = comma,
-                               breaks = c(7,9,11)*1e3,
-                               limits = c(6500, 12500)) +
-            scale_x_continuous("Time", breaks = c(0, 75e3, 150e3),
-                               labels = comma) +
-            NULL
-    })
-
-
-sigma_comm_O_p2 <- 1:length(stoch_sub_comm_cs_p_list) %>%
-    map(function(i) {
-        main_plot <- stoch_sub_comm_cs_p_list[[i]]
-        if (i > 1) main_plot <- main_plot +
-                theme(axis.title.y = element_blank(),
-                      axis.text.y = element_blank())
-        if (i != 2) main_plot <- main_plot +
-                theme(axis.title.x = element_blank())
-        return(main_plot)
-    }) %>%
-    map(ggplotGrob) %>%
-    map(gtable_frame, width = unit(1, "null"), height = unit(0.2, "null")) %>%
-    do.call(what = gtable_cbind) %>%
-    identity()
-
-
-
-sigma_comm_p2 <- gtable_rbind(sigma_comm_V_p2, sigma_comm_O_p2)
-
-# grid.newpage(); grid.draw(sigma_comm_p2)
-
-
-
-
-sigma_comm_p <- function() {
-    p <- gtable_rbind(sigma_comm_p1, sigma_comm_p2)
+stoch_p <- function() {
+    p <- gtable_rbind(stoch_super_comm_p, stoch_sub_comm_p)
     grid.newpage()
     grid.draw(p)
     grid.text("(a)", x = 0, y = 1, just = c("left", "top"),
               gp = gpar(fontsize = 16))
+    grid.text("Super-additive + equal variances",
+              x = 0.1, y = 1, just = c("left", "top"),
+              gp = gpar(fontsize = 14))
     grid.text("(b)", x = 0, y = 0.5, just = c("left", "top"),
               gp = gpar(fontsize = 16))
+    grid.text("Sub-additive + unequal variances",
+              x = 0.1, y = 0.5, just = c("left", "top"),
+              gp = gpar(fontsize = 14))
     invisible(NULL)
 }
 
-if (.RESAVE_PLOTS) save_plot(sigma_comm_p, 6, 6, .prefix = "5-")
+if (.RESAVE_PLOTS) save_plot(stoch_p, 6, 6, .prefix = "5-")
 
 
 
@@ -1691,7 +1610,7 @@ if (.RESAVE_PLOTS) save_plot(sigma_comm_p, 6, 6, .prefix = "5-")
 
 # Takes ~7 sec
 set.seed(1412303795)
-alt_stoch_comm_sims <- crossing(.eta = 1e-2,
+alt_stoch_super_sims <- crossing(.eta = 1e-2,
                                 .sigma_V = c(0.05, 0.1, 0.2),
                                 .d_mults = 1,
                                 V0 = list(cbind(c(0.2, 1), c(0.6, 0.7),
@@ -1700,42 +1619,30 @@ alt_stoch_comm_sims <- crossing(.eta = 1e-2,
     select(-eta)
 
 
-alt_stoch_comm_sims %>%
-    filter(rep == 1) %>%
-    ggplot(aes(V1, V2, color = spp)) +
-    geom_abline(slope = 1, intercept = 0, linetype = 2, color = "gray70") +
-    geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
-    geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
-    geom_path() +
-    geom_point(data = alt_stoch_comm_sims %>%
-                   filter(time == 0, rep == 1),
-               shape = 1, size = 1) +
-    geom_point(data = alt_stoch_comm_sims %>%
-                   filter(time == max(time), rep == 1),
-               shape = 19, color = "black", size = 3) +
-    facet_grid( ~ sigma_V) +
-    scale_color_viridis_d(end = 0.8, guide = FALSE) +
-    coord_equal(xlim = c(0, 2.5), ylim = c(0, 2.5)) +
-    NULL
+alt_stoch_super_V_p_list <- map(sort(unique(alt_stoch_super_sims$sigma_V)),
+                                stoch_comm_V_plotter,
+                                .sims = alt_stoch_super_sims)
+alt_stoch_super_O_p_list <- map(sort(unique(alt_stoch_super_sims$sigma_V)),
+                                stoch_comm_O_plotter,
+                                .sims = alt_stoch_super_sims)
 
-alt_stoch_comm_sims %>%
-    filter(time > 1000) %>%
-    filter(rep == 1) %>%
-    group_by(sigma_V, time) %>%
-    summarize(cs = comm_size_fun(N,
-                                 ifelse(is.na(Vp1), V1, Vp1),
-                                 ifelse(is.na(Vp2), V2, Vp2),
-                                 d = c(d1[1], d2[1])),
-              .groups = "drop") %>%
-    mutate(sigma_V = factor(sigma_V, levels = sort(unique(sigma_V)),
-                            labels = sprintf("sigma[v] == %.2f",
-                                             sort(unique(sigma_V))))) %>%
-    ggplot(aes(time, cs)) +
-    geom_line() +
-    facet_grid( ~ sigma_V, labeller = label_parsed, scales = "free_y") +
-    scale_y_continuous("Scaled community size", labels = comma) +
-    scale_x_continuous("Time", breaks = c(0, 75e3, 150e3), labels = comma) +
-    NULL
+alt_stoch_super_comm_p <- stoch_comm_p_combiner(alt_stoch_super_V_p_list,
+                                                alt_stoch_super_O_p_list,
+                                                c(0.05, 0.1, 0.2))
+# grid.newpage(); grid.draw(alt_stoch_super_comm_p)
+
+
+alt_stoch_p <- function() {
+    grid.newpage()
+    grid.draw(alt_stoch_super_comm_p)
+    grid.text("Super-additive + equal variances",
+              x = 0.1, y = 1, just = c("left", "top"),
+              gp = gpar(fontsize = 14))
+}
+
+
+if (.RESAVE_PLOTS) save_plot(alt_stoch_p, 6, 3, .prefix = "S2-")
+
 
 
 
