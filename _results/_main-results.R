@@ -123,6 +123,17 @@ pivot <- function(.df) {
 }
 
 
+#'
+#' Make into `gtable` grob.
+#'
+make_gf <- function(x, ...) {
+    x <- ggplotGrob(x)
+    x <- gtable_frame(x, ...)
+    return(x)
+}
+
+
+
 set.seed(1898348146)
 etas <- map(1:6, ~ with(list(.q = .x), runif(.q * ((.q - 1) / 2), 0.1, 0.4)))
 # With just one eta, it can be a simple number:
@@ -1456,19 +1467,15 @@ stoch_comm_p_combiner <- function(.V_plots,
     combined_V <- lapply(1:nrow(.sigmas),
                          function(i){
                              main_plot <- .V_plots[[i]] %>%
-                                 ggplotGrob() %>%
-                                 gtable_frame(g3, width = unit(1, "null"))
+                                 make_gf(width = unit(1, "null"))
                              top_sigma <- .sigmas[i,1] %>%
                                  sigma_distr_plotter(.flip = FALSE) %>%
-                                 ggplotGrob() %>%
-                                 gtable_frame(width = unit(1, "null"))
+                                 make_gf(width = unit(1, "null"))
                              right_sigma <- .sigmas[i,2] %>%
                                  sigma_distr_plotter(.flip = TRUE) %>%
-                                 ggplotGrob() %>%
-                                 gtable_frame(width = unit(0.2, "null"))
+                                 make_gf(width = unit(0.2, "null"))
                              blank <- BLANK %>%
-                                 ggplotGrob() %>%
-                                 gtable_frame(width = unit(0.2, "null"))
+                                 make_gf(width = unit(0.2, "null"))
                              top_row <- gtable_frame(
                                  gtable_cbind(blank, blank),
                                  height = unit(0.05, "null"))
@@ -1486,12 +1493,10 @@ stoch_comm_p_combiner <- function(.V_plots,
     # grid.newpage(); grid.draw(combined_V)
 
     combined_O <- .O_plots %>%
-        lapply(ggplotGrob) %>%
-        lapply(gtable_frame, width = unit(1, "null"), height = unit(0.2, "null")) %>%
+        lapply(make_gf, width = unit(1, "null"), height = unit(0.2, "null")) %>%
         # lapply(function(.x) {
         #     gtable_cbind(.x,
-        #                  gtable_frame(ggplotGrob(BLANK),
-        #                               width = unit(0.2, "null")))
+        #                  make_gf(BLANK, width = unit(0.2, "null")))
         # }) %>%
         do.call(what = gtable_cbind) %>%
         identity()
