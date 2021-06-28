@@ -38,6 +38,8 @@ BLANK <- ggplot() + geom_blank() + theme_nothing()
 .RESAVE_PLOTS <- FALSE
 # number of threads to use for simulations
 .N_THREADS <- max(1, parallel::detectCores()-2)
+# `mclapply` automatically uses this many threads
+options(mc.cores = .N_THREADS)
 
 
 
@@ -496,25 +498,153 @@ stable_comms_df <- find_comms_df %>%
     identity()
 
 
-#'
-#' Community "jumps" to check out:
-#'
-#' At the following point (the pars below don't create a stable community)
-#' eta == "Super-additive", n_conf == 0, d1 == -0.6, d2 == 0.7
-#' --> It goes from having both species invest just in axis 2 (at d2 = 0.69)
-#'     to one species invest just in axis 2 and the other invest in
-#'     neither (at d2 = 0.71).
-#'
-#' Between the following points:
-#' eta == "Sub-additive", n_conf == 2, d1 == -0.6, d2 == 2.4
-#' eta == "Sub-additive", n_conf == 2, d1 == -0.6, d2 == 2.41
-#' --> It goes from having both species investing equally in both axes
-#'     (at d2 = 2.4) to one species investing more and another investing
-#'     very little (at d2 = 2.41).
-#'
-#'
 
 
+
+
+# ---------------------------------------------*
+# Points (i.e., communities) to emphasize:
+# ---------------------------------------------*
+
+focal_stable_comms <- bind_rows(
+    # First plot: effects of conflicting axis
+    stable_comms_df %>%
+        filter(d2 == 0.6, eta > 0, state == "below") %>%
+        filter(d1 == round(min(d1) + 0.1, 2)),
+    stable_comms_df %>%
+        filter(d2 == 0.6, eta < 0, d1 > -1.7, state == "above") %>%
+        filter(d1 == round(min(d1) + 0.1, 2)),
+    # First plot: effects of ameliorative axis
+    stable_comms_df %>%
+        filter(d1 == -0.6, eta > 0, state == "both") %>%
+        filter(d2 == 0.59),
+    stable_comms_df %>%
+        filter(d1 == -0.6, eta > 0, state == "above") %>%
+        filter(d2 == round(max(d2) - 0.1, 2)),
+    stable_comms_df %>%
+        filter(d1 == -0.6, eta < 0, state == "above") %>%
+        filter(d2 == round(max(d2) - 0.1, 2)),
+    stable_comms_df %>%
+        filter(d1 == -0.6, eta < 0, state == "both") %>%
+        filter(d2 == round(min(d2) + 0.1, 2))) %>%
+    mutate(comm = rep(1:(n()/2), each = 2) %>%
+               as.roman() %>%
+               tolower() %>%
+               sprintf(fmt="(%s)"))
+
+
+
+
+# Make fitness landscapes for these communities:
+
+make_stable_comm_fit <- function(.dd) {
+
+    # .dd <- stable_comms_df %>%
+    #     filter(d1 == -0.6, eta < 0, state == "both") %>%
+    #     filter(d2 == round(min(d2) + 0.1, 2))
+
+    # rm(.eta, .strong, .barely, .N, .V, .q, .n, C, D, f, a0, r0, ..comm_fit,
+    #    ..comm_exist, X)
+
+    .eta <- .dd$eta[1]
+    .d1 <- .dd$d1[1]
+    .d2 <- .dd$d2[1]
+    .N <- .dd$N
+    .V <- rbind(.dd$V1, .dd$V2)
+    .q <- 2
+    .n <- ncol(.V)
+
+
+    C <- diag(.q)
+    C[1,2] <- C[2,1] <- .eta
+    D <- diag(c(.d1, .d2))
+
+    f <- formals(quant_gen)[["f"]]
+    a0 <- formals(quant_gen)[["a0"]]
+    r0 <- formals(quant_gen)[["r0"]]
+
+    ..comm_fit <- function(.v1, .v2) {
+        sauron:::F_it_cpp(V = cbind(c(.v1, .v2), .V), N = c(1, .N), i = 0,
+                          f = f, a0 = a0, C = C, r0 = r0, D = D)
+    }
+    # Returns # species:
+    ..comm_coexist <- function(.v1, .v2) {
+        # .v1 = 1; .v2 = 0.5
+        # rm(.v1, .v2)
+        Z <- quant_gen(q = .q, eta = .eta,
+                       V0 = cbind(c(.v1, .v2), .V), N0 = c(1, .N),
+                       n = .n + 1, d = diag(D),
+                       n_reps = 1,
+                       spp_gap_t = 0L,
+                       final_t = 50e3L,
+                       save_every = 0L,
+                       sigma_V0 = 0,
+                       show_progress = FALSE) %>%
+            .[["nv"]] %>%
+            filter(axis == 1)
+        nrow(Z)
+    }
+
+    X <- crossing(V1 = seq(0, 3, 0.1) %>% round(2), V2 = V1) %>%
+        mutate(fit = map2_dbl(V1, V2, ..comm_fit)) %>%
+        mutate(surv = fit >= 1, coexist_spp = .n,
+               eta = .eta, d1 = .d1, d2 = .d2,
+               state = .dd$state[1]) %>%
+        select(eta, d1, d2, state, everything())
+
+    X$coexist_spp[X$surv] <- map2_int(X$V1[X$surv], X$V2[X$surv],
+                                      ..comm_coexist)
+
+    lvls <- c("invader excluded",
+              "2 residents excluded",
+              "1 resident excluded",
+              "3 species coexist")
+    X <- X %>%
+        mutate(outcome = case_when(!surv ~ lvls[1],
+                                   coexist_spp == 1 ~ lvls[2],
+                                   coexist_spp == 2 ~ lvls[3],
+                                   coexist_spp == 3 ~ lvls[4]))
+    stopifnot(!any(is.na(X$outcome)))
+    X <- X %>%
+        mutate(outcome = factor(outcome, levels = lvls))
+
+    return(X)
+
+}
+
+
+if (.REDO_SIMS) {
+    # Takes ~1 min
+    stable_comm_fit <- focal_stable_comms %>%
+        split(.$comm) %>%
+        mclapply(make_stable_comm_fit) %>%
+        do.call(what = bind_rows)
+    saveRDS(stable_comm_fit, rds("stable_comm_fit"))
+} else {
+    stable_comm_fit <- readRDS(rds("stable_comm_fit"))
+}
+
+
+
+add_col_eta_cols <- function(.df) {
+    .df %>%
+        mutate(
+            eta = factor(eta, levels = c(-1,1) * 0.6,
+                         labels = c("Sub-additive", "Super-additive")),
+            col = interaction(state, eta, drop = TRUE) %>%
+                factor(levels = c(paste0(c("both", "above"), ".Sub-additive"),
+                                  paste0(c("both", "above", "below"),
+                                         ".Super-additive")) %>%
+                           rev() %>%
+                           .[c(4:1, 5)]))
+}
+
+
+
+
+#'
+#' Plot for relationship between d and scaled community size.
+#'
 comms_d_p_fun <- function(.x_d, ...) {
 
     # .x_d = 1
@@ -530,14 +660,7 @@ comms_d_p_fun <- function(.x_d, ...) {
         filter(d1 > -1.7) %>%
         filter(spp == 1, abs(!!.other_d) == 0.6) %>%
         select(eta, !!.x_d, state, O) %>%
-        mutate(eta = factor(eta, levels = c(-1,1) * 0.6,
-                            labels = c("Sub-additive", "Super-additive")),
-               col = interaction(state, eta, drop = TRUE) %>%
-                   factor(levels = c(paste0(c("both", "above"), ".Sub-additive"),
-                                     paste0(c("both", "above", "below"),
-                                            ".Super-additive")) %>%
-                              rev() %>%
-                              .[c(4:1, 5)]))
+        add_col_eta_cols()
     .ddd <- .dd %>%
         group_by(eta, state) %>%
         filter(!!.x_d == max(!!.x_d) | !!.x_d == min(!!.x_d)) %>%
@@ -558,51 +681,136 @@ comms_d_p_fun <- function(.x_d, ...) {
     return(.p)
 }
 
-comms_d_p_list <- map(1:2, comms_d_p_fun, legend.position = "none",
+
+#'
+#' Heatmap for a focal community.
+#'
+focal_comm_hmp_fun <- function(.eta, .d1, .d2, .state, ...) {
+
+    # .eta = -0.6
+    # .d1 = -1.69
+    # .d2 = 0.6
+    # .state = "above"
+    # rm(.eta, .d1, .d2, .state, .title, .p, .pal, .comm_df, .fit_df)
+
+    .title <- focal_stable_comms %>%
+        filter(eta == .eta, d1 == .d1, d2 == .d2, state == .state, spp == 1) %>%
+        .[["comm"]]
+    .pal <- magma(n = stable_comm_fit %>% .[["outcome"]] %>%
+                      levels() %>% length() %>% `-`(1),
+                  begin = 0.2, end = 0.8) %>%
+        rev()
+
+    .comm_df <- stable_comms_df %>%
+        filter(eta == .eta, d1 == .d1, d2 == .d2, state == .state) %>%
+        mutate(grp = group_spp(V1, V2, .prec = 0.001)) %>%
+        group_by(eta, d1, d2, state, grp) %>%
+        summarize(V1 = mean(V1), V2 = mean(V2), N = n(), O = O[1],
+                  .groups = "drop") %>%
+        select(-grp)
+    .fit_df <- stable_comm_fit %>%
+        filter(eta == .eta, d1 == .d1, d2 == .d2, state == .state) %>%
+        select(V1, V2, fit, outcome)
+
+    .p <- .comm_df %>%
+        ggplot(aes(V1, V2)) +
+        ggtitle(.title) +
+        geom_raster(data = .fit_df,
+                    aes(fill = outcome), interpolate = FALSE) +
+        geom_abline(slope = 1, intercept = 0, linetype = 2,
+                    color  = "gray70") +
+        geom_point(size = 5, shape = 21, color = "black", fill = "white") +
+        geom_text(aes(label = N), size = 10 / 2.83465,
+                  fontface = "bold", color = "black") +
+        coord_equal(xlim = c(-0.2, 3), ylim = c(-0.2, 3)) +
+        scale_fill_manual(NULL, values = c("white", .pal), drop = FALSE,
+                          aesthetics = c("color", "fill")) +
+        xlab("Conflicting axis") +
+        ylab("Ameliorative axis") +
+        theme(plot.title = element_text(hjust = 0, size = 12,
+                                        margin = margin(0,0,0,b=3)),
+              legend.key = element_rect(colour = "black"),
+              legend.text = element_text(size = 8),
+              legend.key.size = unit(0.75, "lines"),
+              plot.margin = margin(0,0,0,0)) +
+        theme(...) +
+        NULL
+
+    return(.p)
+}
+
+
+
+comms_d_p_list <- map(1:2, comms_d_p_fun,
+                      legend.position = "none",
                       axis.title.y = element_blank())
 
-comms_d_p_list[[2]] + theme(legend.position = "right")
+comms_d_p_list[[1]] <- comms_d_p_list[[1]] +
+    geom_point(data = filter(focal_stable_comms, d2 == 0.6, spp == 1) %>%
+                   add_col_eta_cols(),
+         size = 2, shape = 1) +
+    geom_text(data = filter(focal_stable_comms, d2 == 0.6, spp == 1) %>%
+                  add_col_eta_cols(),
+              aes(label = comm),
+              size = 10 / 2.83465, nudge_x = -0.03, hjust = 1)
+comms_d_p_list[[2]] <- comms_d_p_list[[2]] +
+    geom_point(data = filter(focal_stable_comms, d1 == -0.6, spp == 1) %>%
+                   add_col_eta_cols(),
+                size = 2, shape = 1) +
+    geom_text(data = filter(focal_stable_comms, d1 == -0.6, spp == 1) %>%
+                  mutate(O = case_when(comm  != "(iv)" ~ O + 700,
+                                       TRUE ~ O - 1600)) %>%
+                  add_col_eta_cols(),
+              aes(label = comm),
+              size = 10 / 2.83465, vjust = 0)
+comms_d_p <- ggarrange(plots = comms_d_p_list, draw = FALSE,
+                       left = "Scaled community size")
+# comms_d_p
 
-z <- ggarrange(plots = comms_d_p_list, draw = FALSE, left = "Scaled community size")
-z
-
-
-# LEFT OFF ----
-#'
-#' In addition to the above plot, I want to show heatmaps for some of the
-#' communities, to show what they consist of.
-#'
-
-# ---------------------------------------------*
-# Points (i.e., communities) to emphasize:
-# ---------------------------------------------*
-
-# first plot
-stable_comms_df %>%
-    filter(d2 == 0.6, eta > 0, state == "below") %>%
-    filter(d1 == round(min(d1) + 0.1, 2))
-stable_comms_df %>%
-    filter(d2 == 0.6, eta < 0, d1 > -1.7, state == "above") %>%
-    filter(d1 == round(min(d1) + 0.1, 2))
-
-# second plot
-stable_comms_df %>%
-    filter(d1 == -0.6, eta > 0, state == "above") %>%
-    filter(d2 == round(max(d2) - 0.1, 2))
-stable_comms_df %>%
-    filter(d1 == -0.6, eta > 0, state == "both") %>%
-    filter(d2 == 0.59)
-stable_comms_df %>%
-    filter(d1 == -0.6, eta < 0, state == "above") %>%
-    filter(d2 == round(max(d2) - 0.1, 2))
-stable_comms_df %>%
-    filter(d1 == -0.6, eta < 0, state == "both") %>%
-    filter(d2 == round(min(d2) + 0.1, 2))
+focal_comm_p_list <- stable_comm_fit %>%
+    distinct(eta, d1, d2, state) %>%
+    rename_with(~ paste0(".", .x)) %>%
+    pmap(focal_comm_hmp_fun, legend.position = "none",
+         axis.title = element_blank())
+focal_comm_p_list[c(2:3,5:6)]  <- focal_comm_p_list[c(2:3,5:6)] %>%
+    map(~ .x + theme(axis.text.y = element_blank()))
+focal_comm_p_list[1:3] <- focal_comm_p_list[1:3] %>%
+    map(~ .x + theme(axis.text.x = element_blank()))
 
 
 
+focal_comm_p <- arrangeGrob(textGrob("Ameliorative axis", rot = 90, vjust = 1),
+                            gtable_rbind(focal_comm_p_list[1:3] %>%
+                                             map(make_gf) %>%
+                                             do.call(what = gtable_cbind),
+                                         focal_comm_p_list[4:6] %>%
+                                             map(make_gf) %>%
+                                             do.call(what = gtable_cbind)),
+                            make_gf(BLANK), textGrob("Conflicting axis"),
+                            widths = c(0.05, 1), heights = c(1, 0.1),
+                            nrow = 2, ncol = 2,
+                            vp = viewport(height = unit(0.5, "npc"),
+                                          y = 0, x = 0,
+                                          just = c("left", "bottom")),
+                            top = textGrob("(b)", x = 0, hjust = 0,
+                                           gp = gpar(fontsize = 14)))
 
-#
+
+
+
+comm_p <- function() {
+    grid.newpage()
+    arrangeGrob(grobs = comms_d_p_list, left = "Scaled community size",
+                vp = viewport(height = unit(0.5, "npc"),
+                              y = 1, x = 0,
+                              just = c("left", "top"))) %>%
+        grid.draw()
+    grid.draw(focal_comm_p)
+    invisible(NULL)
+}
+
+
+if (.RESAVE_PLOTS) save_plot(comm_p, 4, 7, .prefix = "3-")
 
 
 
