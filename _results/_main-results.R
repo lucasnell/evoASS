@@ -1,4 +1,5 @@
 
+
 # start ----
 
 # load packages
@@ -34,7 +35,7 @@ BLANK <- ggplot() + geom_blank() + theme_nothing()
 # whether to re-do simulations (use rds files otherwise)
 .REDO_SIMS <- FALSE
 # whether to re-save plots
-.RESAVE_PLOTS <- TRUE
+.RESAVE_PLOTS <- FALSE
 # number of threads to use for simulations
 .N_THREADS <- max(1, parallel::detectCores()-2)
 
@@ -368,6 +369,255 @@ if (.RESAVE_PLOTS) save_plot(outcomes_q2_p, 5, 2, .prefix = "2-")
 # =============================================================================*
 # =============================================================================*
 
+
+
+
+find_stable_comms <- function(.dat) {
+
+    .eta <- .dat$.eta
+    .d1 <- .dat$.d1
+    .d2 <- .dat$.d2
+    .state <- .dat$.state
+
+    # .eta = 0.6
+    # .d1 = -0.6
+    # .d2 = 0.7
+    # .state = "above"
+    # rm(.eta, .d1, .d2, .state, .V0_0, sim0, L, out)
+
+    .state <- match.arg(.state, c("above", "below", "both"))
+
+    # This scenario takes a while:
+    if (.eta == -0.6 && .d1 == -0.6 && .d2 > 2.38 && .d2 < 2.41 &&
+        .state == "both") {
+        .time <- 10e6L
+    # Others only need this much time:
+    } else .time <- 200e3L
+
+    .V0_0 = cbind(c(0.3, 1), c(0.3, 1))
+    if (.state == "below" || .state == "both") .V0_0 <- .V0_0[2:1,]
+    if (.state == "both") .V0_0[,1] <- c(0.001, 2)
+
+    sim0 <- quant_gen(q = 2, eta = .eta, V0 = .V0_0,
+                      n = 2, d = c(.d1, .d2), n_reps = 1,
+                      spp_gap_t = 0L,
+                      final_t = .time,
+                      save_every = 0L,
+                      sigma_V0 = 0,
+                      show_progress = FALSE)
+    sim0$call[["eta"]] <- .eta
+    sim0$call[["V0"]] <- .V0_0
+    sim0$call[["d"]] <- c(.d1, .d2)
+
+    if (all(!is.na(sim0$nv$spp))) {
+        L <- eigen(jacobians(sim0)[[1]], only.values = TRUE)[["values"]] %>%
+            Re() %>% max()
+    } else L <- NA_real_
+
+    out <- sim0$nv %>%
+        pivot() %>%
+        select(-rep) %>%
+        mutate(O = comm_size_fun(N, V1, V2, d = c(.d1, .d2))) %>%
+        mutate(eta = .eta, d1 = .d1, d2 = .d2, state = .state,
+               lambda = L) %>%
+        select(eta, d1, d2, state, everything())
+
+    return(out)
+
+}
+
+
+
+
+if (.REDO_SIMS) {
+    # Takes ~2 min
+    find_comms_df <- bind_rows(
+        crossing(.eta = c(-1,1)*0.6,
+                 .d1 = seq(0.01, 2.7, 0.01) %>% round(2) %>% `*`(-1),
+                 .d2 = 0.6,
+                 .state = c("above", "below", "both")),
+        crossing(.eta = c(-1,1)*0.6,
+                 .d1 = -0.6,
+                 .d2 = seq(0.01, 2.7, 0.01) %>% round(2),
+                 .state = c("above", "below", "both"))) %>%
+        distinct(.eta, .d1, .d2, .state) %>%
+        filter(!(.eta < 0 & .state == "below")) %>%
+        split(1:nrow(.)) %>%
+        mclapply(find_stable_comms, mc.cores = .N_THREADS) %>%
+        do.call(what = bind_rows)
+    saveRDS(find_comms_df, rds("find_comms_df"))
+} else {
+    find_comms_df <- readRDS(rds("find_comms_df"))
+}
+
+
+
+#'
+#' Returns a vector of which communities are duplicated
+#' `X` is a data frame containing info for multiple communities,
+#' in wide format (i.e., with 1 row per species, and
+#' containing columns `V1` and `V2` instead of just `V`).
+#' `.sep_col` is a string specifying the column that separates communities.
+#' `.prec` is precision distinguishing separate communities.
+#'
+rm_dup_comm <- function(X, .sep_col = "state", .prec = 1e-4) {
+    .V <- X %>%
+        arrange(!!.sep_col, V1, V2) %>%
+        select(V1, V2) %>%
+        mutate(across(everything(), ~ round(., 20))) %>%
+        split(X[[.sep_col]]) %>%
+        lapply(t)
+    stopifnot(length(unique(sapply(.V, ncol))) == 1)
+    n <- length(.V)
+    if (n == 1) return(X)
+    dups <- rep(FALSE, n)
+    for (i in 1:(n-1)) {
+        for (j in (i+1):n) {
+            .z <- sum((.V[[i]] - .V[[j]])^2)
+            if (.z < .prec) dups[j] <- TRUE
+        }
+    }
+    unqs <- rep(!dups, each = ncol(.V[[1]]))
+    return(X[unqs,])
+}
+
+
+# Unique stable communities:
+# Takes ~6 sec
+stable_comms_df <- find_comms_df %>%
+    filter(lambda < 1) %>%
+    select(-lambda) %>%
+    split(interaction(.$eta, .$d1, .$d2, drop = TRUE)) %>%
+    map_dfr(rm_dup_comm) %>%
+    # group_by(eta, d1, d2, state) %>%
+    # mutate(state = sum(V1 > 1e-6) %>% factor(levels = 0:2)) %>%
+    # ungroup() %>%
+    # rename(n_conf = state) %>%
+    identity()
+
+
+#'
+#' Community "jumps" to check out:
+#'
+#' At the following point (the pars below don't create a stable community)
+#' eta == "Super-additive", n_conf == 0, d1 == -0.6, d2 == 0.7
+#' --> It goes from having both species invest just in axis 2 (at d2 = 0.69)
+#'     to one species invest just in axis 2 and the other invest in
+#'     neither (at d2 = 0.71).
+#'
+#' Between the following points:
+#' eta == "Sub-additive", n_conf == 2, d1 == -0.6, d2 == 2.4
+#' eta == "Sub-additive", n_conf == 2, d1 == -0.6, d2 == 2.41
+#' --> It goes from having both species investing equally in both axes
+#'     (at d2 = 2.4) to one species investing more and another investing
+#'     very little (at d2 = 2.41).
+#'
+#'
+
+
+comms_d_p_fun <- function(.x_d, ...) {
+
+    # .x_d = 1
+    # rm(.x_d, .xlab, .other_d, .dd, .ddd, .p)
+
+    .xlab <- paste(c("Conflicting", "Ameliorative")[.x_d], "axis strength")
+
+    .other_d <- paste0("d", ifelse(.x_d == 1, 2, 1)) %>%
+        as.name()
+    .x_d <- paste0("d", .x_d) %>% as.name()
+
+    .dd <- stable_comms_df %>%
+        filter(d1 > -1.7) %>%
+        filter(spp == 1, abs(!!.other_d) == 0.6) %>%
+        select(eta, !!.x_d, state, O) %>%
+        mutate(eta = factor(eta, levels = c(-1,1) * 0.6,
+                            labels = c("Sub-additive", "Super-additive")),
+               col = interaction(state, eta, drop = TRUE) %>%
+                   factor(levels = c(paste0(c("both", "above"), ".Sub-additive"),
+                                     paste0(c("both", "above", "below"),
+                                            ".Super-additive")) %>%
+                              rev() %>%
+                              .[c(4:1, 5)]))
+    .ddd <- .dd %>%
+        group_by(eta, state) %>%
+        filter(!!.x_d == max(!!.x_d) | !!.x_d == min(!!.x_d)) %>%
+        ungroup() %>%
+        filter(!!.x_d != min(.dd[[paste(.x_d)]]),
+               !!.x_d != max(.dd[[paste(.x_d)]]))
+    .p <- .dd %>%
+        ggplot(aes(abs(!!.x_d), O, color = col, linetype = eta)) +
+        geom_line(size = 0.75) +
+        geom_point(data = .ddd, shape = 4, size = 3) +
+        scale_linetype_manual(values = c(2, 1)) +
+        scale_color_viridis_d(begin = 0.2, end = 0.8, option = "A",
+                              direction = -1, drop = FALSE) +
+        scale_y_continuous("Scaled community size", labels = comma) +
+        xlab(.xlab) +
+        theme(...) +
+        NULL
+    return(.p)
+}
+
+comms_d_p_list <- map(1:2, comms_d_p_fun, legend.position = "none",
+                      axis.title.y = element_blank())
+
+comms_d_p_list[[2]] + theme(legend.position = "right")
+
+z <- ggarrange(plots = comms_d_p_list, draw = FALSE, left = "Scaled community size")
+z
+
+
+# LEFT OFF ----
+#'
+#' In addition to the above plot, I want to show heatmaps for some of the
+#' communities, to show what they consist of.
+#'
+
+# ---------------------------------------------*
+# Points (i.e., communities) to emphasize:
+# ---------------------------------------------*
+
+# first plot
+stable_comms_df %>%
+    filter(d2 == 0.6, eta > 0, state == "below") %>%
+    filter(d1 == round(min(d1) + 0.1, 2))
+stable_comms_df %>%
+    filter(d2 == 0.6, eta < 0, d1 > -1.7, state == "above") %>%
+    filter(d1 == round(min(d1) + 0.1, 2))
+
+# second plot
+stable_comms_df %>%
+    filter(d1 == -0.6, eta > 0, state == "above") %>%
+    filter(d2 == round(max(d2) - 0.1, 2))
+stable_comms_df %>%
+    filter(d1 == -0.6, eta > 0, state == "both") %>%
+    filter(d2 == 0.59)
+stable_comms_df %>%
+    filter(d1 == -0.6, eta < 0, state == "above") %>%
+    filter(d2 == round(max(d2) - 0.1, 2))
+stable_comms_df %>%
+    filter(d1 == -0.6, eta < 0, state == "both") %>%
+    filter(d2 == round(min(d2) + 0.1, 2))
+
+
+
+
+#
+
+
+
+
+
+
+
+
+# =============================================================================*
+# =============================================================================*
+
+# ... old fig 3------
+
+# =============================================================================*
+# =============================================================================*
 
 
 .d <- function(.strong, .barely, .axes = NULL) {
@@ -790,12 +1040,14 @@ hist_d_fit$two <- hist_d_fit$two %>%
 
 
 
-unq_comm_p_fun <- function(.n, .e, .c, ...) {
+unq_comm_p_fun <- function(.e, .c, .a, ...) {
 
-    # .n <- 2
     # .c <- 1
     # .e <- -0.6
+    # .a <- "C << A"
     # rm(.n, .c, .e, .xlab, .ylab, .title, .p, .pal)
+
+    .n <- 2
 
     .nn <- c("one", "two", "three")[.n]
 
@@ -810,27 +1062,26 @@ unq_comm_p_fun <- function(.n, .e, .c, ...) {
                     begin = 0.2, end = 0.8) %>%
         rev()
 
-    comms %>%
+    .p <- comms %>%
         .[[.nn]] %>%
         filter(eta == .e, comm == .c) %>%
         add_axes_col() %>%
-        select(axes, spp, N, starts_with("V")) %>%
-        group_by(axes) %>%
+        filter(axes == .a) %>%
+        select(spp, N, starts_with("V")) %>%
         mutate(grp = group_spp(V1, V2, .prec = 0.001)) %>%
-        group_by(axes, grp) %>%
+        group_by(grp) %>%
         summarize(V1 = mean(V1), V2 = mean(V2), N = n(), .groups = "drop") %>%
         ggplot(aes(V1, V2)) +
         ggtitle(.title) +
         geom_raster(data = hist_d_fit[[.nn]] %>%
-                        filter(eta == .e, comm == .c) %>%
-                        select(axes, V1, V2, fit, outcome),
+                        filter(eta == .e, comm == .c, axes == .a) %>%
+                        select(V1, V2, fit, outcome),
                     aes(fill = outcome), interpolate = FALSE) +
         geom_abline(slope = 1, intercept = 0, linetype = 2,
                     color  = "gray70") +
         geom_point(size = 7, shape = 21, color = "black", fill = "white") +
         geom_text(aes(label = N), size = 12 / 2.83465,
                   fontface = "bold", color = "black") +
-        facet_grid(axes ~ .) +
         coord_equal(xlim = c(-0.2, 3), ylim = c(-0.2, 3)) +
         scale_fill_manual(NULL, values = c("white", .pal), drop = FALSE,
                           aesthetics = c("color", "fill")) +
@@ -841,61 +1092,98 @@ unq_comm_p_fun <- function(.n, .e, .c, ...) {
               legend.key = element_rect(colour = "black"),
               legend.text = element_text(size = 8),
               legend.key.size = unit(0.75, "lines"),
-              panel.spacing.y = unit(2, "lines"),
               plot.margin = margin(0,0,0,0)) +
         theme(...) +
         NULL
 
+    return(tibble(eta = .e, comm = .c, axes = .a, p = list(.p)))
 }
 
 
-comms_p_list <- crossing(.n = 2,
-                         .e = c(-0.6, 0.6),
-                         .c = 1:2) %>%
+comms_p_df <- crossing(.e = c(-0.6, 0.6),
+                         .c = 1:2,
+                         .a = levels(hist_d_fit$two$axes)) %>%
     filter(!(.c == 2 & .e < 0)) %>%
-    pmap(unq_comm_p_fun,
-         legend.position = "none",
-         plot.title = element_blank(),
-         strip.text = element_blank(),
-         axis.title = element_blank())
+    pmap_dfr(unq_comm_p_fun,
+             legend.position = "none",
+             plot.title = element_blank(),
+             strip.text = element_blank(),
+             axis.title = element_blank()) %>%
+    mutate(p = ifelse(axes == "C << A", p,
+                      map(p, ~ .x + theme(axis.text.x = element_blank()))),
+           p = ifelse(eta <= 0, p,
+                      map(p, ~ .x + theme(axis.text.y = element_blank()))),
+           p = ifelse(axes != "C >> A", p,
+                      map2(p, comm, ~ .x +
+                              ggtitle(paste("comm.", .y)) +
+                              theme(plot.title =
+                                        element_text(size = 12, hjust = 0.5,
+                                                     margin = margin(0,0,0,b=6)
+                                        )))))
+
+
+comms_p_comms_cols <- tibble(.c = c(1, 1, 2), .e = c(-1, 1, 1) * 0.6) %>%
+    pmap(function(.c, .e) {
+        # .c = 1; .e = -0.6
+        z <- filter(comms_p_df, comm == .c, eta == .e)
+        gtable_rbind(filter(z, axes == "C >> A")[["p"]][[1]] %>%
+                         make_gf(height = unit(1, "null"),
+                                 width = unit(1, "null")),
+                     filter(z, axes == "C > A")[["p"]][[1]] %>%
+                         make_gf(height = unit(1, "null"),
+                                 width = unit(1, "null")),
+                     filter(z, axes == "C < A")[["p"]][[1]] %>%
+                         make_gf(height = unit(1, "null"),
+                                 width = unit(1, "null")),
+                     filter(z, axes == "C << A")[["p"]][[1]] %>%
+                         make_gf(height = unit(1, "null"),
+                                 width = unit(1, "null")))
+    }) %>%
+    {
+        ..labs <- map(c(">>", ">", "<", "<<"),
+                      ~ tibble(lab = paste0("conflicting ",.x,"\nameliorative"),
+                               x = 0, y = 0) %>%
+                          ggplot(aes(x, y, label = lab)) +
+                          geom_text(hjust = 0.5, size = 12 / 2.83465) +
+                          theme_nothing() +
+                          coord_cartesian(xlim = c(NA, 0), expand = FALSE,
+                                          clip = "off")) %>%
+            map(make_gf, height = unit(1, "null"), width = unit(1, "null")) %>%
+            do.call(what = gtable_rbind)
+        ..blank1 <- replicate(4, make_gf(BLANK, width = unit(0.1, "null")))
+        ..blank2 <- replicate(4, make_gf(BLANK, width = unit(0.5, "null")))
+        gtable_cbind(..labs, do.call(gtable_rbind, ..blank1), .[[1]],
+                     do.call(gtable_rbind, ..blank2), .[[2]], .[[3]])
+    }
+
+# grid.newpage(); grid.draw(comms_p_comms_cols)
 
 
 
 
 
-# For gradient from strong conflicting to strong ameliorative
-upper_labs <- map(c(TRUE, FALSE), function(big_conf) {
-    dd <- tibble(x = c(0, 1), y = c(1, 0),
-           lab = c("conflicting", "ameliorative"),
-           face = c("bold", "plain") %>% factor(levels = c("plain", "bold")))
-    if (!big_conf) dd$face <- rev(dd$face)
-    dd %>%
-        ggplot() +
-        geom_text(aes(x, y, label = lab, fontface = face, size = face)) +
-        scale_x_continuous(expand = expansion(1, 0)) +
-        scale_y_continuous(expand = expansion(1, 0)) +
-        scale_size_manual(values = c(8, 12) / 2.83465) +
-        theme_nothing() +
-        coord_cartesian(clip = "off")
-})
-upper_arrow <- tibble(x = 0, xend = 1, y = 0) %>%
-    ggplot() +
-    geom_segment(aes(x, y, xend = xend, yend = y),
-                 arrow = arrow(length = unit(0.5, "lines"))) +
-    theme_nothing() +
-    coord_cartesian(expand = FALSE)
+# gtable_cbind
+# gtable_rbind
 
+
+comms_legend <- get_legend(comms_p_df$p[[1]] + theme(legend.position = "right"))
 
 comm_lab <- function(i) textGrob(paste("comm.", i), gp = gpar(fontsize = 10))
-comms_legend <- get_legend(comms_p_list[[1]] + theme(legend.position = "right"))
 comms_ylab <- textGrob("Ameliorative axis", just = c("center", "bottom"),
                        x = unit(0.7, "npc"), rot = 90)
+axes_lab <- function(.comp) {
+    textGrob(paste0("conflicting ", .comp, "\nameliorative"),
+             gp = gpar(fontsize = 14))
+}
 
-main_block <- plot_grid(BLANK, comm_lab(1), BLANK, comm_lab(1),
+
+
+
+main_block <- plot_grid(BLANK, BLANK, comm_lab(1), BLANK, comm_lab(1),
                             comm_lab(2),
                         comms_ylab, comms_p_list[[1]], BLANK, comms_p_list[[2]],
                             comms_p_list[[3]],
-                        ncol = 5, rel_widths = c(0.15, 1, 0.2, 1, 1),
+                        ncol = 6, rel_widths = c(0.5, 0.15, 1, 0.2, 1, 1),
                         nrow = 2, rel_heights = c(0.1, 1))
 tradeoff_block <- plot_grid(BLANK,
                             textGrob("Sub-additive", gp = gpar(fontsize = 14)),
@@ -907,29 +1195,30 @@ xlab_block <- plot_grid(BLANK, textGrob("Conflicting axis"),
 
 
 
-axes_plot <- crossing(strong = c("conflicting", "ameliorative"),
-         barely = c(TRUE, FALSE)) %>%
-    mutate(d = map2(strong, barely, .d)) %>%
-    unnest(d) %>%
-    mutate(var = rep(c("conflicting", "ameliorative"), n() / 2) %>%
-               factor(levels = sort(unique(.), decreasing = TRUE))) %>%
-    add_axes_col() %>%
-    ggplot(aes(var, abs(d))) +
-    geom_hline(yintercept = 0, linetype = 2, color  = "gray70") +
-    geom_segment(aes(xend = var, yend = 0)) +
-    geom_point(color = "black", fill = "dodgerblue", shape = 21, size = 3) +
-    scale_y_continuous("Axis strength", position = "right",
-                       limits = c(0, 1.1 *
-                                      max(map_dbl(c("c","a"),
-                                                  ~ max(abs(.d(.x, FALSE))))))) +
-    facet_grid(axes ~ .) +
-    theme(axis.title.x = element_blank(),
-          axis.text.x = element_text(size = 9, color = "black",
-                                     angle = 30, vjust = 0.6),
-          axis.ticks.x = element_blank(),
-          panel.spacing.y = unit(2, "lines"),
-          plot.margin = margin(0,0,0,0),
-          strip.text = element_blank())
+# axes_plot <- crossing(strong = c("conflicting", "ameliorative"),
+#          barely = c(TRUE, FALSE)) %>%
+#     mutate(d = map2(strong, barely, .d)) %>%
+#     unnest(d) %>%
+#     mutate(var = rep(c("conflicting", "ameliorative"), n() / 2) %>%
+#                factor(levels = sort(unique(.), decreasing = TRUE))) %>%
+#     add_axes_col() %>%
+#     ggplot(aes(var, abs(d))) +
+#     geom_hline(yintercept = 0, linetype = 2, color  = "gray70") +
+#     geom_segment(aes(xend = var, yend = 0)) +
+#     geom_point(color = "black", fill = "dodgerblue", shape = 21, size = 3) +
+#     scale_y_continuous("Axis strength", position = "right",
+#                        limits = c(0, 1.1 *
+#                                       max(map_dbl(c("c","a"),
+#                                                   ~ max(abs(.d(.x, FALSE))))))) +
+#     facet_grid(axes ~ .) +
+#     theme(axis.title.x = element_blank(),
+#           axis.text.x = element_text(size = 9, color = "black",
+#                                      angle = 30, vjust = 0.6),
+#           axis.ticks.x = element_blank(),
+#           panel.spacing.y = unit(2, "lines"),
+#           plot.margin = margin(0,0,0,0),
+#           strip.text = element_blank())
+
 
 
 comms_p <- plot_grid(plot_grid(tradeoff_block, main_block, xlab_block,
@@ -954,8 +1243,11 @@ if (.RESAVE_PLOTS) save_plot(comms_p, 6.5, 8, .prefix = "3-")
 #' the communities are to new invasion:
 comms$two %>%
     add_axes_col() %>%
-    group_by(eta, axes, comm) %>%
-    summarize(comm_size = comm_size_fun(N, V1, V2, axes), .groups = "drop")
+    mutate(d1 = map2_dbl(strong, barely, ~ .d(.x, .y)[1]),
+           d2 = map2_dbl(strong, barely, ~ .d(.x, .y)[2])) %>%
+    group_by(eta, d1, d2, comm) %>%
+    summarize(comm_size = comm_size_fun(N, V1, V2, d = c(d1[1], d2[1])),
+              .groups = "drop")
 
 
 
