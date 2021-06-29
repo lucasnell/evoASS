@@ -812,7 +812,34 @@ comm_p <- function() {
 
 if (.RESAVE_PLOTS) save_plot(comm_p, 4, 7, .prefix = "3-")
 
+# ... Fig S1: `r` for tradeoffs across axis space----
+#'
+#' This explains why Omega doesn't explain trends across changes in eta:
+#' The costs to the growth rate associated with super-additive tradeoffs
+#' are overall greater across this range.
+#'
+tradeoffs_r_p <- crossing(v1 = round(seq(0, 3, 0.01), 2), v2 = v1,
+         e = c(-1,0,1)*0.6) %>%
+    mutate(M = { formals(quant_gen)$r0 - formals(quant_gen)$f *
+            (v1^2 + 2 * e * v1 * v2 + v2^2) } %>%
+        exp() %>%
+        identity()) %>%
+    mutate(e = factor(e, levels = sort(unique(e)),
+                      labels = paste0(c("sub-", "", "super-"), "additive"))) %>%
+    # group_by(e) %>%
+    # summarize(M = mean(M))
+    ggplot(aes(v1, v2, fill = M)) +
+    geom_raster(interpolate = FALSE) +
+    geom_contour(aes(z = M)) +
+    facet_wrap(~ e) +
+    xlab("Neutral axis 1") +
+    ylab("Neutral axis 2") +
+    scale_fill_viridis_c(expression(e^{r[0] - f ~ bold(v)[i]^T *
+                                        bold(C) * bold(v)[i]})) +
+    coord_equal()
 
+
+if (.RESAVE_PLOTS) save_plot(tradeoffs_r_p, 6, 2.5, .prefix = "S1-")
 
 
 
@@ -971,7 +998,7 @@ if (.RESAVE_PLOTS) save_plot(stab_p, 5, 5, .prefix = "4-")
 #' Showing how ameliorative axis (i.e., `d2`) affects things.
 #' Not as interesting, so it goes to the supplement.
 
-# ... Fig S1: effects of ameliorative axis----
+# ... Fig S2: effects of ameliorative axis----
 
 stab_p2_shared <- stab_p_shared
 stab_p2_shared[[4]] <- scale_color_manual("Ameliorative axis:",
@@ -1020,7 +1047,7 @@ for (i in c(1,2)) {
 stab_p2 <- ggarrange(plots = stab_p2_list, ncol = 1, draw = FALSE)
 
 
-if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S1-")
+if (.RESAVE_PLOTS) save_plot(stab_p2, 5, 5, .prefix = "S2-")
 
 
 
@@ -1461,7 +1488,7 @@ if (.RESAVE_PLOTS) save_plot(stoch_p, 6, 6, .prefix = "5-")
 
 # ----------------------------------------------------------------------------*
 # ----------------------------------------------------------------------------*
-# ... Fig S2: alt. scenario where sigma_V increases Omega ----
+# ... Fig S3: alt. scenario where sigma_V increases Omega ----
 
 
 # Takes ~7 sec
@@ -1497,7 +1524,7 @@ alt_stoch_p <- function() {
 }
 
 
-if (.RESAVE_PLOTS) save_plot(alt_stoch_p, 6, 3, .prefix = "S2-")
+if (.RESAVE_PLOTS) save_plot(alt_stoch_p, 6, 3, .prefix = "S3-")
 
 
 
