@@ -744,7 +744,6 @@ focal_comm_hmp_fun <- function(.eta, .d1, .d2, .state, ...) {
 comms_d_p_list <- map(1:2, comms_d_p_fun,
                       legend.position = "none",
                       axis.title.y = element_blank())
-
 comms_d_p_list[[1]] <- comms_d_p_list[[1]] +
     geom_point(data = filter(focal_stable_comms, d2 == 0.6, spp == 1) %>%
                    add_col_eta_cols(),
@@ -752,20 +751,20 @@ comms_d_p_list[[1]] <- comms_d_p_list[[1]] +
     geom_text(data = filter(focal_stable_comms, d2 == 0.6, spp == 1) %>%
                   add_col_eta_cols(),
               aes(label = comm),
-              size = 10 / 2.83465, nudge_x = -0.03, hjust = 1)
+              size = 10 / 2.83465, nudge_x = -0.05, nudge_y = 500, hjust = 1)
 comms_d_p_list[[2]] <- comms_d_p_list[[2]] +
     geom_point(data = filter(focal_stable_comms, d1 == -0.6, spp == 1) %>%
                    add_col_eta_cols(),
                 size = 2, shape = 1) +
     geom_text(data = filter(focal_stable_comms, d1 == -0.6, spp == 1) %>%
-                  mutate(O = case_when(comm  != "(iv)" ~ O + 700,
-                                       TRUE ~ O - 1600)) %>%
+                  mutate(O = case_when(!comm %in% c("(iv)", "(v)") ~ O + 1100,
+                                       TRUE ~ O - 3000)) %>%
                   add_col_eta_cols(),
               aes(label = comm),
-              size = 10 / 2.83465, vjust = 0)
-comms_d_p <- ggarrange(plots = comms_d_p_list, draw = FALSE,
-                       left = "Scaled community size")
-# comms_d_p
+              size = 10 / 2.83465, vjust = 0) +
+    coord_cartesian(ylim = c(0, NA))
+
+
 
 focal_comm_p_list <- stable_comm_fit %>%
     distinct(eta, d1, d2, state) %>%
@@ -779,7 +778,11 @@ focal_comm_p_list[1:3] <- focal_comm_p_list[1:3] %>%
 
 
 
-focal_comm_p <- arrangeGrob(textGrob("Ameliorative axis", rot = 90, vjust = 1),
+focal_comm_legend <- get_legend(focal_comm_p_list[[1]] +
+                                    theme(legend.position = "top"))
+
+focal_comm_p <- arrangeGrob(focal_comm_legend,
+                            textGrob("Ameliorative axis", rot = 90, vjust = 1),
                             gtable_rbind(focal_comm_p_list[1:3] %>%
                                              map(make_gf) %>%
                                              do.call(what = gtable_cbind),
@@ -787,9 +790,10 @@ focal_comm_p <- arrangeGrob(textGrob("Ameliorative axis", rot = 90, vjust = 1),
                                              map(make_gf) %>%
                                              do.call(what = gtable_cbind)),
                             make_gf(BLANK), textGrob("Conflicting axis"),
-                            widths = c(0.05, 1), heights = c(1, 0.1),
-                            nrow = 2, ncol = 2,
-                            vp = viewport(height = unit(0.5, "npc"),
+                            widths = c(0.05, 1), heights = c(0.1, 1, 0.1),
+                            nrow = 3, ncol = 2,
+                            layout_matrix = rbind(c(1,1), c(2,3), c(4,5)),
+                            vp = viewport(height = unit(0.6, "npc"),
                                           y = 0, x = 0,
                                           just = c("left", "bottom")),
                             top = textGrob("(b)", x = 0, hjust = 0,
@@ -798,10 +802,16 @@ focal_comm_p <- arrangeGrob(textGrob("Ameliorative axis", rot = 90, vjust = 1),
 
 
 
+
+
 comm_p <- function() {
     grid.newpage()
-    arrangeGrob(grobs = comms_d_p_list, left = "Scaled community size",
-                vp = viewport(height = unit(0.5, "npc"),
+    arrangeGrob(ggarrange(plots = comms_d_p_list, draw = FALSE,
+                          left = textGrob("Scaled community size", y = 0.55,
+                                          vjust = 0.7, rot = 90), clip = "off"),
+                top = textGrob("(a)", x = 0, hjust = 0,
+                               gp = gpar(fontsize = 14)),
+                vp = viewport(height = unit(0.4, "npc"),
                               y = 1, x = 0,
                               just = c("left", "top"))) %>%
         grid.draw()
@@ -810,7 +820,7 @@ comm_p <- function() {
 }
 
 
-if (.RESAVE_PLOTS) save_plot(comm_p, 4, 7, .prefix = "3-")
+if (.RESAVE_PLOTS) save_plot(comm_p, 5, 7, .prefix = "3-")
 
 # ... Fig S1: `r` for tradeoffs across axis space----
 #'
@@ -819,7 +829,7 @@ if (.RESAVE_PLOTS) save_plot(comm_p, 4, 7, .prefix = "3-")
 #' are overall greater across this range.
 #'
 tradeoffs_r_p <- crossing(v1 = round(seq(0, 3, 0.01), 2), v2 = v1,
-         e = c(-1,0,1)*0.6) %>%
+                          e = c(-1,0,1)*0.6) %>%
     mutate(M = { formals(quant_gen)$r0 - formals(quant_gen)$f *
             (v1^2 + 2 * e * v1 * v2 + v2^2) } %>%
         exp() %>%
@@ -830,7 +840,7 @@ tradeoffs_r_p <- crossing(v1 = round(seq(0, 3, 0.01), 2), v2 = v1,
     # summarize(M = mean(M))
     ggplot(aes(v1, v2, fill = M)) +
     geom_raster(interpolate = FALSE) +
-    geom_contour(aes(z = M)) +
+    # geom_contour(aes(z = M)) +
     facet_wrap(~ e) +
     xlab("Neutral axis 1") +
     ylab("Neutral axis 2") +
