@@ -105,8 +105,6 @@ public:
                  const double& min_N,
                  const double& sigma_N,
                  const std::vector<double>& sigma_V,
-                 const std::vector<double>& mu_V,
-                 const bool& lnorm_V,
                  pcg64& eng) {
 
         uint32_t current_n = V.size(); // current # species (`n` is total added)
@@ -151,7 +149,7 @@ public:
          Then include additive genetic variance when adding to trait values.
          Also add stochasticity to phenotypes if necessary.
          */
-        change_V(sigma_V, mu_V, lnorm_V, eng);
+        change_V(sigma_V, eng);
 
         /*
          Remove extinct clones (starting at the back):
@@ -225,16 +223,10 @@ private:
 
 
     inline void change_V(const std::vector<double>& sigma_V,
-                         const std::vector<double>& mu_V,
-                         const bool& lnorm_V,
                          pcg64& eng) {
         for (uint32_t j = 0; j < q; j++) {
             if (sigma_V[j] > 0) {
-                if (lnorm_V) {
-                    change_V_lnorm(sigma_V, mu_V, j, eng);
-                } else {
-                    change_V_norm(sigma_V, j, eng);
-                }
+                change_V_lnorm(sigma_V, j, eng);
             } else {
                 change_V_determ(j);
             }
@@ -243,7 +235,6 @@ private:
     }
 
     inline void change_V_lnorm(const std::vector<double>& sigma_V,
-                               const std::vector<double>& mu_V,
                                const uint32_t& j,
                                pcg64& eng) {
         for (uint32_t i = 0; i < V.size(); i++) {
@@ -251,18 +242,7 @@ private:
             if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
             Vp[i][j] = V[i][j];
             // including stochasticity:
-            Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V[j] + mu_V[j]);
-        }
-        return;
-    }
-
-    inline void change_V_norm(const std::vector<double>& sigma_V,
-                              const uint32_t& j,
-                              pcg64& eng) {
-        for (uint32_t i = 0; i < V.size(); i++) {
-            V[i][j] += (add_var[i] * ss_mat(j,i));
-            if (V[i][j] < 0) V[i][j] = 0; // <-- keeping traits >= 0
-            Vp[i][j] = trunc_rnorm_(V[i][j], sigma_V[j], eng);
+            Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V[j]);
         }
         return;
     }

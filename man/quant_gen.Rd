@@ -22,8 +22,6 @@ quant_gen(
   spp_gap_t = 500L,
   final_t = 5000L,
   min_N = 1,
-  adjust_mu_V = FALSE,
-  lnorm_V = TRUE,
   save_every = 10L,
   show_progress = TRUE,
   n_threads = 1
@@ -74,15 +72,6 @@ specified in \code{V0}.}
 \item{final_t}{Length of final time period where all species are together.}
 
 \item{min_N}{Minimum N that's considered extant.}
-
-\item{adjust_mu_V}{Logical for whether to adjust the mean of the lognormal
-distribution that creates stochasticity in axis values so that
-the mean of the transformed distribution (i.e.,
-\code{exp(~ N(mu, sigma_V))}) is 1.}
-
-\item{lnorm_V}{Logical for whether the distribution for stochasticity in
-evolution should be lognormal. The alternative is a normal distribution.
-Defaults to \code{TRUE}.}
 
 \item{save_every}{Number of time steps between when saving information for output.}
 
