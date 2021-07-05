@@ -105,7 +105,6 @@ public:
                  const double& min_N,
                  const double& sigma_N,
                  const std::vector<double>& sigma_V,
-                 const bool& phenos,
                  pcg64& eng) {
 
         uint32_t current_n = V.size(); // current # species (`n` is total added)
@@ -150,7 +149,7 @@ public:
          Then include additive genetic variance when adding to trait values.
          Also add stochasticity to phenotypes if necessary.
          */
-        change_V(sigma_V, phenos, eng);
+        change_V(sigma_V, eng);
 
         /*
          Remove extinct clones (starting at the back):
@@ -224,11 +223,10 @@ private:
 
 
     inline void change_V(const std::vector<double>& sigma_V,
-                         const bool& phenos,
                          pcg64& eng) {
         for (uint32_t j = 0; j < q; j++) {
             if (sigma_V[j] > 0) {
-                change_V_lnorm(sigma_V, phenos, j, eng);
+                change_V_lnorm(sigma_V, j, eng);
             } else {
                 change_V_determ(j);
             }
@@ -237,7 +235,6 @@ private:
     }
 
     inline void change_V_lnorm(const std::vector<double>& sigma_V,
-                               const bool& phenos,
                                const uint32_t& j,
                                pcg64& eng) {
         for (uint32_t i = 0; i < V.size(); i++) {
@@ -246,7 +243,6 @@ private:
             Vp[i][j] = V[i][j];
             // including stochasticity:
             Vp[i][j] *= std::exp(rand_norm(eng) * sigma_V[j]);
-            if (!phenos) V[i][j] = Vp[i][j];
         }
         return;
     }

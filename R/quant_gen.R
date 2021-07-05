@@ -5,7 +5,7 @@
 #
 #
 check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
-                                 sigma_V0, sigma_N, sigma_V, phenos, n_reps,
+                                 sigma_V0, sigma_N, sigma_V, n_reps,
                                  spp_gap_t, final_t, min_N,
                                  save_every, show_progress, n_threads) {
 
@@ -18,7 +18,6 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
                           save_every, n_threads),
                      length) == 1)
     stopifnot(length(sigma_V) %in% c(1, q))
-    stopifnot(length(phenos) == 1 && is.logical(phenos))
     if (!is.null(V0)) {
         stopifnot(is.numeric(V0))
         stopifnot(inherits(V0, "matrix") || length(V0) %in% c(1, q))
@@ -62,7 +61,7 @@ check_quant_gen_args <- function(eta, d, q, n, V0, N0, f, a0, r0, add_var,
 # Turns the raw output from `quant_gen_cpp` into a `quant_gen` object
 #
 #
-get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V, phenos) {
+get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V) {
 
     type_fmt <- "([[:alnum:]]+)_([[:digit:]]+)"
 
@@ -97,7 +96,7 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V, phenos) {
             arrange(rep, spp, axis) %>%
             mutate(across(c(geno, pheno), ~ ifelse(is.nan(.x), NA_real_, .x)))
     }
-    if (all(sigma_V <= 0) || !phenos) {
+    if (all(sigma_V <= 0)) {
         qg <- select(qg, -pheno)
     }
 
@@ -120,9 +119,6 @@ get_quant_gen_output <- function(qg, call_, save_every, q, n, sigma_V, phenos) {
 #'     specified in `V0`.
 #' @param sigma_N Standard deviation for stochasticity in population dynamics.
 #' @param sigma_V Standard deviation for stochasticity in axis evolution.
-#' @param phenos Logical for whether axis evolution stochasticity produces
-#'     phenotypes or whether it just adds variance to the genotype directly.
-#'     Defaults to `TRUE`.
 #' @param add_var Vector of additive genetic variances for all starting species.
 #' @param spp_gap_t Time period between each species introduction.
 #' @param n_threads Number of cores to use. Defaults to 1.
@@ -157,7 +153,6 @@ quant_gen <- function(eta, d, q,
                       sigma_V0 = 1,
                       sigma_N = 0,
                       sigma_V = 0,
-                      phenos = TRUE,
                       n_reps = 10,
                       spp_gap_t = 500L,
                       final_t = 5e3L,
@@ -174,7 +169,7 @@ quant_gen <- function(eta, d, q,
 
 
     args <- check_quant_gen_args(eta, d, q, n, V0, N0, f, a0, r0, add_var,
-                                 sigma_V0, sigma_N, sigma_V, phenos, n_reps,
+                                 sigma_V0, sigma_N, sigma_V, n_reps,
                                  spp_gap_t, final_t, min_N,
                                  save_every, show_progress, n_threads)
 
@@ -214,7 +209,6 @@ quant_gen <- function(eta, d, q,
                         sigma_V0 = sigma_V0,
                         sigma_N = sigma_N,
                         sigma_V = sigma_V,
-                        phenos = phenos,
                         spp_gap_t = spp_gap_t,
                         final_t = final_t,
                         min_N = min_N,
@@ -223,7 +217,7 @@ quant_gen <- function(eta, d, q,
                         n_threads = n_threads)
 
 
-    qg_obj <- get_quant_gen_output(qg, call_, save_every, q, n, sigma_V, phenos)
+    qg_obj <- get_quant_gen_output(qg, call_, save_every, q, n, sigma_V)
 
     return(qg_obj)
 }
