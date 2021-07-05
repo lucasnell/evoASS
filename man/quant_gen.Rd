@@ -18,6 +18,7 @@ quant_gen(
   sigma_V0 = 1,
   sigma_N = 0,
   sigma_V = 0,
+  phenos = TRUE,
   n_reps = 10,
   spp_gap_t = 500L,
   final_t = 5000L,
@@ -64,6 +65,10 @@ specified in \code{V0}.}
 \item{sigma_N}{Standard deviation for stochasticity in population dynamics.}
 
 \item{sigma_V}{Standard deviation for stochasticity in axis evolution.}
+
+\item{phenos}{Logical for whether axis evolution stochasticity produces
+phenotypes or whether it just adds variance to the genotype directly.
+Defaults to \code{TRUE}.}
 
 \item{n_reps}{Number of reps to perform.}
 

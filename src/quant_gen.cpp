@@ -921,6 +921,7 @@ void one_quant_gen__(int& status,
                      const double& sigma_V0,
                      const double& sigma_N,
                      const std::vector<double>& sigma_V,
+                     const bool& phenos,
                      const uint32_t& spp_gap_t,
                      const uint32_t& final_t,
                      const double& min_N,
@@ -945,6 +946,7 @@ void one_quant_gen__(int& status,
                 Vp0[i][j] = V0[i][j];
                 if (sigma_V[j] > 0) {
                     Vp0[i][j] *= std::exp(distr(eng) * sigma_V[j]);
+                    if (!phenos) V0[i][j] = Vp0[i][j];
                 }
             }
         }
@@ -959,6 +961,7 @@ void one_quant_gen__(int& status,
             if (sigma_V[j] > 0) {
                 for (uint32_t i = 0; i < n; i++) {
                     Vp0[i][j] *= std::exp(distr(eng) * sigma_V[j]);
+                    if (!phenos) V0[i][j] = Vp0[i][j];
                 }
             }
         }
@@ -1009,7 +1012,7 @@ void one_quant_gen__(int& status,
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, D, min_N,
-                                sigma_N, sigma_V, eng);
+                                sigma_N, sigma_V, phenos, eng);
 
         // Add new species if necessary:
         new_spp = (t + 1) == (info.n * spp_gap_t);
@@ -1053,7 +1056,7 @@ void one_quant_gen__(int& status,
 
         // Update abundances and traits:
         all_gone = info.iterate(f, a0, C, r0, D, min_N,
-                                sigma_N, sigma_V, eng);
+                                sigma_N, sigma_V, phenos, eng);
 
         if (save_every > 0 &&
             (t % save_every == 0 || (t+1) == final_t || all_gone)) {
@@ -1100,6 +1103,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
                         const double& sigma_V0,
                         const double& sigma_N,
                         const std::vector<double>& sigma_V,
+                        const bool& phenos,
                         const uint32_t& spp_gap_t,
                         const uint32_t& final_t,
                         const double& min_N,
@@ -1163,7 +1167,7 @@ arma::mat quant_gen_cpp(const uint32_t& n_reps,
         eng.seed(seeds[i][0], seeds[i][1]);
         one_quant_gen__(status,
                         rep_infos[i], V0, Vp0, N0, f, a0, C, r0, D,
-                        add_var, sigma_V0, sigma_N, sigma_V,
+                        add_var, sigma_V0, sigma_N, sigma_V, phenos,
                         spp_gap_t, final_t, min_N,
                         save_every, eng, prog_bar);
 
