@@ -870,10 +870,14 @@ if (.RESAVE_PLOTS) save_plot(tradeoffs_r_p, 6, 2.5, .prefix = "S1-")
 
 
 
-stab_sims <- function(n_lower, d1, d2, .n = 10) {
+stab_sims <- function(.dd, .n = 10) {
 
-    # n_lower = 4; d1 = -0.1; d2 = 0.5
-    # rm(n_lower, d1, d2, .n, .V0_0, sim0, L, X)
+    n_lower <- .dd$n_lower
+    d1 <- .dd$d1
+    d2 <- .dd$d2
+
+    # n_lower = 9; d1 = -1; d2 = 0; .n = 10
+    # rm(.dd, n_lower, d1, d2, .n, .V0_0, sim0, L, X)
 
     stopifnot(n_lower <= .n && n_lower >= 0)
 
@@ -890,6 +894,12 @@ stab_sims <- function(n_lower, d1, d2, .n = 10) {
     sim0$call$d <- c(d1, d2)
     sim0$call$n <- .n
 
+    out <- mutate(.dd, V1 = NA_real_, V2 = NA_real_,
+                  O = NA_real_, O_c = NA_real_, O_a = NA_real_,
+                  V = list(NA),
+                  N = list(NA))
+    if (any(is.na(sim0$nv$geno)) || length(unique(sim0$nv$spp)) < .n) return(out)
+
     # stable?
     L <- sim0 %>%
         jacobians() %>%
@@ -898,39 +908,45 @@ stab_sims <- function(n_lower, d1, d2, .n = 10) {
         .[["values"]] %>%
         Re() %>%
         max()
-    if (L >= 1) return(rep(NA_real_, 3))
+    if (L >= 1) return(out)
 
     X <- sim0 %>%
         .[["nv"]] %>%
         pivot()
 
-    O <- map_dbl(1:nrow(X),
-                 ~ X$N[.x] * exp(- d1 * X$V1[.x]^2 - d2 * X$V2[.x]^2)) %>%
-        sum()
+    # Vector of `N_j * exp(v_i^T * D * v_i)`
+    O_vec <- map_dbl(1:nrow(X),
+                 ~ X$N[.x] * exp(- d1 * X$V1[.x]^2 - d2 * X$V2[.x]^2))
 
+    if (n_lower == 0) O_conf <- NA_real_ else O_conf <- sum(O_vec[-1])
+    if (n_lower == .n) O_amel <- NA_real_ else O_amel <- sum(O_vec[-.n])
 
-    V <- X %>%
+    .V <- X %>%
         select(V1, V2) %>%
         map_dbl(max)
 
-    return(c(V, Omega = O))
+    mutate(out,
+           V1 = .V[[1]], V2 = .V[[2]],
+           O = sum(O_vec), O_c = O_conf, O_a = O_amel,
+           V = list(t(X[,c("V1", "V2")])),
+           N = list(X$N))
 }
 
-# Takes ~ 20 sec
+# Takes ~ 16 sec
 stab_sim_df <- crossing(n_lower = 0:formals(stab_sims)$.n,
                         d1 = - c(0, 0.1, 0.5, 1),
                         d2 = abs(d1)) %>%
-    mutate(Z = mcmapply(stab_sims, n_lower, d1, d2,
-                         SIMPLIFY = FALSE, mc.cores = .N_THREADS)) %>%
-    mutate(V1 = map_dbl(Z, ~ .x[1]),
-           V2 = map_dbl(Z, ~ .x[2]),
-           O = map_dbl(Z, ~ .x[3])) %>%
-    select(-Z)
+    split(1:nrow(.)) %>%
+    mclapply(stab_sims) %>%
+    do.call(what = bind_rows)
+
 
 # Should all be zero:
-stab_sim_df %>% filter(is.na(V1))
-stab_sim_df %>% filter(is.na(V2))
-stab_sim_df %>% filter(is.na(O))
+stab_sim_df %>% filter(is.na(V1)) %>% nrow()
+stab_sim_df %>% filter(is.na(V2)) %>% nrow()
+stab_sim_df %>% filter(is.na(O)) %>% nrow()
+stab_sim_df %>% filter(is.na(O_c), n_lower > 0) %>% nrow()
+stab_sim_df %>% filter(is.na(O_a), n_lower < 10) %>% nrow()
 
 
 
@@ -1233,8 +1249,8 @@ stoch_comm_V_plotter <- function(.s, .sims) {
         ggplot(aes(V1, V2, color = spp)) +
         geom_abline(slope = 1, intercept = 0,
                     linetype = 2, color = "gray70") +
-        geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
-        geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
+        # geom_hline(yintercept = 0, linetype = 1, color = "gray70") +
+        # geom_vline(xintercept = 0, linetype = 1, color = "gray70") +
         geom_path() +
         geom_point(data = .sims %>%
                        filter(time == 0, rep == 1, d1 == median(d1),
@@ -1443,16 +1459,16 @@ stoch_super_comm_p <- stoch_comm_p_combiner(stoch_super_V_p_list,
 # Takes ~10 sec
 set.seed(489421325)
 stoch_sub_sims <- crossing(.eta = -1e-2,
-                           .sigma_V = list(list(c(0.05, 0.05)),
-                                           list(c(0.05, 0.20)),
-                                           list(c(0.20, 0.05))),
+                           .sigma_V = list(list(c(0.1, 0.1)),
+                                           list(c(0.1, 0.20)),
+                                           list(c(0.20, 0.1))),
                            .d_mults = 1) %>%
     pmap_dfr(one_stoch_sim) %>%
     select(-eta) %>%
     mutate(sigma_v1 = map_dbl(sigma_V, ~ .x[1]),
            sigma_v2 = map_dbl(sigma_V, ~ .x[2]),
            sigma_V = paste(sigma_v1, sigma_v2, sep = "__") %>%
-               factor(levels = c("0.05__0.05", "0.05__0.2", "0.2__0.05")))
+               factor(levels = c("0.1__0.1", "0.1__0.2", "0.2__0.1")))
 
 
 stoch_sub_V_p_list <- map(sort(unique(stoch_sub_sims$sigma_V)),
@@ -1462,9 +1478,9 @@ stoch_sub_O_p_list <- map(sort(unique(stoch_sub_sims$sigma_V)),
 
 stoch_sub_comm_p <- stoch_comm_p_combiner(stoch_sub_V_p_list,
                                           stoch_sub_O_p_list,
-                                          rbind(c(0.05, 0.05),
-                                                c(0.05, 0.20),
-                                                c(0.20, 0.05)))
+                                          rbind(c(0.10, 0.10),
+                                                c(0.10, 0.20),
+                                                c(0.20, 0.10)))
 
 # grid.newpage(); grid.draw(stoch_sub_comm_p)
 
@@ -1488,6 +1504,8 @@ stoch_p <- function() {
     invisible(NULL)
 }
 
+# stoch_p()
+
 if (.RESAVE_PLOTS) save_plot(stoch_p, 6, 6, .prefix = "5-")
 
 
@@ -1503,11 +1521,11 @@ if (.RESAVE_PLOTS) save_plot(stoch_p, 6, 6, .prefix = "5-")
 
 # Takes ~7 sec
 set.seed(1412303795)
-alt_stoch_super_sims <- crossing(.eta = 1e-2,
-                                .sigma_V = c(0.05, 0.1, 0.2),
-                                .d_mults = 1,
-                                V0 = list(cbind(c(0.2, 1), c(0.6, 0.7),
-                                                c(1, 0.2), c(0.5, 0.6)))) %>%
+alt_stoch_super_sims <- tibble(.eta = 1e-2,
+                               .sigma_V = c(0.05, 0.1, 0.2),
+                               .d_mults = 1,
+                               V0 = list(cbind(c(0.2, 1), c(0.6, 0.7),
+                                               c(1, 0.2), c(0.5, 0.6)))) %>%
     pmap_dfr(one_stoch_sim) %>%
     select(-eta)
 
